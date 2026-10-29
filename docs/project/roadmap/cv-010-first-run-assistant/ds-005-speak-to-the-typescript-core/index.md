@@ -186,8 +186,8 @@ including any Navigator check, is met.
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
-| 2 · The embedded host | 🟠 Implemented | All six slices (2a–2f) are built. 2a–2e passed the Navigator's check (the first end-to-end 0.3 turn). 2f-1 ships the pinned runtime inside the app and makes the preflight and release path Python-free. 2f-2 removes the Python binding and DS-001 discovery. Owed for Done: the Navigator's check of a packaged build. |
-| 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
+| 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29. Five decisions are open for the Navigator. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -1857,3 +1857,157 @@ All six slices are built. **For Done, the Navigator's check of a packaged build 
 2. open it on the bound home;
 3. send a turn, which now uses the runtime inside the app;
 4. see that the launch screen still binds a home.
+
+## Phase 2 Done — Navigator Check of a Packaged Build (2026-10-29)
+
+The Navigator built the TS Dev app (`npm run tauri:build:dev -- --bundles app`, 14:35 local), opened it
+on `~/mirror-ts-homes/ana`, and reported that the test worked.
+
+Read afterwards, read-only, from that home's database:
+
+- "New Conversation #1" went from 2 to 4 messages; the new exchange was written at 17:36:32 UTC
+  (14:36 local), a minute after the build. The home holds 3 user and 3 assistant messages.
+- No `mirror-append-failures.jsonl` in the TS Dev app data.
+- **The rename is not visible in the database.** Both Conversations keep their earlier titles, so
+  either no rename was saved or it was renamed back. Rename goes through the same host and runtime
+  as the append, which is evidenced; it is recorded here as not evidenced, not as failed.
+
+Production afterwards: binary `303ede287de3…`, migration 016.
+
+## Phase 3 Plan — The First-Run Assistant on 0.3 (2026-10-29)
+
+**Outcome.** On a macOS account with no Mirror and no Pi, a person opens Mirror Desktop TS and,
+without a terminal, reaches a first answered turn in a Journey, with Mirror's context before the
+model: a home is created and marked, Pi is installed, a model provider is connected, and the
+OpenRouter key Mirror's context needs is taken.
+
+### Measured before planning
+
+- **Home creation already exists in Core.** `createHome` (CV24.DS4) copies the identity templates
+  with the person's name, migrates to current and seeds identity, personas and Journeys, all or
+  nothing, writing nothing outside the target. What Desktop adds is the 0.3 marker. Today
+  `dev_ts_home.mjs` writes it **after** `createHome` renames the home into place, so a failure in
+  between leaves an unmarked home: safe (the host refuses it), but a stuck state the assistant must
+  name and recover.
+- **Pi.** The installed package is `@earendil-works/pi-coding-agent` 1.4.0 (not
+  `@mariozechner/…`, whose last version is 0.73.1). It is about 149 MB installed, 123 MB of it
+  dependencies, and needs Node `>=22.19.0`; the pinned Node 24.22.2 satisfies it. Today Desktop
+  finds Pi in the trusted tool directories, paired with a `node` beside it.
+- **Provider readiness.** `pi auth check --provider <id> --json --no-refresh` answers
+  `{"status":"ready","provider":"openai-codex","authType":"oauth"}` without the credential.
+- **Login without a terminal.** Pi's CLI has no login command; `/login` is interactive. Pi's SDK has
+  `ModelRuntime.login(providerId, type, interaction, options)`, with callbacks for the browser step
+  and a prompt (`AuthInteraction`), storing the credential in Pi's own `auth.json`. A small Node
+  process using the installed Pi's SDK can drive it, the way the Mirror host drives Core.
+- **Mirror's context.** On the terminal, Mirror's Pi extension calls `mirror doorman --prompt …
+  --session-id …` before every turn and adds the printed block as a hidden user-role message
+  (`customType: "mirror-context"`); it also appends Mirror's operating instructions (`AGENTS.md`)
+  when Pi did not load them. The doorman decides on a read-only handle and, for a `full` or `delta`
+  turn, needs providers: an LLM for reception and embeddings for search, both through
+  `OPENROUTER_API_KEY`. **The doorman is not in `mirror-mind/desktop`**, so this needs a Core slice.
+- **Where Core reads the key.** `OPENROUTER_API_KEY` from the environment, falling back to
+  `~/.config/mirror/env`, which every `mirror` and `mirror-hook` process on the machine reads. The
+  host runs with an empty environment and must never write that file (decision `f172a534`).
+
+### Slices
+
+**3a · Create a home in the app (DS-003 on 0.3).**
+
+- The unbound screen offers **Create your Mirror** (a name, a place) and **Open an existing Mirror
+  home** (today's picker).
+- The host gains `createMarkedHome`: it calls `createHome` into a staging name beside the target,
+  writes the marker inside it, and renames it into place, so a home appears marked or not at all.
+  This removes the window `dev_ts_home.mjs` has; that script then calls the same method.
+- Refusals in plain words: an existing target, a path under `~/.mirror-minds`, an invalid name,
+  templates or seed failing. Then the app binds the home and loads its Journeys, as 2d-1 does.
+
+**3b · Install Pi (DS-002 on 0.3).**
+
+- A pinned Pi: version, and a lockfile with integrity for every dependency, vendored like the core
+  tarball and checked by `mirror_host_pin.mjs verify`.
+- Installed per decision 2 into an app-owned folder, with visible progress, resumable, all or nothing
+  (staging and rename), and a log without secrets.
+- `pi_toolchain.rs` prefers the app-owned Pi, run with the bundled Node. The trusted search path
+  stays only if decision 2 keeps an existing Pi.
+
+**3c · Connect the providers (DS-004 on 0.3).**
+
+- Model provider: the assistant shows each provider's readiness from `pi auth check --json
+  --no-refresh` and offers Pi's own login through a small auth process on Pi's SDK. OAuth opens the
+  browser; API keys are typed once and handed to Pi (decision 3). Desktop never reads a credential
+  back.
+- OpenRouter for Mirror's context: taken once, stored per decision 4, and given to the host only on
+  calls that need a provider.
+- Then the existing "Choose your model" step, fed by the model catalog.
+
+**3d · Mirror's context before the model.**
+
+- **Core:** a CV24 slice, DS6, on the same branch. `deliverMirrorContext({dbPath, prompt,
+  sessionId}, {apiKey})` returns the doorman's block, or nothing, and records the delivery as the
+  CLI does. It reads no environment, and refuses plainly without a key when a provider is needed.
+  `mirror-mind/desktop` exports it, and the pin moves to the new commit.
+- **Desktop:** before each mediated turn, the app asks the host for the block and gives it to Pi as
+  the hidden `mirror-context` message the terminal gives. It also adds Mirror's operating
+  instructions. Which Pi mechanism carries the block (an RPC message before the prompt, or a small
+  Desktop-owned Pi extension) is measured at the start of 3d.
+- **Bounds:** the context call has its own deadline. A timeout or a refusal sends the turn without
+  context and says so; it never blocks the turn.
+
+### Files (expected)
+
+- `mirror-host/host.mjs` (`createMarkedHome`, `deliverMirrorContext`), `mirror-host/pin.json`, the
+  vendored tarballs.
+- `scripts/mirror_host_pin.mjs` (Pi pin), `scripts/dev_ts_home.mjs` (calls the host method).
+- `src-tauri/src/mirror_host_bridge.rs`, `mirror_home.rs`, `pi_toolchain.rs`, a new `pi_install.rs`
+  and a Pi auth process beside the host, `main.rs` (turn path).
+- `src/app/MirrorHomeSetup.tsx` and new first-run steps, `App.tsx` (onboarding sequence).
+- Core (`mirror-ts`, branch `desktop/library-seam-1a`): the doorman as a library function, its
+  tests, and `lib/desktop.js`.
+
+### Acceptance
+
+1. On the clean `mirror` macOS account, a locally built TS app (opened through Finder's Open, no
+   terminal) goes from launch to a first answered turn in a Journey of a new home.
+2. That turn carried Mirror's context: the home's database records the doorman delivery, and the
+   answer was given with it.
+3. Nothing was written outside the new home, the app's data folder, the app-owned Pi folder and
+   Pi's own `~/.pi/agent` credentials. In particular, nothing in `~/.config/mirror`, `~/.mirror-minds`
+   or the production checkout.
+4. Each failure on the way (no network, a refused key, a cancelled login, a killed install, an
+   interrupted home creation) leaves a state the assistant names and can resume.
+5. The Navigator's own account is unchanged: production binary and migration, the 0.2 Dev data.
+
+### Validation
+
+- Tests per slice, with mutation controls, as in phases 1 and 2. Core's CI must be green on the new
+  pin.
+- Real-host tests for `createMarkedHome` and `deliverMirrorContext`, the latter against a provider
+  fixture, never a real key in tests.
+- The Navigator's check on the clean `mirror` account (acceptance 1–4) and on his own (5).
+
+### Exclusions
+
+- Signing and notarization (CV-009). Without it, the clean account opens the app through Finder's
+  Open.
+- Memory extraction and the rest of the terminal extension's session lifecycle (welcome card,
+  extraction at session start). Phase 4 decides which return.
+- Journey administration, Canvas and terminal recall: still "not available".
+- Migration of any existing home, Python or TypeScript (phase 5).
+- A universal (arm64 + x64) build.
+
+### Decisions for the Navigator
+
+1. **Where a created home goes by default.** Recommendation: `~/Mirror/<name>`, visible in Finder,
+   with "Choose another place". Not `~/.mirror-minds`, which belongs to the Python homes.
+2. **How Pi arrives.** Recommendation: installed at first run, pinned and integrity-checked, into the
+   app's own folder, and always that one on 0.3. This keeps the app about 48 MB to download, against
+   about 100 MB if Pi is bundled. An existing Pi on the machine is not used; its credentials in
+   `~/.pi/agent` are, since that is where Pi keeps them.
+3. **API keys typed in the app.** Recommendation: typed once and handed straight to Pi's own login,
+   which stores them. Desktop keeps no copy and never shows one back. This refines the CV-010 rule
+   "Desktop reads readiness, never secret values".
+4. **Where the OpenRouter key for Mirror's context lives.** Recommendation: the macOS Keychain,
+   under the app's identity, given to the host only per call. The alternative is a 0600 file inside
+   the home's `.mirror-desktop/`. Never `~/.config/mirror/env`.
+5. **The doorman in Core.** Recommendation: a CV24.DS6 slice on the same unmerged branch, with the
+   pin moving to its commit. The phase-1 merge and Core release then carry six slices, not five.
