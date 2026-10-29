@@ -186,7 +186,7 @@ including any Navigator check, is met.
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
-| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a–2d are built: every Mirror operation the 0.3 build carries goes through the host, and nothing spawns Python. Owed: 2e (the turn-path test), 2f (bundling and preflight). |
+| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a–2e are built: every Mirror operation goes through the host, nothing spawns Python, and every Pi turn runs isolated in the 0.3 home. Owed: 2f (bundling, preflight, removal of the dead Python binding code). |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
@@ -1559,3 +1559,85 @@ preflight.
   - the development-channel check shows only the old warning;
   - the pin verifies, and the roadmap reads READY.
 - **Production:** binary `303ede287de3…`, migration 016.
+
+## Phase 2 Slice 2e Built — Pi Isolated on the Turn Path (2026-10-29)
+
+### A defect found by reading the turn path
+
+The turn found by reading would have failed **every** Mirror-mediated turn on the 0.3 line, and
+`mirror` is the default invocation mode. 2d-2's record said turns would now work; for this reason,
+they would not have.
+
+- **Why it fails.** Before spawning Pi, the turn called a function that loaded Mirror's Pi skills
+  from `<mirror_root>/.pi/skills`. On the 0.3 line, `mirror_root` is the home itself. A 0.3 home has
+  no `.pi` folder: `~/mirror-ts-homes/ana` holds only `.mirror-desktop`, `identity` and the database.
+  So the turn would have ended with "Mirror core skills are unavailable." before Pi started.
+- **Why nobody saw it.** No turn had been sent yet: the TS Dev app data holds no `turn-journal`.
+- **Why the skills cannot simply be found elsewhere.** Those skills are the Python Mirror's, and
+  they drive `uv run python -m memory` against `MIRROR_HOME`.
+
+**The fix.** Mediated turns on the 0.3 line load no Mirror skills. Mirror's context reaches Pi again
+in phase 3, through the host.
+
+### A second gap: the raw mode
+
+The raw (non-mediated) invocation mode, and the raw compaction, built Pi's command **without the
+profile**. They inherited the environment of whatever launched the app. The Navigator's shell exports
+production's `MIRROR_HOME` and `MIRROR_USER`, so a raw turn would have run with production's
+coordinates.
+
+### What changed
+
+- **One constructor for every Pi turn and compaction.** `pi_turn_command` builds them, through
+  `isolate_pi_command`, in every mode.
+  - **Isolation.** `cwd` is the bound 0.3 home. `MIRROR_HOME`, `MIRROR_USER`, `DB_PATH` and the
+    Python variables are removed, and `PATH` is the trusted one.
+  - **Raw mode needs a home too.** Raw mode now needs a bound home, as mediated mode already did.
+- **`mediated_turn_flags`.** It adds `--approve`, `--no-extensions`, and the global extensions,
+  named explicitly.
+- **The global extension resolver** now refuses the `mirror-mind` package whole. Its only declared
+  extension is the conversation writer, which was already refused, but it also declares skills.
+- **Removed.** The Python skill loader, and its reading of the home's external-skill catalog.
+
+### What the other Pi spawns already did
+
+Provisioning, title suggestion and the model catalog already go through `runtime_command("pi")`,
+which uses the same isolation since 2d-1. Provisioning and title suggestion also pass
+`--no-extensions`.
+
+### Evidence
+
+- **A real spawn.** A `/bin/sh` child was built through `isolate_pi_command` from a base command
+  that carried `MIRROR_HOME` and `DB_PATH`, as an inherited environment would. Its `pwd` printed the
+  0.3 home, and its `env` held no Mirror or Python variable.
+- **New tests:** 3 in Rust (the isolation and source census, the mediated flags, the Mirror package
+  refusal). `mirrorMediatedInvocation.test.ts` was updated.
+- **Six mutations, each caught:**
+  - the constructor not isolating;
+  - raw mode bypassing it;
+  - a skill flag back;
+  - no `--no-extensions`;
+  - the Mirror package accepted;
+  - `MIRROR_HOME` not removed.
+
+  **Raw mode bypassing the constructor is caught only by the source census, not by behaviour.**
+  The turn body is not callable from a test without a running app.
+- **Gates:**
+  - vitest: 280 files, 2,335 tests;
+  - tsc: clean;
+  - build: passes;
+  - cargo `--locked`: 414 passed, 5 ignored, in 5 of 5 runs after the stall below;
+  - the real-host tests pass;
+  - the roadmap reads READY.
+- **One gate run stalled.** It exceeded 50 minutes inside the compiler. The log shows "Compiling"
+  and nothing after it, so no test ran. Five later runs finished in about 22 s each. The cause is
+  not known.
+- **Production:** binary `303ede287de3…`, migration 016.
+
+### Still owed by the Navigator's check
+
+The real turn in the TS Dev app, after this fix:
+
+1. send a turn;
+2. see it answered;
+3. see it recorded in the 0.3 home.
