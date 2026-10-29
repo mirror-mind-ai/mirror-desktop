@@ -7,7 +7,7 @@
 | **Linha 0.3 · Mirror Desktop TS · `main`** | 🔄 em construção · 0.3.0-alpha.0 · nada publicado · canal `/ts/` ainda não existe no servidor | `██░░░░░░░░` 1 ✅ · 1 🟠 · 4 🟡 · de 6 fases |
 | ↳　Fase 0 · Separar | ✅ Done · aceita por você em 28/10 · pasta 0.2 Dev intacta | `██████████` |
 | ↳　Fase 1 · Costura de biblioteca no Core | 🟠 Implemented · CV24.DS1–DS5 construídas, CI do Core verde · 15 nomes em `mirror-mind/desktop` · falta merge e release do Core | `░░░░░░░░░░` |
-| ↳　Fase 2 · Host embutido | 🟡 Planned · 2a–2e construídas: Pi isolado no home 0.3 em todo modo · defeito achado: todo turno falharia sem skills Python, corrigido · falta 2f (pacote, preflight, limpeza) | `░░░░░░░░░░` |
+| ↳　Fase 2 · Host embutido | 🟡 Planned · 2a–2e construídas e testadas por você: primeiro turno 0.3 de ponta a ponta, gravado no home `ana` · falta 2f (pacote, preflight, limpeza) | `░░░░░░░░░░` |
 | ↳　Fase 3 · Assistente de primeiro uso na 0.3 | 🟡 Candidate · DS-002 · DS-003 · DS-004 | `░░░░░░░░░░` |
 | ↳　Fase 4 · Estável | 🟡 Candidate · uso diário em banco próprio · CRs voltam | `░░░░░░░░░░` |
 | ↳　Fase 5 · Migração da produção | 🟡 Candidate · só com sua palavra · backup ensaiado · fim do web console | `░░░░░░░░░░` |

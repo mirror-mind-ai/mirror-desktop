@@ -1641,3 +1641,22 @@ The real turn in the TS Dev app, after this fix:
 1. send a turn;
 2. see it answered;
 3. see it recorded in the 0.3 home.
+
+## Navigator Check of 2d and 2e Passed (2026-10-29)
+
+The Navigator ran the TS Dev app on the bound development home `~/mirror-ts-homes/ana`, created
+Conversations and sent turns, and reported that everything worked.
+
+Read afterwards, read-only, from that home's database (never production's):
+
+- migration `018_drop_hook_injected`, as the pinned core creates it;
+- two Conversations in Journey `personal-growth`, interface `nautilus_harness`: the Journey's
+  generation-1 thread and "New Conversation #1", each with 2 messages;
+- 2 user and 2 assistant messages, the latest carrying the `mirrorAppend` metadata the append
+  contract writes;
+- no `mirror-append-failures.jsonl` in the TS Dev app data.
+
+Production afterwards: binary `303ede287de3…`, migration 016.
+
+This is the first end-to-end 0.3 turn: Pi answered in the 0.3 home, and the outbox delivered the
+turn to Mirror through the pinned host and core, with no Python anywhere on the path.
