@@ -1,14 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  BUNDLE_ENTRIES,
   MIN_NODE_VERSION,
   PLATFORMS,
+  bundleConfig,
+  checkRuntime,
   materializeHost,
+  stageBundle,
   nodeArchiveName,
   readPin,
   sha256File,
@@ -160,6 +164,89 @@ describe("the 0.3 runtime pin", () => {
       fetchArchive: async (_url, destination) => writeFileSync(destination, readFileSync(archive)),
     })).rejects.toThrow(/reports v24\.6\.0, not v24\.99\.0/);
     expect(readdirSync(join(work, "runtime"))).toEqual([]);
+  });
+
+  // Slice 2f: the app carries a staged copy of the runtime, checked against the pin first.
+  async function fakeRuntime(work, platform = "darwin-x64") {
+    const archive = fakeNodeArchive(work, pin.node.version, platform);
+    const realPin = { ...pin, node: { ...pin.node, platforms: { ...pin.node.platforms, [platform]: { ...pin.node.platforms[platform], sha256: sha256File(archive) } } } };
+    const outDir = join(work, "runtime", platform);
+    await materializeHost({
+      root, pin: realPin, platform, outDir, runVersionCheck: false,
+      fetchArchive: async (_url, destination) => writeFileSync(destination, readFileSync(archive)),
+    });
+    writeFileSync(join(outDir, "node", "LICENSE"), "licence\n");
+    mkdirSync(join(outDir, "node", "include"), { recursive: true });
+    writeFileSync(join(outDir, "node", "include", "node.h"), "");
+    return { pin: realPin, platform, outDir };
+  }
+
+  it("stages only what the app needs from a runtime that matches the pin", async () => {
+    const work = mkdtempSync(join(tmpdir(), "mirror-host-stage-"));
+    const { pin: realPin, platform, outDir } = await fakeRuntime(work);
+    expect(checkRuntime({ root, pin: realPin, platform, dir: outDir })).toEqual([]);
+    const bundle = join(work, "bundle", platform);
+    mkdirSync(bundle, { recursive: true });
+    writeFileSync(join(bundle, "stale.txt"), "from an older stage");
+    stageBundle({ root, pin: realPin, platform, runtimeDir: outDir, outDir: bundle });
+    expect(readdirSync(bundle).sort()).toEqual(["host.mjs", "node", "node_modules", "pin-receipt.json"]);
+    expect(readdirSync(join(bundle, "node")).sort()).toEqual(["LICENSE", "bin"]);
+    expect(readdirSync(join(bundle, "node", "bin"))).toEqual(["node"]);
+    expect(statSync(join(bundle, "node", "bin", "node")).mode & 0o111).toBe(0o111);
+    expect(existsSync(join(bundle, "node_modules", "mirror-mind", "lib", "desktop.js"))).toBe(true);
+    expect(readdirSync(join(work, "bundle"))).toEqual([platform]);
+    expect(BUNDLE_ENTRIES).not.toContain("node/include");
+  });
+
+  it("refuses to stage a runtime the pin or the current host no longer describes, and keeps the old stage", async () => {
+    const work = mkdtempSync(join(tmpdir(), "mirror-host-stage-"));
+    const { pin: realPin, platform, outDir } = await fakeRuntime(work);
+    const bundle = join(work, "bundle", platform);
+    stageBundle({ root, pin: realPin, platform, runtimeDir: outDir, outDir: bundle });
+    writeFileSync(join(outDir, "host.mjs"), "// edited after materialize\n");
+    expect(checkRuntime({ root, pin: realPin, platform, dir: outDir })).toEqual(["the runtime's host.mjs is not the one its receipt records"]);
+    expect(() => stageBundle({ root, pin: realPin, platform, runtimeDir: outDir, outDir: bundle })).toThrow(/cannot be bundled/);
+    expect(readFileSync(join(bundle, "host.mjs"), "utf8")).not.toContain("edited");
+    expect(checkRuntime({ root, pin: realPin, platform: "darwin-arm64", dir: outDir })).toContain("the runtime is for darwin-x64, not darwin-arm64");
+    expect(checkRuntime({ root, pin, platform, dir: outDir })).toContain("the runtime's Node archive hash is not the pin's");
+    expect(checkRuntime({ root, pin: realPin, platform, dir: join(work, "nowhere") })[0]).toMatch(/run: node scripts\/mirror_host_pin.mjs materialize/);
+  });
+
+  it("refuses a runtime whose host, though it matches its receipt, is not the repository's current host", async () => {
+    const work = mkdtempSync(join(tmpdir(), "mirror-host-stage-"));
+    const { pin: realPin, platform, outDir } = await fakeRuntime(work);
+    const older = "// the host as it was when this runtime was materialized\n";
+    writeFileSync(join(outDir, "host.mjs"), older);
+    const receiptPath = join(outDir, "pin-receipt.json");
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+    writeFileSync(receiptPath, JSON.stringify({ ...receipt, host: { sha256: sha256(older) } }));
+    expect(checkRuntime({ root, pin: realPin, platform, dir: outDir })).toEqual([
+      "the runtime's host is not the current mirror-host/host.mjs; rematerialize with --replace",
+    ]);
+  });
+
+  it("refuses a symlink inside the runtime", async () => {
+    const work = mkdtempSync(join(tmpdir(), "mirror-host-stage-"));
+    const { pin: realPin, platform, outDir } = await fakeRuntime(work);
+    symlinkSync("/etc/hosts", join(outDir, "node_modules", "yaml", "planted"));
+    expect(() => stageBundle({ root, pin: realPin, platform, runtimeDir: outDir, outDir: join(work, "bundle", platform) })).toThrow(/symlink/);
+    expect(existsSync(join(work, "bundle", platform))).toBe(false);
+    expect(readdirSync(join(work, "bundle"))).toEqual([]);
+  });
+
+  it("ships the staged runtime as Resources/mirror-host in every packaged build, and never in dev", () => {
+    expect(bundleConfig("darwin-arm64")).toEqual({ bundle: { resources: { "../.mirror-host/bundle/darwin-arm64/": "mirror-host/" } } });
+    expect(() => bundleConfig("linux-x64")).toThrow(/unsupported/);
+    const channel = readFileSync(join(root, "scripts", "mirror_desktop_channel.mjs"), "utf8");
+    const alpha = readFileSync(join(root, "scripts", "alpha_build.mjs"), "utf8");
+    expect(channel).toContain("bundledRuntime = prepareBundledBuild(");
+    expect(channel).toContain('if (selected.args[0] === "build") {');
+    expect(channel).toContain("[...selected.args, ...bundledRuntime, ...process.argv.slice(3)]");
+    expect(alpha).toContain("const bundledRuntime = prepareBundledBuild(repositoryRoot);");
+    expect(alpha).toContain('"--config", plan.config, ...bundledRuntime]');
+    for (const config of readdirSync(join(root, "src-tauri")).filter((name) => /^tauri.*\.conf\.json$/.test(name))) {
+      expect(readFileSync(join(root, "src-tauri", config), "utf8"), config).not.toContain("mirror-host");
+    }
   });
 
   it("keeps materialized runtimes out of the repository", () => {

@@ -412,14 +412,7 @@ function preparationActions(context) {
   ];
 }
 
-function requireMirrorCoordinates(options) {
-  for (const flag of ["mirrorRoot", "mirrorHome", "mirrorUser"]) {
-    if (!options[flag]) throw new Error(`--${flag.replace(/([A-Z])/g, "-$1").toLowerCase()} is required for the preflight gate.`);
-  }
-}
-
 async function prepare(options) {
-  requireMirrorCoordinates(options);
   const context = deployContext(options);
   const state = loadState(context.version);
   state.mode = "prepare";
@@ -427,7 +420,8 @@ async function prepare(options) {
   const releaseNote = releaseNoteAuthorship({ version: context.version, source: noteSource, baseUrl: context.baseUrl });
 
   await runStage(state, "preflight", () => {
-    run("npm", ["run", "alpha:preflight", "--", "--mirror-root", options.mirrorRoot, "--mirror-home", options.mirrorHome, "--mirror-user", options.mirrorUser]);
+    // CV-010.DS-005 slice 2f: the 0.3 preflight checks the pinned Mirror host, not a Python Mirror.
+    run("npm", ["run", "alpha:preflight"]);
     return "ready";
   });
   await runStage(state, "npm-tests", () => { run("npm", ["test", "--", "--run"]); return "passed"; });
@@ -569,7 +563,7 @@ function parseArguments(argv) {
     if (["plan", "prepare", "publish", "reset"].includes(arg) && !options.command) options.command = arg;
     else if (arg === "--json") options.json = true;
     else if (arg === "--yes") options.yes = true;
-    else if (["--mirror-root", "--mirror-home", "--mirror-user", "--base-url", "--ssh-host"].includes(arg)) {
+    else if (["--base-url", "--ssh-host"].includes(arg)) {
       const value = argv[index + 1];
       if (!value) throw new Error(`${arg} requires a value.`);
       options[arg.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;

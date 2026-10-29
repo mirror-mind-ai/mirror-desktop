@@ -13,12 +13,17 @@
 // it works in a staging directory beside the target, verifies every hash before using a byte,
 // checks the extracted Node reports the pinned version, and renames into place only when done.
 //
+// `stage` copies what the app needs from a materialized runtime into `.mirror-host/bundle/<platform>/`
+// (slice 2f): the `node` binary and its licence, `host.mjs`, the receipt and `node_modules`, after
+// checking the runtime still matches the pin and the current `host.mjs`. Packaged builds add that
+// folder to the app's resources as `mirror-host/` through `bundleConfig`.
+//
 // Known gap: SHASUMS256.txt is signed by Node's releasers, and this machine has no gpg, so the
 // recorded hashes were taken from the file over HTTPS, not from a verified signature.
 
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -178,6 +183,82 @@ export async function materializeHost({
   }
 }
 
+/** Every way the runtime laid out at `dir` differs from `pin` and the current host, or none. */
+export function checkRuntime({ root, pin, platform, dir }) {
+  const receiptPath = join(dir, "pin-receipt.json");
+  if (!existsSync(receiptPath)) return [`no runtime at ${dir}; run: node scripts/mirror_host_pin.mjs materialize`];
+  const problems = [];
+  const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+  if (receipt.platform !== platform) problems.push(`the runtime is for ${receipt.platform}, not ${platform}`);
+  if (receipt.node?.version !== pin.node.version) problems.push(`the runtime's Node is ${receipt.node?.version}, the pin's ${pin.node.version}`);
+  if (receipt.node?.sha256 !== pin.node.platforms[platform]?.sha256) problems.push("the runtime's Node archive hash is not the pin's");
+  if (receipt.core?.commit !== pin.core.commit || receipt.core?.sha256 !== pin.core.sha256) problems.push("the runtime's core is not the pinned one");
+  if (receipt.yaml?.integrity !== pin.core.dependencies.yaml.integrity) problems.push("the runtime's yaml is not the pinned one");
+  if (receipt.host?.sha256 !== sha256File(join(root, HOST_SCRIPT_PATH))) {
+    problems.push(`the runtime's host is not the current ${HOST_SCRIPT_PATH}; rematerialize with --replace`);
+  }
+  const host = join(dir, "host.mjs");
+  if (!existsSync(host) || sha256File(host) !== receipt.host?.sha256) problems.push("the runtime's host.mjs is not the one its receipt records");
+  if (!existsSync(join(dir, "node", "bin", "node"))) problems.push("the runtime has no node/bin/node");
+  const corePackage = join(dir, "node_modules", pin.core.package, "package.json");
+  if (!existsSync(corePackage) || JSON.parse(readFileSync(corePackage, "utf8")).version !== pin.core.version) {
+    problems.push(`the runtime's ${pin.core.package} is not version ${pin.core.version}`);
+  }
+  return problems;
+}
+
+/** What the app carries from a runtime: npm, corepack and Node's headers stay behind. */
+export const BUNDLE_ENTRIES = ["host.mjs", "pin-receipt.json", "node/bin/node", "node/LICENSE", "node_modules"];
+
+/**
+ * Copy `BUNDLE_ENTRIES` of the runtime at `runtimeDir` into `outDir`, replacing it, all or
+ * nothing. Refuses a runtime that `checkRuntime` faults, and any symlink inside it.
+ */
+export function stageBundle({ root, pin, platform, runtimeDir, outDir }) {
+  const problems = checkRuntime({ root, pin, platform, dir: runtimeDir });
+  if (problems.length > 0) throw new Error(`the runtime cannot be bundled: ${problems.join("; ")}`);
+  mkdirSync(dirname(outDir), { recursive: true });
+  const staging = join(dirname(outDir), `.${basename(outDir)}.staging-${process.pid}-${randomBytes(6).toString("hex")}`);
+  try {
+    for (const entry of BUNDLE_ENTRIES) {
+      const target = join(staging, entry);
+      mkdirSync(dirname(target), { recursive: true });
+      cpSync(join(runtimeDir, entry), target, {
+        recursive: true,
+        filter: (source) => {
+          if (lstatSync(source).isSymbolicLink()) throw new Error(`the runtime holds a symlink: ${source}`);
+          return true;
+        },
+      });
+    }
+    chmodSync(join(staging, "node", "bin", "node"), 0o755);
+    rmSync(outDir, { recursive: true, force: true });
+    renameSync(staging, outDir);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+  return { outDir, entries: BUNDLE_ENTRIES };
+}
+
+/** The Tauri config a packaged build merges so the staged runtime ships as `Resources/mirror-host/`. */
+export function bundleConfig(platform) {
+  if (!PLATFORMS.includes(platform)) throw new Error(`unsupported platform ${platform}`);
+  return { bundle: { resources: { [`../.mirror-host/bundle/${platform}/`]: "mirror-host/" } } };
+}
+
+/** Stage this machine's runtime and return the `--config` arguments that ship it in the app. */
+export function prepareBundledBuild(root) {
+  const platform = hostPlatform();
+  stageBundle({
+    root,
+    pin: readPin(root),
+    platform,
+    runtimeDir: join(root, ".mirror-host", "runtime", platform),
+    outDir: join(root, ".mirror-host", "bundle", platform),
+  });
+  return ["--config", JSON.stringify(bundleConfig(platform))];
+}
+
 async function main(argv) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const pin = readPin(root);
@@ -199,7 +280,21 @@ async function main(argv) {
     console.log(`Core: ${pin.core.package}@${pin.core.version} from ${pin.core.commit.slice(0, 8)}`);
     return 0;
   }
-  console.error("Usage: mirror_host_pin.mjs verify | materialize [--platform darwin-arm64|darwin-x64] [--replace]");
+  if (command === "check" || command === "stage") {
+    const at = rest.indexOf("--platform");
+    const platform = at >= 0 ? rest[at + 1] : hostPlatform();
+    const runtimeDir = join(root, ".mirror-host", "runtime", platform);
+    if (command === "check") {
+      const problems = checkRuntime({ root, pin, platform, dir: runtimeDir });
+      for (const problem of problems) console.error(`- ${problem}`);
+      console.log(problems.length === 0 ? `Mirror host runtime ${platform}: READY` : `Mirror host runtime ${platform}: STALE`);
+      return problems.length === 0 ? 0 : 1;
+    }
+    const result = stageBundle({ root, pin, platform, runtimeDir, outDir: join(root, ".mirror-host", "bundle", platform) });
+    console.log(`Mirror host bundle: ${result.outDir}`);
+    return 0;
+  }
+  console.error("Usage: mirror_host_pin.mjs verify | materialize | check | stage [--platform darwin-arm64|darwin-x64] [--replace]");
   return 2;
 }
 

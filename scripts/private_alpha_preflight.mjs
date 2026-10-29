@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
-import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
+import { checkRuntime, hostPlatform, readPin, validatePin } from "./mirror_host_pin.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const canonicalOrigins = new Set([
@@ -29,16 +31,6 @@ export function supportsMinimumMacOS(version, minimum) {
   return compareVersion(parseVersion(version), parseVersion(minimum)) >= 0;
 }
 
-export function matchesCompatibility(version, requirement) {
-  const parsed = parseVersion(version);
-  return requirement.split(",").every((clause) => {
-    const match = clause.trim().match(/^(>=|<)(\d+\.\d+\.\d+)$/);
-    if (!match) throw new Error("Runtime compatibility requirement is unsupported.");
-    const comparison = compareVersion(parsed, parseVersion(match[2]));
-    return match[1] === ">=" ? comparison >= 0 : comparison < 0;
-  });
-}
-
 export function sanitizeOrigin(origin) {
   const trimmed = String(origin).trim();
   if (/^https?:\/\//.test(trimmed)) {
@@ -59,28 +51,52 @@ function canonicalPath(path, kind, label) {
   }
 }
 
-export function validateRuntimeCoordinates({ mirrorRoot, mirrorHome, mirrorUser }, requirement) {
-  if (![mirrorRoot, mirrorHome, mirrorUser].every((value) => typeof value === "string" && value)) {
-    throw new Error("Mirror root, home and user are all required.");
+/**
+ * Start the runtime's host with an empty environment, read its handshake, and ask it about a home
+ * with no 0.3 marker. Returns both answers; `checkMirrorHost` judges them.
+ */
+export function runHostProbe(runtimeDir) {
+  const probe = realpathSync(mkdtempSync(join(tmpdir(), "mirror-preflight-unmarked-")));
+  try {
+    writeFileSync(join(probe, "memory.db"), "");
+    const request = { id: 1, method: "inspectMigrationState", params: { dbPath: join(probe, "memory.db") } };
+    const result = spawnSync(join(runtimeDir, "node", "bin", "node"), ["host.mjs"], {
+      cwd: runtimeDir, env: {}, input: `${JSON.stringify(request)}\n`, encoding: "utf8", timeout: 30_000,
+    });
+    if (result.error || result.status !== 0) throw new Error("The Mirror host did not start from the pinned runtime.");
+    const [handshake, refusal] = result.stdout.trim().split("\n").map((line) => JSON.parse(line));
+    return { handshake, refusal };
+  } finally {
+    rmSync(probe, { recursive: true, force: true });
   }
-  if (!/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(mirrorUser)) {
-    throw new Error("Mirror user must be a bounded lowercase slug.");
+}
+
+/**
+ * CV-010.DS-005 slice 2f: the 0.3 line's Mirror is the pinned host runtime, not a Python checkout.
+ * The pin must verify, the materialized runtime must be the pinned one, its host must hand-shake
+ * with the pinned Node, Core and Desktop API, and it must refuse a home without the 0.3 marker.
+ */
+export function checkMirrorHost({ root = repositoryRoot, platform = hostPlatform(), probe = runHostProbe } = {}) {
+  const pin = readPin(root);
+  const pinProblems = validatePin(pin, root);
+  if (pinProblems.length > 0) throw new Error(`Mirror host pin is invalid: ${pinProblems.join("; ")}.`);
+  const runtimeDir = join(root, ".mirror-host", "runtime", platform);
+  const runtimeProblems = checkRuntime({ root, pin, platform, dir: runtimeDir });
+  if (runtimeProblems.length > 0) throw new Error(`Mirror host runtime is not the pinned one: ${runtimeProblems.join("; ")}.`);
+  const { handshake, refusal } = probe(runtimeDir);
+  if (handshake?.type !== "ready"
+    || handshake.node !== `v${pin.node.version}`
+    || handshake.coreVersion !== pin.core.version
+    || handshake.desktopApiVersion !== pin.core.desktopApiVersion) {
+    throw new Error("Mirror host handshake does not match the pin.");
   }
-  canonicalPath(mirrorRoot, "directory", "Mirror root");
-  canonicalPath(mirrorHome, "directory", "Mirror home");
-  canonicalPath(resolve(mirrorRoot, "src", "memory"), "directory", "Mirror Core package");
-  const pyproject = resolve(mirrorRoot, "pyproject.toml");
-  canonicalPath(pyproject, "file", "Mirror Core project");
-  const database = resolve(mirrorHome, "memory.db");
-  canonicalPath(database, "file", "Mirror database");
-  if (dirname(database) !== mirrorHome || basename(database) !== "memory.db") {
-    throw new Error("Mirror database must be memory.db directly beneath Mirror home.");
+  if (refusal?.error?.name !== "HomeNotMarkedError" || refusal.error.reason !== "unmarked") {
+    throw new Error("Mirror host did not refuse a home without the 0.3 marker.");
   }
-  const versionMatch = readFileSync(pyproject, "utf8").match(/^version\s*=\s*["']([^"']+)["']/m);
-  if (!versionMatch || !matchesCompatibility(versionMatch[1], requirement)) {
-    throw new Error(`Mirror Core is incompatible with ${requirement}.`);
-  }
-  return versionMatch[1];
+  return {
+    status: "pinned", platform, node: pin.node.version, coreVersion: pin.core.version,
+    coreCommit: pin.core.commit, desktopApiVersion: pin.core.desktopApiVersion, markerGuard: "refuses unmarked homes",
+  };
 }
 
 function capture(command, args, options = {}) {
@@ -96,17 +112,12 @@ export function parseArguments(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--json") result.json = true;
-    else if (["--mirror-root", "--mirror-home", "--mirror-user"].includes(arg)) {
-      const value = argv[index + 1];
-      if (!value) throw new Error(`${arg} requires a value.`);
-      result[arg.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
-      index += 1;
-    } else throw new Error(`Unsupported preflight argument ${arg}.`);
+    else throw new Error(`Unsupported preflight argument ${arg}.`);
   }
   return result;
 }
 
-export function runPreflight(options) {
+export function runPreflight() {
   if (process.platform !== "darwin") throw new Error("Private alpha supports macOS only.");
   const architecture = capture("uname", ["-m"]);
   if (!["x86_64", "arm64"].includes(architecture)) throw new Error(`Unsupported architecture ${architecture}.`);
@@ -116,9 +127,7 @@ export function runPreflight(options) {
     canonicalPath(resolve(repositoryRoot, lockfile), "file", `${lockfile} lockfile`);
   }
   const compatibility = JSON.parse(readFileSync(resolve(repositoryRoot, "config/runtime-compatibility.json"), "utf8"));
-  if (compatibility.schemaVersion !== "1.0.0"
-    || typeof compatibility.mirrorCore !== "string"
-    || typeof compatibility.minimumMacOS !== "string") {
+  if (compatibility.schemaVersion !== "1.0.0" || typeof compatibility.minimumMacOS !== "string") {
     throw new Error("Runtime compatibility configuration is invalid.");
   }
   const macOS = capture("sw_vers", ["-productVersion"]);
@@ -129,11 +138,11 @@ export function runPreflight(options) {
   const tools = {
     git: capture("git", ["--version"]), node: capture("node", ["--version"]),
     npm: capture("npm", ["--version"]), rustc: capture("rustc", ["--version"]),
-    cargo: capture("cargo", ["--version"]), uv: capture("uv", ["--version"]),
+    cargo: capture("cargo", ["--version"]),
     pi: capture("pi", ["--version"]), xcode: "available",
   };
   if (parseVersion(tools.node)[0] < 20) throw new Error("Node.js 20 or newer is required.");
-  const coreVersion = validateRuntimeCoordinates(options, compatibility.mirrorCore);
+  const runtime = checkMirrorHost();
   return {
     schemaVersion: "1.0.0", status: "ready",
     sourceRevision: capture("git", ["rev-parse", "HEAD"]),
@@ -141,7 +150,7 @@ export function runPreflight(options) {
     repository: "mirror-mind-ai/mirror-desktop",
     host: { architecture, macOS, minimumMacOS: compatibility.minimumMacOS },
     tools,
-    runtime: { status: "compatible", coreVersion, requirement: compatibility.mirrorCore },
+    runtime,
     lockfiles: { npm: "present", cargo: "present" },
   };
 }
@@ -151,7 +160,7 @@ function humanReport(report) {
     "Mirror Desktop private alpha preflight: READY",
     `Revision: ${report.sourceRevision}`,
     `Host: macOS ${report.host.macOS} ${report.host.architecture}`,
-    `Mirror Core: ${report.runtime.coreVersion} (${report.runtime.requirement})`,
+    `Mirror host: Node ${report.runtime.node}, core ${report.runtime.coreVersion} (${report.runtime.coreCommit.slice(0, 8)}), Desktop API ${report.runtime.desktopApiVersion}, ${report.runtime.markerGuard}`,
     `Worktree: ${report.worktreeClean ? "clean" : "dirty"}`,
     "Required tools and lockfiles: ready",
   ].join("\n");
@@ -160,7 +169,7 @@ function humanReport(report) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const options = parseArguments(process.argv.slice(2));
-    const report = runPreflight(options);
+    const report = runPreflight();
     console.log(options.json ? JSON.stringify(report, null, 2) : humanReport(report));
   } catch (error) {
     console.error(`Mirror Desktop private alpha preflight: BLOCKED\n${error.message}`);

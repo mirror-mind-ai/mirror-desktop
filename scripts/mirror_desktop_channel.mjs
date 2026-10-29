@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
+import { prepareBundledBuild } from "./mirror_host_pin.mjs";
 import { loadRuntimeBinding } from "./runtime_binding_file.mjs";
 
 const mode = process.argv[2];
@@ -177,7 +179,18 @@ if (mode === "import-user" || mode === "import-dev") {
   runBootstrap(selected);
   process.exit(0);
 }
-const result = spawnSync(tauri, [...selected.args, ...process.argv.slice(3)], {
+// CV-010.DS-005 slice 2f: every packaged build carries the pinned Mirror host runtime; dev runs the
+// repository's materialized one.
+let bundledRuntime = [];
+if (selected.args[0] === "build") {
+  try {
+    bundledRuntime = prepareBundledBuild(resolve(dirname(fileURLToPath(import.meta.url)), ".."));
+  } catch (error) {
+    console.error(`The Mirror host runtime cannot be bundled: ${error.message}`);
+    process.exit(1);
+  }
+}
+const result = spawnSync(tauri, [...selected.args, ...bundledRuntime, ...process.argv.slice(3)], {
   cwd: process.cwd(),
   env: selected.requiresUpdaterSigning ? userBuildEnvironment() : cleanLaunchEnvironment(),
   stdio: "inherit",

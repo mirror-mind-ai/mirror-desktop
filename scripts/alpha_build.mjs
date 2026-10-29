@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
 import { releaseVersionAt } from "./release_candidate.mjs";
 import { CURRENT_RELEASE_LINE } from "./release_line.mjs";
+import { prepareBundledBuild } from "./mirror_host_pin.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultAlphaConfig = CURRENT_RELEASE_LINE.updaterConfig;
@@ -93,7 +94,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (!options.dryRun) {
       const signingKey = readFileSync(plan.signingKey, "utf8");
       run("npm", ["run", "alpha:channel:check"]);
-      run("npm", ["run", "tauri", "--", "build", "--bundles", "app,dmg", "--config", plan.config], {
+      // CV-010.DS-005 slice 2f: the pinned Mirror host runtime ships inside the app.
+      const bundledRuntime = prepareBundledBuild(repositoryRoot);
+      run("npm", ["run", "tauri", "--", "build", "--bundles", "app,dmg", "--config", plan.config, ...bundledRuntime], {
         env: {
           ...process.env,
           TAURI_SIGNING_PRIVATE_KEY: signingKey,
