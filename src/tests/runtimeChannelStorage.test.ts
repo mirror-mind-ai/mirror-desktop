@@ -4,7 +4,7 @@ const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
 import {
-  chooseRuntimeDirectory, inspectRuntimeBindingCandidate, inspectRuntimeChannel,
+  bindMirrorHome, chooseRuntimeDirectory, inspectRuntimeBindingCandidate, inspectRuntimeChannel,
   parseRuntimeBinding, parseRuntimeChannelDiagnostic, saveRuntimeBinding, validateRuntimeBinding,
 } from "../app/runtimeChannelStorage";
 
@@ -90,5 +90,19 @@ describe("runtime channel storage", () => {
     expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "ai.mirrormind.desktop.dev" })).toThrow(/bundle identity/);
     expect(() => parseRuntimeChannelDiagnostic({ ...development, channel: "user", bundleIdentifier: "ai.mirrormind.desktop" })).toThrow(/bundle identity/);
     expect(() => parseRuntimeChannelDiagnostic({ ...development, mirrorHome: undefined })).toThrow(/lacks required coordinates/);
+    expect(() => parseRuntimeChannelDiagnostic({ ...development, dbPath: undefined })).toThrow(/lacks required coordinates/);
+  });
+
+  // CV-010.DS-005 slice 2d-1: a 0.3 diagnostic names the home and its database, nothing else.
+  it("accepts a 0.3 diagnostic that names only the home and its database", () => {
+    const { mirrorRoot: _root, mirrorUser: _user, ...home } = development;
+    expect(parseRuntimeChannelDiagnostic(home)).toEqual(home);
+  });
+
+  it("binds a 0.3 home through its own native command", async () => {
+    const { mirrorRoot: _root, mirrorUser: _user, ...home } = development;
+    invoke.mockResolvedValueOnce(home);
+    await expect(bindMirrorHome("/Users/example/Mirror Homes/ana")).resolves.toEqual(home);
+    expect(invoke).toHaveBeenCalledWith("bind_mirror_home", { homePath: "/Users/example/Mirror Homes/ana" });
   });
 });

@@ -152,14 +152,16 @@ describe("runtime channel configuration", () => {
   });
 
   it("routes Mirror operations through a persisted binding without production fallback", () => {
-    expect(runtimeChannelSource).toContain("load_runtime_binding");
+    // CV-010.DS-005 slice 2d-1: the profile is the 0.3 home binding; no Mirror variable, no uv.
+    expect(runtimeChannelSource).toContain("load_home_binding(&app_data_root)");
     expect(runtimeChannelSource).toContain('join(channel.bundle_identifier())');
     expect(runtimeChannelSource).not.toContain("alisson-vale");
-    expect(runtimeChannelSource).toContain('.env("MIRROR_HOME"');
-    expect(runtimeChannelSource).toContain('.env("MIRROR_USER"');
-    expect(runtimeChannelSource).toContain('.env("DB_PATH"');
+    expect(runtimeChannelSource).toContain('.env_remove("MIRROR_HOME")');
+    expect(runtimeChannelSource).toContain('.env_remove("MIRROR_USER")');
+    expect(runtimeChannelSource).toContain('.env_remove("DB_PATH")');
+    expect(runtimeChannelSource).not.toContain('.env("MIRROR_HOME"');
     expect(runtimeChannelSource).toContain('.env("PATH"');
-    expect(runtimeChannelSource).toContain('matches!(program, "pi" | "uv")');
+    expect(runtimeChannelSource).toContain('if program == "uv" {\n            return Err(UV_RETIRED.to_string());');
     expect(runtimeChannelSource).toContain('.nvm/versions/node');
     expect(runtimeChannelSource).toContain('.fnm/node-versions');
     expect(runtimeChannelSource).toContain('.volta/bin');
@@ -200,9 +202,10 @@ describe("runtime channel configuration", () => {
     expect(appSource).toContain("runtime-channel-diagnostic");
     expect(appSource).toContain("data-runtime-channel");
     expect(appSource).toContain("Connect your Mirror");
-    expect(appSource).toContain("Mirror source directory");
-    expect(appSource).toContain("Mirror home directory");
-    expect(appSource).toContain("Validate and continue");
+    // CV-010.DS-005 slice 2d-1: setup and Settings ask for a 0.3 home, not a Python Mirror.
+    expect(appSource).not.toContain("Mirror source directory");
+    expect(appSource).not.toContain("Validate and continue");
+    expect(appSource).toContain("<MirrorHomeSetup");
     expect(appSource).toContain("Choose your model");
     expect(appSource).toContain("Save model and continue");
     expect(appSource).toContain("saveOnboardingAgentProfile");
@@ -215,7 +218,7 @@ describe("runtime channel configuration", () => {
     expect(appSource).not.toContain('?? "nautilus-harness"');
     expect(journeyPreferenceSource).not.toContain('activeJourneyId: "nautilus-harness"');
     expect(appSource).toContain("Choose Mirror source and home, then enter the Mirror user.");
-    expect(appSource.match(/autoCapitalize="none" autoCorrect="off" spellCheck=\{false\}/g)).toHaveLength(2);
+    expect(appSource.match(/autoCapitalize="none" autoCorrect="off" spellCheck=\{false\}/g)).toBeNull();
     expect(cssSource).toContain(".runtime-onboarding-shell");
     expect(cssSource).toContain(".runtime-onboarding-card");
     expect(cssSource).toContain(".app-shell.channel-development");

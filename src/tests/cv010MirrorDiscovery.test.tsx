@@ -226,16 +226,12 @@ describe("CV-010.DS-001 wiring", () => {
     expect(storageSource).toContain("parseMirrorDiscovery(");
   });
 
-  it("connects through the existing save, never a new write path", () => {
-    expect(appSource).toMatch(/async function submitRuntimeBinding\(persist: boolean, binding: RuntimeBinding \| undefined = runtimeBindingDraft\)/);
-    expect(appSource).toContain("onConnect={(proposed) => void submitRuntimeBinding(true, proposed)}");
-  });
-
-  it("shows discovery first for an unbound channel and keeps the form one step away", () => {
-    expect(appSource).toContain('runtimeConnectionView === "discover"');
-    expect(appSource).toContain('runtimeChannel?.status === "unbound"');
-    expect(appSource).toContain('onManual={() => setRuntimeConnectionView("manual")}');
-    expect(appSource).toContain("Find my Mirror automatically");
+  // DS-001 ships on the 0.2 line, and release/0.2 keeps its setup wiring. On main, the 0.3 setup asks
+  // for a marked 0.3 home instead (CV-010.DS-005 slice 2d-1), and discovery refuses natively (2c).
+  it("is no longer the setup path on the 0.3 line", () => {
+    expect(appSource).not.toContain("<ExistingMirrorDiscovery");
+    expect(appSource).not.toContain("onConnect={(proposed) => void submitRuntimeBinding(true, proposed)}");
+    expect(appSource).toContain("<MirrorHomeSetup");
   });
 
   it("lets Settings fill the form from discovery without saving", () => {
@@ -244,6 +240,8 @@ describe("CV-010.DS-001 wiring", () => {
     const body = appSource.slice(start, appSource.indexOf("\n  }\n", start));
     expect(body).toContain("discoverExistingMirror(");
     expect(body).not.toMatch(/saveRuntimeBinding|submitRuntimeBinding/);
-    expect(appSource).toContain("onClick={() => void fillRuntimeBindingFromDiscovery()}");
+    // CV-010.DS-005 slice 2d-1: Settings binds a 0.3 home instead; this function is now unreachable.
+    expect(appSource).not.toContain("onClick={() => void fillRuntimeBindingFromDiscovery()}");
+    expect(appSource).toContain("onClick={() => void chooseAndBindMirrorHome()}");
   });
 });

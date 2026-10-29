@@ -4,6 +4,7 @@ mod journey_appearance;
 mod mirror_discovery;
 mod mirror_home;
 mod mirror_host;
+mod mirror_host_bridge;
 mod model_intents;
 mod native_command_serialization;
 mod native_panic_trace;
@@ -688,19 +689,6 @@ fn bundled_provisioning_script(app: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|_| "Could not validate bundled Mirror conversation support.".to_string())
 }
 
-fn bundled_conversation_catalog_script(app: &AppHandle) -> Result<PathBuf, String> {
-    let script = app.path()
-        .resolve("scripts/mirror_conversation_catalog.py", BaseDirectory::Resource)
-        .map_err(|_| "Could not resolve bundled Mirror conversation catalog support.".to_string())?;
-    let metadata = fs::symlink_metadata(&script)
-        .map_err(|_| "Bundled Mirror conversation catalog support is unavailable.".to_string())?;
-    if metadata.file_type().is_symlink() || !metadata.is_file() {
-        return Err("Bundled Mirror conversation catalog support is invalid.".to_string());
-    }
-    script.canonicalize()
-        .map_err(|_| "Could not validate bundled Mirror conversation catalog support.".to_string())
-}
-
 fn run_mirror_conversation_catalog(
     app: &AppHandle,
     operation: &str,
@@ -708,31 +696,8 @@ fn run_mirror_conversation_catalog(
     additional_args: &[&str],
 ) -> Result<Value, String> {
     sanitize_journey_id(journey_id)?;
-    let script = bundled_conversation_catalog_script(app)?;
-    let profile = active_runtime_channel()?;
-    let mut command = mirror_runtime_command("uv")?;
-    let output = command.current_dir(&profile.mirror_root)
-        .args(["run", "python"]).arg(script)
-        .arg(operation)
-        .args(["--journey-id", journey_id, "--mirror-root"])
-        .arg(&profile.mirror_root)
-        .arg("--mirror-home").arg(&profile.mirror_home)
-        .args(additional_args)
-        .output().map_err(|error| format!("Could not run Mirror conversation catalog support: {}", error))?;
-    if output.stdout.len() > 256 * 1024 {
-        return Err("Mirror conversation catalog response exceeded its bounded size.".to_string());
-    }
-    let stdout = String::from_utf8(output.stdout)
-        .map_err(|_| "Mirror conversation catalog response was not UTF-8.".to_string())?;
-    let line = stdout.lines().rev().find(|line| !line.trim().is_empty())
-        .ok_or_else(|| "Mirror conversation catalog returned no response.".to_string())?;
-    let value: Value = serde_json::from_str(line)
-        .map_err(|_| "Mirror conversation catalog returned invalid JSON.".to_string())?;
-    if !output.status.success() || value.get("status").and_then(Value::as_str) != Some("ok")
-        || value.get("journeyId").and_then(Value::as_str) != Some(journey_id) {
-        return Err("Mirror conversation catalog operation was rejected.".to_string());
-    }
-    Ok(value)
+    // CV-010.DS-005 slice 2d-1: answered by the Mirror host, in the shape the Python script gave.
+    mirror_host_bridge::conversation_catalog(app, operation, journey_id, additional_args)
 }
 
 fn desktop_conversation_catalog_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
@@ -2297,29 +2262,31 @@ fn refresh_journey_registry(app: AppHandle) -> Result<String, String> {
     let _serialized = crate::native_command_serialization::acquire();
     let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&app_data_dir).map_err(|error| error.to_string())?;
-    let staged = app_data_dir.join("journey-registry.export.tmp");
-    if staged.exists() {
-        let metadata = fs::symlink_metadata(&staged).map_err(|error| error.to_string())?;
-        if metadata.file_type().is_symlink() || !metadata.is_file() {
-            return Err("Journey registry export path is unsafe.".to_string());
-        }
-        fs::remove_file(&staged).map_err(|error| error.to_string())?;
-    }
-    let mut command = mirror_administrative_command("uv")?;
-    let output = command
-        .args(["run", "python", "-m", "memory", "journey", "export-registry"])
-        .output().map_err(|error| format!("Could not start the Journey registry exporter: {}", error))?;
-    if !output.status.success() {
-        let detail = String::from_utf8_lossy(&output.stderr).trim().chars().take(800).collect::<String>();
-        return Err(if detail.is_empty() {
-            "Could not refresh Journeys from Mirror.".to_string()
-        } else {
-            format!("Could not refresh Journeys from Mirror: {detail}")
-        });
-    }
-    let payload = String::from_utf8(output.stdout).map_err(|_| "Journey registry exporter returned invalid text.".to_string())?;
-    validate_journey_registry_payload(&payload)?;
+    // CV-010.DS-005 slice 2d-1: the tree comes from the Mirror host, and Desktop stamps the envelope.
+    let tree = mirror_host_bridge::request(&app, "readJourneyTree", json!({}))
+        .map_err(|error| format!("Could not refresh Journeys from Mirror: {error}"))?;
+    let payload = mirror_host_bridge::registry_from_tree(&tree, &Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true))?;
     publish_refreshed_journey_registry(&app_data_dir, &payload)
+}
+
+/// CV-010.DS-005 slice 2d-1: bind this app to a 0.3 home. The marker is checked first, then the
+/// host must read the home as `current`, and only then is the binding saved.
+#[tauri::command(async)]
+fn bind_mirror_home(app: AppHandle, home_path: String) -> Result<RuntimeChannelDiagnostic, String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    let channel = RuntimeChannel::active();
+    let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    fs::create_dir_all(&app_data_root).map_err(|error| format!("Could not create application data root: {error}"))?;
+    channel.validate_app_identity(&app.config().identifier, &app_data_root)?;
+    let home = mirror_home::MarkedHome::open(Path::new(&home_path))?;
+    let report = mirror_host_bridge::request_for(&app, &home, "inspectMigrationState", json!({}))
+        .map_err(mirror_host_bridge::describe)?;
+    let state = report.get("state").and_then(Value::as_str).unwrap_or("unknown");
+    if state != "current" {
+        return Err(format!("This Mirror home reads as {state}, not current. Mirror Desktop TS does not migrate a home yet."));
+    }
+    mirror_home::persist_home_binding(&app_data_root, &home)?;
+    Ok(RuntimeChannelProfile::active()?.diagnostic(&app_data_root))
 }
 
 #[tauri::command]
@@ -10445,6 +10412,7 @@ fn main() {
         .manage(JourneyProvisioningState::default())
         .manage(JourneyProjectionPersistenceState::default())
         .manage(MirrorAppendOutboxState::default())
+        .manage(mirror_host_bridge::MirrorHostState::default())
         .manage(WindowGeometryState::default())
         .invoke_handler(tauri::generate_handler![
             save_dedicated_journey_conversation,
@@ -10494,6 +10462,7 @@ fn main() {
             discover_existing_mirror,
             validate_runtime_binding,
             save_runtime_binding,
+            bind_mirror_home,
             choose_runtime_directory,
             load_journey_projections,
             list_journey_documentation,
@@ -15119,6 +15088,26 @@ mod cr163_mirror_append_bound_tests {
     }
 
     #[test]
+    fn the_0_3_reads_go_through_the_mirror_host_and_never_run_uv() {
+        // CV-010.DS-005 slice 2d-1.
+        let source = production_source();
+        let catalog = body_of(&source, "fn run_mirror_conversation_catalog(");
+        assert!(catalog.contains("mirror_host_bridge::conversation_catalog("), "{catalog}");
+        let registry = body_of(&source, "fn refresh_journey_registry(");
+        assert!(registry.contains("mirror_host_bridge::request(&app, \"readJourneyTree\""), "{registry}");
+        assert!(registry.contains("mirror_host_bridge::registry_from_tree("), "{registry}");
+        for body in [&catalog, &registry] {
+            assert!(!body.contains("\"uv\"") && !body.contains("\"python\""), "{body}");
+        }
+        let bind = body_of(&source, "fn bind_mirror_home(");
+        let open = bind.find("MarkedHome::open(").expect("bind opens a marked home");
+        let persist = bind.find("persist_home_binding(").expect("bind persists the 0.3 binding");
+        let current = bind.find("\"inspectMigrationState\"").expect("bind asks the host first");
+        assert!(open < current && current < persist, "bind must check the marker, then the host, then persist");
+        assert!(source.contains(".manage(mirror_host_bridge::MirrorHostState::default())"));
+    }
+
+    #[test]
     fn the_python_discovery_and_binding_refuse_before_anything_else() {
         // CV-010.DS-005 slice 2c: Mirror Desktop TS never reads, validates or saves a Python Mirror.
         let source = production_source();
@@ -15160,7 +15149,10 @@ mod cr163_mirror_append_bound_tests {
         ] {
             assert_eq!(source.matches(named).count(), 1, "{named}");
         }
+        // CV-010.DS-005 slice 2d-1 closed the third exclusion: the catalog, rebind included, no longer
+        // waits on a Python child; it goes through the Mirror host, whose every request has a deadline.
         let catalog = body_of(&source, "fn run_mirror_conversation_catalog(");
-        assert!(catalog.contains(".output()"), "the rebind path's wait is the named, unbounded exclusion");
+        assert!(!catalog.contains(".output()"), "the catalog waits on a child again");
+        assert!(catalog.contains("mirror_host_bridge::conversation_catalog("));
     }
 }

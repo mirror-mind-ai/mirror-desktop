@@ -99,6 +99,9 @@ impl ValidatedRuntimeBinding {
     }
 }
 
+// CV-010.DS-005 slice 2d-1: the 0.3 profile reads `runtime-home.v2.json` instead; this Python
+// binding reader leaves with the rest of the Python routes in 2d-2.
+#[allow(dead_code)]
 pub fn load_runtime_binding(
     app_data_root: &Path,
     expected_channel: BindingChannel,
@@ -152,6 +155,9 @@ impl RuntimeBinding {
         }
     }
 
+    // CV-010.DS-005 slice 2d-1: the 0.3 profile reads `runtime-home.v2.json` instead; this Python
+    // binding reader leaves with the rest of the Python routes in 2d-2.
+    #[allow(dead_code)]
     pub fn from_json(bytes: &[u8]) -> Result<Self, String> {
         serde_json::from_slice(bytes)
             .map_err(|error| format!("Runtime binding is malformed: {error}"))

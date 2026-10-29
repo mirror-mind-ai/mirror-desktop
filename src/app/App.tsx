@@ -118,7 +118,7 @@ import {
 } from "./journeySettlementRecovery";
 import { ConversationRecoveryNotice } from "./ConversationRecoveryNotice";
 import { InterruptedNativeAttemptNotice } from "./InterruptedNativeAttemptNotice";
-import { ExistingMirrorDiscovery } from "./MirrorDiscoveryCard";
+import { MirrorHomeSetup } from "./MirrorHomeSetup";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { VoiceComposerControl, VoiceInstallDialog, VoiceSessionStatus, VoiceSettingsPanel } from "./VoiceComposerControl";
 import { installVoiceComponent, loadVoiceComponentCatalog, loadVoiceComponentStatus, removeVoiceComponent, transcribeVoiceWav } from "./voiceTranscriptionStorage";
@@ -498,7 +498,7 @@ import {
 } from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
 import {
-  chooseRuntimeDirectory, discoverExistingMirror, inspectRuntimeBindingCandidate, inspectRuntimeChannel,
+  bindMirrorHome, chooseRuntimeDirectory, discoverExistingMirror, inspectRuntimeBindingCandidate, inspectRuntimeChannel,
   saveRuntimeBinding, validateRuntimeBinding,
   type RuntimeBinding, type RuntimeChannelDiagnostic,
 } from "./runtimeChannelStorage";
@@ -945,7 +945,6 @@ export function App({ model }: AppProps) {
   const [runtimeOnboardingState, setRuntimeOnboardingState] = useState<"idle" | "importing" | "empty" | "error" | "ready">("idle");
   const [runtimeOnboardingEditing, setRuntimeOnboardingEditing] = useState(false);
   // CV-010.DS-001: an unbound channel opens on discovery; the manual form stays one click away.
-  const [runtimeConnectionView, setRuntimeConnectionView] = useState<"auto" | "discover" | "manual">("auto");
   const [runtimeOnboardingMessage, setRuntimeOnboardingMessage] = useState<string>();
   const [journeyMenuOpen, setJourneyMenuOpen] = useState(false);
   const [closeConfirmationOpen, setCloseConfirmationOpen] = useState(false);
@@ -5434,6 +5433,29 @@ export function App({ model }: AppProps) {
     }
   }
 
+  /** CV-010.DS-005 slice 2d-1: choose a 0.3 home, bind it, then load its Journeys. */
+  async function chooseAndBindMirrorHome() {
+    setRuntimeChannelError(undefined);
+    let homePath: string | undefined;
+    try {
+      homePath = await chooseRuntimeDirectory("mirrorHome");
+    } catch (error) {
+      setRuntimeChannelError(error instanceof Error ? error.message : String(error));
+      return;
+    }
+    if (!homePath) return;
+    setRuntimeBindingState("saving");
+    try {
+      setRuntimeChannel(await bindMirrorHome(homePath));
+      setRuntimeOnboardingEditing(false);
+      await importJourneysAfterBinding();
+    } catch (error) {
+      setRuntimeChannelError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRuntimeBindingState("idle");
+    }
+  }
+
   async function submitRuntimeBinding(persist: boolean, binding: RuntimeBinding | undefined = runtimeBindingDraft) {
     if (!binding) {
       setRuntimeChannelError("Choose Mirror source and home, then enter the Mirror user.");
@@ -5468,9 +5490,6 @@ export function App({ model }: AppProps) {
     || agentProfileConfigured !== true
     || runtimeOnboardingState !== "ready"
     || flattenJourneyRegistry(loadedJourneyRegistry).length === 0;
-  const runtimeDiscoveryVisible = runtimeSetupNeedsConnection
-    && (runtimeConnectionView === "discover"
-      || (runtimeConnectionView === "auto" && runtimeChannel?.status === "unbound" && !runtimeOnboardingEditing));
 
   /**
    * CR149: a stable identity for the one call site that feeds a memoized child.
@@ -5515,35 +5534,13 @@ export function App({ model }: AppProps) {
           aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
         >
           <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
-          {runtimeDiscoveryVisible ? (
-            <ExistingMirrorDiscovery
-              discover={discoverExistingMirror}
-              chooseRoot={() => chooseRuntimeDirectory("mirrorRoot")}
-              connecting={runtimeBindingState !== "idle"}
-              error={runtimeChannelError}
-              onConnect={(proposed) => void submitRuntimeBinding(true, proposed)}
-              onManual={() => setRuntimeConnectionView("manual")}
+          {runtimeSetupNeedsConnection ? (
+            <MirrorHomeSetup
+              development={developmentChannel}
+              binding={runtimeBindingState !== "idle"}
+              error={runtimeChannelError ?? (runtimeChannel?.status === "invalid" ? runtimeChannel.message : undefined)}
+              onChoose={() => void chooseAndBindMirrorHome()}
             />
-          ) : runtimeSetupNeedsConnection ? (
-            <>
-              <p className="eyebrow">Mirror Desktop TS {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : evaluationChannel ? <span className="evaluation-badge">{EVALUATION_BADGE_LABEL}</span> : null}</p>
-              <h1>Connect your Mirror</h1>
-              <p>Choose the Mirror installation and personal home this app should use. These fields stay on this Mac.</p>
-              <div className="runtime-onboarding-form" aria-label="Required Mirror connection">
-                <label className="provider-field">Mirror source directory
-                  <span className="journey-path-picker"><input value={runtimeMirrorRoot} onChange={(event) => setRuntimeMirrorRoot(event.target.value)} placeholder="/absolute/path/to/mirror" /><button type="button" onClick={async () => { const path = await chooseRuntimeDirectory("mirrorRoot"); if (path) setRuntimeMirrorRoot(path); }}>Choose…</button></span>
-                </label>
-                <label className="provider-field">Mirror home directory
-                  <span className="journey-path-picker"><input value={runtimeMirrorHome} onChange={(event) => setRuntimeMirrorHome(event.target.value)} placeholder="/absolute/path/to/mirror-home" /><button type="button" onClick={async () => { const path = await chooseRuntimeDirectory("mirrorHome"); if (path) setRuntimeMirrorHome(path); }}>Choose…</button></span>
-                </label>
-                <label className="provider-field">Mirror user<input value={runtimeMirrorUser} onChange={(event) => setRuntimeMirrorUser(event.target.value)} placeholder="user-slug" autoCapitalize="none" autoCorrect="off" spellCheck={false} /></label>
-              </div>
-              {runtimeChannelError || (runtimeChannel?.status === "invalid" && runtimeChannel.message) ? <p className="provider-error" role="alert">{runtimeChannelError ?? runtimeChannel?.message}</p> : null}
-              <button type="button" disabled={!runtimeBindingDraft || runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(true)}>
-                {runtimeBindingState === "saving" ? "Connecting…" : "Validate and continue"}
-              </button>
-              <button className="secondary-button" type="button" onClick={() => { setRuntimeChannelError(undefined); setRuntimeConnectionView("discover"); }}>Find my Mirror automatically</button>
-            </>
           ) : !runtimeChannel ? (
             <>
               <p className="eyebrow">Mirror Desktop TS</p>
@@ -7405,31 +7402,20 @@ export function App({ model }: AppProps) {
                   <div><dt>Bundle</dt><dd>{runtimeChannel.bundleIdentifier}</dd></div>
                   <div><dt>App data</dt><dd>{runtimeChannel.appDataRoot}</dd></div>
                   {runtimeChannel.status === "validated" ? <>
-                    <div><dt>Mirror code</dt><dd>{runtimeChannel.mirrorRoot}</dd></div>
                     <div><dt>Mirror home</dt><dd>{runtimeChannel.mirrorHome}</dd></div>
-                    <div><dt>Mirror user</dt><dd>{runtimeChannel.mirrorUser}</dd></div>
                     <div><dt>Database</dt><dd>{runtimeChannel.dbPath}</dd></div>
                   </> : null}
                   <div><dt>Status</dt><dd>{runtimeChannel.status}</dd></div>
                   {runtimeChannel.message ? <div><dt>Correction</dt><dd>{runtimeChannel.message}</dd></div> : null}
                 </dl>
               ) : <p className="provider-note">{runtimeChannelError ?? "Inspecting the native runtime channel…"}</p>}
-              <div className="runtime-binding-form" aria-label="Mirror runtime binding">
-                <label className="provider-field">Mirror source
-                  <span className="journey-path-picker"><input value={runtimeMirrorRoot} onChange={(event) => setRuntimeMirrorRoot(event.target.value)} placeholder="/absolute/path/to/mirror" /><button type="button" onClick={async () => { const path = await chooseRuntimeDirectory("mirrorRoot"); if (path) setRuntimeMirrorRoot(path); }}>Choose…</button></span>
-                </label>
-                <label className="provider-field">Mirror home
-                  <span className="journey-path-picker"><input value={runtimeMirrorHome} onChange={(event) => setRuntimeMirrorHome(event.target.value)} placeholder="/absolute/path/to/mirror-home" /><button type="button" onClick={async () => { const path = await chooseRuntimeDirectory("mirrorHome"); if (path) setRuntimeMirrorHome(path); }}>Choose…</button></span>
-                </label>
-                <label className="provider-field">Mirror user<input value={runtimeMirrorUser} onChange={(event) => setRuntimeMirrorUser(event.target.value)} placeholder="user-slug" autoCapitalize="none" autoCorrect="off" spellCheck={false} /></label>
-                <p className="provider-note">Database: {runtimeMirrorHome ? `${runtimeMirrorHome.replace(/\/$/, "")}/memory.db` : "Select Mirror home"}</p>
+              {/* CV-010.DS-005 slice 2d-1: the 0.3 line binds a Mirror home made for it, nothing else. */}
+              <div className="runtime-binding-form" aria-label="Mirror home binding">
                 {runtimeChannelError ? <p className="provider-error">{runtimeChannelError}</p> : null}
-                {runtimeBindingFeedback ? <p className="provider-note" role="status">{runtimeBindingFeedback}</p> : null}
-                {!runtimeBindingDraft && !runtimeChannelError ? <p className="provider-note">Choose both directories and enter a user to prepare this channel.</p> : null}
                 <div className="settings-actions">
-                  <button className="secondary-button" type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void fillRuntimeBindingFromDiscovery()}>Find my Mirror</button>
-                  <button type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(false)}>Validate</button>
-                  <button type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void submitRuntimeBinding(true)}>Save binding</button>
+                  <button type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void chooseAndBindMirrorHome()}>
+                    {runtimeBindingState === "idle" ? "Choose Mirror home…" : "Opening…"}
+                  </button>
                 </div>
               </div>
             </section>

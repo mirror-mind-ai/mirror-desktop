@@ -71,7 +71,12 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
   }
   const coordinates = COORDINATE_KEYS.map((key) => diagnostic[key]);
   if (diagnostic.status === "validated") {
-    if (!coordinates.every((field) => typeof field === "string" && field.length > 0)) {
+    // CV-010.DS-005 slice 2d-1: a 0.3 diagnostic names its home and database; the Python source
+    // tree and user are gone, and present only in diagnostics of the retired Python binding.
+    const required = [diagnostic.mirrorHome, diagnostic.dbPath];
+    const optional = [diagnostic.mirrorRoot, diagnostic.mirrorUser];
+    if (!required.every((field) => typeof field === "string" && field.length > 0)
+      || !optional.every((field) => field === undefined || (typeof field === "string" && field.length > 0))) {
       throw new Error("Validated runtime channel diagnostic lacks required coordinates.");
     }
   } else if (coordinates.some((field) => field !== undefined)
@@ -92,6 +97,11 @@ export async function inspectRuntimeBindingCandidate(): Promise<RuntimeBinding |
 
 export async function chooseRuntimeDirectory(kind: "mirrorRoot" | "mirrorHome"): Promise<string | undefined> {
   return (await invoke<string | null>("choose_runtime_directory", { kind })) ?? undefined;
+}
+
+/** CV-010.DS-005 slice 2d-1: bind this app to a Mirror home made for Mirror Desktop TS. */
+export async function bindMirrorHome(homePath: string): Promise<RuntimeChannelDiagnostic> {
+  return parseRuntimeChannelDiagnostic(await invoke<unknown>("bind_mirror_home", { homePath }));
 }
 
 export async function validateRuntimeBinding(binding: RuntimeBinding): Promise<RuntimeChannelDiagnostic> {

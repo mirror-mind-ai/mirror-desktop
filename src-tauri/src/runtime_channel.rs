@@ -1,4 +1,4 @@
-use crate::runtime_binding::{load_runtime_binding, BindingChannel, ValidatedRuntimeBinding};
+use crate::runtime_binding::{BindingChannel, ValidatedRuntimeBinding};
 use serde::Serialize;
 use std::{
     env, fs,
@@ -261,23 +261,27 @@ impl RuntimeChannelDiagnostic {
 }
 
 /// CV-010.DS-005 slice 2c: the 0.3 line opens only a marked 0.3 home and never connects a Python
-/// Mirror (condition b, and decision 3 of phase 2). Every route that would read, validate, save or
-/// use the Python binding refuses first. The Python profile and its callers leave in slice 2d,
-/// when each route moves to the Mirror host; until then they are unreachable, not removed.
+/// Mirror (condition b, and decision 3 of phase 2). Python discovery and the Python binding refuse
+/// first. Since slice 2d-1 the profile itself comes from the 0.3 home binding, and `uv` is refused.
 pub(crate) const PYTHON_MIRROR_RETIRED: bool = true;
 
 pub(crate) fn python_mirror_retired() -> Result<(), String> {
     if PYTHON_MIRROR_RETIRED {
-        return Err("Mirror Desktop TS is unbound: it opens only a marked 0.3 home and never connects a Python Mirror. \
-Connecting a 0.3 home arrives with DS-005 slice 2d; for development, create one with scripts/dev_ts_home.mjs."
-            .to_string());
+        return Err("Mirror Desktop TS never connects a Python Mirror: it opens only a Mirror home made for it.".to_string());
     }
     Ok(())
 }
 
+/// The refusal every `uv` route meets on the 0.3 line.
+pub(crate) const UV_RETIRED: &str =
+    "Mirror Desktop TS never runs the Python Mirror; this Mirror operation is not available in it yet.";
+pub(crate) const UNBOUND_0_3: &str =
+    "Mirror Desktop TS is unbound. Choose a Mirror home made for Mirror Desktop TS.";
+
 impl RuntimeChannelProfile {
+    /// The profile of the bound 0.3 home (CV-010.DS-005 slice 2d-1). Pi is resolved from the
+    /// trusted local tool locations, as before; nothing names a Mirror source tree, a user or `uv`.
     pub fn active() -> Result<Self, String> {
-        python_mirror_retired()?;
         let home = env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
             "Could not resolve HOME for the Mirror Desktop runtime channel.".to_string()
         })?;
@@ -285,42 +289,51 @@ impl RuntimeChannelProfile {
         let app_data_root = home
             .join("Library/Application Support")
             .join(channel.bundle_identifier());
-        let binding = load_runtime_binding(
-            &app_data_root,
-            channel.binding_channel(),
-            &runtime_search_directories(&home),
-        )?.ok_or_else(|| "Mirror Desktop runtime is unbound. Open Runtime Settings to connect a Mirror installation.".to_string())?;
-        Ok(Self::from_validated(channel, &home, binding))
+        let marked = crate::mirror_home::load_home_binding(&app_data_root)?
+            .ok_or_else(|| UNBOUND_0_3.to_string())?;
+        let (pi_bin, node_bin, pi_runtime_directory) =
+            crate::runtime_binding::resolve_pi_toolchain(&runtime_search_directories(&home))?;
+        Ok(Self::from_home(channel, &home, &marked, pi_bin, node_bin, pi_runtime_directory))
     }
 
-    #[cfg(test)]
-    pub fn for_home(channel: RuntimeChannel, home: &Path) -> Self {
-        let (mirror_root, mirror_home, mirror_user) = match channel {
-            RuntimeChannel::User | RuntimeChannel::Evaluation => (
-                home.join("mirror"),
-                home.join(".mirror-minds/example"),
-                "example",
-            ),
-            RuntimeChannel::Development => (
-                home.join(".mirror-journeys/mirror-mind/mirror-dev"),
-                home.join(".mirror-minds/mirror-dev"),
-                "mirror-dev",
-            ),
-        };
+    pub(crate) fn from_home(
+        channel: RuntimeChannel,
+        home: &Path,
+        marked: &crate::mirror_home::MarkedHome,
+        pi_bin: PathBuf,
+        node_bin: PathBuf,
+        pi_runtime_directory: PathBuf,
+    ) -> Self {
         Self {
             channel,
             product_name: channel.product_name(),
             bundle_identifier: channel.bundle_identifier(),
-            db_path: mirror_home.join("memory.db"),
-            mirror_root,
-            mirror_home,
-            mirror_user: mirror_user.to_string(),
-            pi_bin: PathBuf::from("/trusted/pi"),
-            node_bin: PathBuf::from("/trusted/node"),
-            pi_runtime_directory: PathBuf::from("/trusted"),
-            uv_bin: PathBuf::from("/trusted/uv"),
+            // The 0.3 home is the cwd Pi runs in: a data folder, never a Mirror checkout.
+            mirror_root: marked.home_path.clone(),
+            mirror_home: marked.home_path.clone(),
+            mirror_user: marked.marker.home_id.clone(),
+            db_path: marked.db_path.clone(),
+            pi_bin,
+            node_bin,
+            pi_runtime_directory,
+            uv_bin: PathBuf::new(),
             home: home.to_path_buf(),
         }
+    }
+
+    #[cfg(test)]
+    pub fn for_home(channel: RuntimeChannel, home: &Path) -> Self {
+        let name = match channel {
+            RuntimeChannel::User | RuntimeChannel::Evaluation => "user",
+            RuntimeChannel::Development => "development",
+        };
+        let home_path = home.join("Mirror Homes").join(name);
+        let marked = crate::mirror_home::MarkedHome {
+            db_path: home_path.join("memory.db"),
+            home_path,
+            marker: crate::mirror_home::HomeMarker { home_id: format!("home-{name}-0000"), created_at: "2026-10-29T00:00:00Z".into() },
+        };
+        Self::from_home(channel, home, &marked, PathBuf::from("/trusted/pi"), PathBuf::from("/trusted/node"), PathBuf::from("/trusted"))
     }
 
     pub(crate) fn from_validated(
@@ -356,10 +369,6 @@ impl RuntimeChannelProfile {
                 .parent()
                 .unwrap_or(Path::new("/usr/bin"))
                 .to_path_buf(),
-            self.uv_bin
-                .parent()
-                .unwrap_or(Path::new("/usr/bin"))
-                .to_path_buf(),
         ];
         directories.extend(runtime_search_directories(&self.home));
         directories.dedup();
@@ -380,17 +389,15 @@ impl RuntimeChannelProfile {
     }
 
     pub fn runtime_command(&self, program: &str) -> Result<Command, String> {
-        if !matches!(program, "pi" | "uv") {
+        if program == "uv" {
+            return Err(UV_RETIRED.to_string());
+        }
+        if program != "pi" {
             return Err(format!(
                 "Runtime channel rejects unsupported program {program}."
             ));
         }
-        let executable = match program {
-            "pi" => &self.pi_bin,
-            "uv" => &self.uv_bin,
-            _ => unreachable!("program allowlist checked above"),
-        };
-        let mut command = Command::new(executable);
+        let mut command = Command::new(&self.pi_bin);
         self.apply_to_command(&mut command);
         Ok(command)
     }
@@ -399,15 +406,15 @@ impl RuntimeChannelProfile {
         let runtime_path = env::join_paths(self.runtime_search_directories())
             .expect("trusted Mirror Desktop runtime paths must be joinable");
         command
-            .current_dir(&self.mirror_root)
+            .current_dir(&self.mirror_home)
+            .env_remove("MIRROR_HOME")
+            .env_remove("MIRROR_USER")
+            .env_remove("DB_PATH")
             .env_remove("PYTHONPATH")
             .env_remove("PYTHONHOME")
             .env_remove("VIRTUAL_ENV")
             .env_remove("UV_PROJECT_ENVIRONMENT")
             .env_remove("UV_WORKING_DIR")
-            .env("MIRROR_HOME", &self.mirror_home)
-            .env("MIRROR_USER", &self.mirror_user)
-            .env("DB_PATH", &self.db_path)
             .env("PATH", runtime_path);
     }
 
@@ -421,9 +428,9 @@ impl RuntimeChannelProfile {
             product_name: self.product_name,
             bundle_identifier: self.bundle_identifier,
             app_data_root: app_data_root.to_string_lossy().to_string(),
-            mirror_root: Some(self.mirror_root.to_string_lossy().to_string()),
+            mirror_root: None,
             mirror_home: Some(self.mirror_home.to_string_lossy().to_string()),
-            mirror_user: Some(self.mirror_user.clone()),
+            mirror_user: None,
             db_path: Some(self.db_path.to_string_lossy().to_string()),
             status: "validated",
             message: None,
@@ -442,9 +449,11 @@ mod tests {
         assert!(PYTHON_MIRROR_RETIRED);
         let refusal = python_mirror_retired().unwrap_err();
         assert!(refusal.contains("never connects a Python Mirror"), "{refusal}");
-        assert!(refusal.contains("unbound"), "the setup screen reads `unbound`: {refusal}");
-        let active = RuntimeChannelProfile::active().err().expect("no Python profile on the 0.3 line");
-        assert_eq!(active, refusal);
+        // Slice 2d-1: the profile is built from the 0.3 home binding and runs no `uv`.
+        let profile = RuntimeChannelProfile::for_home(RuntimeChannel::Development, std::path::Path::new("/Users/example"));
+        let refused = profile.runtime_command("uv").unwrap_err();
+        assert!(refused.contains("Python Mirror"), "{refused}");
+        assert!(profile.runtime_command("pi").is_ok());
     }
     use std::{
         fs,
@@ -485,23 +494,13 @@ mod tests {
 
         assert_eq!(user.bundle_identifier, "ai.mirrormind.desktop.ts");
         assert_eq!(development.bundle_identifier, "ai.mirrormind.desktop.ts.dev");
-        assert_eq!(
-            development.mirror_root,
-            home.join(".mirror-journeys/mirror-mind/mirror-dev")
-        );
-        assert_eq!(
-            development.mirror_home,
-            home.join(".mirror-minds/mirror-dev")
-        );
-        assert_eq!(development.mirror_user, "mirror-dev");
-        assert_eq!(
-            development.db_path,
-            home.join(".mirror-minds/mirror-dev/memory.db")
-        );
+        // A 0.3 profile is its home: the cwd, the Mirror home and the database all come from it.
+        assert_eq!(development.mirror_home, home.join("Mirror Homes/development"));
+        assert_eq!(development.mirror_root, development.mirror_home);
+        assert_eq!(development.db_path, development.mirror_home.join("memory.db"));
         assert_ne!(user.mirror_home, development.mirror_home);
         assert_eq!(evaluation.product_name, "Mirror Desktop TS Eval");
         assert_eq!(evaluation.bundle_identifier, "ai.mirrormind.desktop.ts");
-        assert_eq!(evaluation.mirror_root, user.mirror_root);
         assert_eq!(evaluation.mirror_home, user.mirror_home);
         assert_eq!(evaluation.db_path, user.db_path);
         assert!(RuntimeChannel::User.supports_updater());
@@ -595,7 +594,10 @@ mod tests {
         );
         let diagnostic = profile.diagnostic(Path::new("/tmp/ai.mirrormind.desktop.ts.dev"));
         let value = serde_json::to_value(diagnostic).unwrap();
-        assert_eq!(value.as_object().unwrap().len(), 9);
+        // The 0.3 diagnostic names the home and its database, and no Mirror source tree or user.
+        assert_eq!(value.as_object().unwrap().len(), 7);
+        assert_eq!(value["mirrorHome"], "/Users/example/Mirror Homes/development");
+        assert_eq!(value["dbPath"], "/Users/example/Mirror Homes/development/memory.db");
         assert_eq!(value["channel"], "development");
         assert_eq!(value["status"], "validated");
     }
@@ -617,10 +619,11 @@ mod tests {
         let profile =
             RuntimeChannelProfile::for_home(RuntimeChannel::User, Path::new("/Users/example"));
         assert!(profile.runtime_command("bash").is_err());
+        assert!(profile.runtime_command("uv").is_err());
     }
 
     #[test]
-    fn applies_only_the_channel_mirror_coordinates_to_a_process() {
+    fn runs_pi_in_the_0_3_home_with_no_mirror_variable() {
         let profile = RuntimeChannelProfile::for_home(
             RuntimeChannel::Development,
             Path::new("/Users/example"),
@@ -638,29 +641,17 @@ mod tests {
                 })
             })
             .collect::<std::collections::HashMap<_, _>>();
-        assert_eq!(
-            command.get_current_dir(),
-            Some(Path::new(
-                "/Users/example/.mirror-journeys/mirror-mind/mirror-dev"
-            ))
-        );
-        assert_eq!(
-            environment.get("MIRROR_HOME").map(String::as_str),
-            Some("/Users/example/.mirror-minds/mirror-dev")
-        );
-        assert_eq!(
-            environment.get("MIRROR_USER").map(String::as_str),
-            Some("mirror-dev")
-        );
-        assert_eq!(
-            environment.get("DB_PATH").map(String::as_str),
-            Some("/Users/example/.mirror-minds/mirror-dev/memory.db")
-        );
+        // Slice 2d-1 (and the start of 2e): the cwd is the 0.3 home, never a Mirror checkout whose
+        // `.pi/extensions` would run the Python Mirror, and no Mirror variable reaches Pi.
+        assert_eq!(command.get_current_dir(), Some(Path::new("/Users/example/Mirror Homes/development")));
         assert!(environment
             .get("PATH")
             .is_some_and(|value| value.contains("/usr/local/bin")));
-        assert_eq!(environment.len(), 4);
+        assert_eq!(environment.len(), 1, "{environment:?}");
         for removed in [
+            "MIRROR_HOME",
+            "MIRROR_USER",
+            "DB_PATH",
             "PYTHONPATH",
             "PYTHONHOME",
             "VIRTUAL_ENV",
@@ -669,7 +660,7 @@ mod tests {
         ] {
             assert!(command
                 .get_envs()
-                .any(|(key, value)| key == removed && value.is_none()));
+                .any(|(key, value)| key == removed && value.is_none()), "{removed} is not removed");
         }
     }
 
@@ -679,7 +670,7 @@ mod tests {
             RuntimeChannel::Development,
             Path::new("/Users/example"),
         );
-        let mut command = Command::new("uv");
+        let mut command = Command::new("pi");
         command.env("NAUTILUS_TURN_CORRELATION_V1", "journey-bound-turn");
         profile.detach_journey_turn_authority(&mut command);
 

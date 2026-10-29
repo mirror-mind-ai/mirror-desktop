@@ -8,11 +8,11 @@ describe("Journey registry refresh boundary", () => {
   it("uses one dedicated model-free Tauri command", () => {
     expect(storageSource).toContain('invoke<string>("refresh_journey_registry")');
     expect(tauriSource).toContain("fn refresh_journey_registry(app: AppHandle)");
-    expect(tauriSource).toContain('"export-registry"');
-    expect(tauriSource).toContain('"journey"');
-    expect(tauriSource).toContain("mirror_administrative_command(\"uv\")");
-    expect(tauriSource).toContain("detach_journey_turn_authority");
-    expect(tauriSource).toContain("Could not refresh Journeys from Mirror: {detail}");
+    // CV-010.DS-005 slice 2d-1: the tree comes from the Mirror host; the retired dump is not called.
+    expect(tauriSource).toContain('mirror_host_bridge::request(&app, "readJourneyTree"');
+    expect(tauriSource).toContain("mirror_host_bridge::registry_from_tree(");
+    expect(tauriSource).not.toContain('"export-registry"');
+    expect(tauriSource).toContain("Could not refresh Journeys from Mirror: {error}");
     expect(tauriSource).toContain("validate_journey_registry_payload");
     const refreshCommand = tauriSource.slice(
       tauriSource.indexOf("fn refresh_journey_registry"),
