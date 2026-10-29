@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29. Decisions 2, 3 and 5 answered; 1 and 4 await the Navigator's answer to a clarification. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted. 3a built, awaiting the Navigator's check; 3b–3d to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2030,3 +2030,50 @@ OpenRouter key Mirror's context needs is taken.
   key is configured and when it last worked, and offers test, replace and remove. The key is never
   shown back. Removing it leaves turns working without Mirror's context, said plainly. Awaiting the
   Navigator's word.
+- **1 and 4, confirmed** ("vai", 2026-10-29): both proposals above are accepted as written. The
+  Settings section for the OpenRouter key belongs to slice 3c.
+
+## Slice 3a Built — Create a Home in the App (2026-10-29)
+
+Commit `6f27847`.
+
+- **The host never makes an unmarked home.** Its raw `createHome` method is replaced by
+  `createMarkedHome`. The core builds the home under a hidden name beside the target
+  (`.<name>.marking-<random>`), the host writes the 0.3 marker inside it (`writeMarker`, moved from
+  `dev_ts_home.mjs`), and renames it into place. Any failure removes the hidden folder. This closes
+  the window `dev_ts_home.mjs` had, where the marker was written after the home was in place.
+- **Refusals, before anything is made:** a path with a `.mirror-minds` component
+  (`reserved_location`), a relative or non-normalized path, a missing parent or one reached through a
+  symlink (`invalid_home_path`), an existing target (`home_exists`), all as
+  `HomeCreationRefusedError`; the core's own (`invalid_user_name`, `seed_failed`, …) pass through.
+- **App.** `create_mirror_home(userName, folder?)` validates the user name with the core's rule,
+  places the home at `<folder>/<userName>` or `~/Mirror/<userName>` (making `~/Mirror` itself, never
+  a chain of folders), has the host create it, and binds it through `bind_marked_home`, the same
+  function a chosen home goes through (marker, then `current`, then persist). Refusals become
+  sentences that say what to do (`describe_home_creation`). `choose_runtime_directory` accepts
+  `homeFolder`. Command census 89 → 90.
+- **Screen.** "Create your Mirror": "What should your Mirror call you?", the derived user name
+  (editable, `userNameFrom` follows the core's `kebabSlug`), the folder it will be, "Create my
+  Mirror", "Choose another place…", and "Open an existing Mirror home…". The development hint
+  naming `dev_ts_home.mjs` is gone; the script still works and now calls the host's method.
+
+**Gates.** vitest 280 files / 2,331 tests; cargo 385 passed / 5 ignored; real-host tests 2 pass on
+the rematerialized runtime; roadmap READY. One full vitest run failed 3 timing tests (host pin
+staging, launcher) under a system load average of 220 (WindowServer, Spotlight, WebKit); the two
+files pass alone and the full suite passed on the two runs before and after.
+
+**Mutations.** 18 tried, 18 caught after one fix. M6 (dropping the normalized-path check) escaped
+at first: `..` is still refused by the symlink check, but a trailing slash was not; the test now
+covers `<parent>/zed/`. Caught: the `.mirror-minds` refusal, the marker, the staging cleanup, the
+last check before the rename, the symlinked parent, the raw core call, accent stripping, the
+80-character bound, the screen's guard, the binding state reset, the default folder, the Rust name
+rule, a relative folder, a raw refusal shown, binding before creating, `create_dir_all`, and a home
+request that may create.
+
+**Navigator check (pending).** On your own account, with the TS Dev app:
+
+1. Move the binding aside: `mv ~/Library/Application\ Support/ai.mirrormind.desktop.ts.dev/runtime-home.v2.json{,.ana}`.
+2. `npm run tauri:build:dev -- --bundles app`, then open the app: it shows "Create your Mirror".
+3. Type a name, create, and reach the model step and a first turn in one of its Journeys.
+4. Check `~/Mirror/<name>` exists and nothing appeared in `~/.mirror-minds`.
+5. To return to `ana`: quit, `mv …/runtime-home.v2.json.ana …/runtime-home.v2.json`.
