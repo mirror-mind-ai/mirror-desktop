@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29. Five decisions are open for the Navigator. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29. Decisions 2, 3 and 5 answered; 1 and 4 await the Navigator's answer to a clarification. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2011,3 +2011,22 @@ OpenRouter key Mirror's context needs is taken.
    the home's `.mirror-desktop/`. Never `~/.config/mirror/env`.
 5. **The doorman in Core.** Recommendation: a CV24.DS6 slice on the same unmerged branch, with the
    pin moving to its commit. The phase-1 merge and Core release then carry six slices, not five.
+
+### Navigator answers (2026-10-29)
+
+- **2 · How Pi arrives:** accepted. Installed at first run, pinned and integrity-checked, into the
+  app's own folder; credentials stay in `~/.pi/agent`.
+- **3 · API keys typed in the app:** accepted. Handed straight to Pi's login; Desktop keeps no copy.
+- **5 · The doorman in Core:** accepted. CV24.DS6 on `desktop/library-seam-1a`, pin moved to it.
+- **1 · Where a created home goes:** the Navigator asked what `<name>` is. Measured:
+  `createHome({homePath, userName})` requires `userName` to be a kebab-case slug (lowercase letters,
+  digits, single hyphens, up to 80 characters); it is the identity key the templates are written
+  with. The doorman also takes the user and identity from the home folder's own name
+  (`basename(mirrorHome)`). So the folder name must be that same slug. Proposed: the assistant asks
+  "What should your Mirror call you?", derives the slug ("Ana Souza" → `ana-souza`), shows it
+  editable, and creates `~/Mirror/<slug>`. Awaiting the Navigator's word.
+- **4 · The OpenRouter key:** the Navigator asked whether the person can manage the connection in
+  the app. Proposed: yes, in Settings, a "Mirror's context · OpenRouter" section that shows whether a
+  key is configured and when it last worked, and offers test, replace and remove. The key is never
+  shown back. Removing it leaves turns working without Mirror's context, said plainly. Awaiting the
+  Navigator's word.
