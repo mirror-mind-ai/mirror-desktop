@@ -8,7 +8,7 @@
 | ↳　Fase 0 · Separar | ✅ Done · aceita por você em 28/10 · pasta 0.2 Dev intacta | `██████████` |
 | ↳　Fase 1 · Costura de biblioteca no Core | 🟠 Implemented · CV24.DS1–DS5 construídas, CI do Core verde · 15 nomes em `mirror-mind/desktop` · falta merge e release do Core | `░░░░░░░░░░` |
 | ↳　Fase 2 · Host embutido | ✅ Done · build empacotada testada por você em 29/10 · Node e Core dentro do app · sem Python | `██████████` |
-| ↳　Fase 3 · Assistente de primeiro uso na 0.3 | 🟡 Planned · 3a criar home e 3a-2 estado por home feitas · aguardam seu teste · 3b instalar Pi · 3c provedores · 3d contexto do Mirror | `███░░░░░░░` |
+| ↳　Fase 3 · Assistente de primeiro uso na 0.3 | 🟡 Planned · 3a criar home e 3a-2 estado por home testadas por você · 3b instalar Pi · 3c provedores · 3d contexto do Mirror | `███░░░░░░░` |
 | ↳　Fase 4 · Estável | 🟡 Candidate · uso diário em banco próprio · CRs voltam | `░░░░░░░░░░` |
 | ↳　Fase 5 · Migração da produção | 🟡 Candidate · só com sua palavra · backup ensaiado · fim do web console | `░░░░░░░░░░` |
 | **Linha 0.2 · Mirror Desktop · `release/0.2`** | ⏸️ congelada na alpha.58 · em produção e no download público · só dano grave · canal `alpha` | — |
@@ -42,6 +42,6 @@
 
 | Entrega | Story | Release | Estado |
 | --- | --- | --- | --- |
+| DS-005 fase 3 · 3a criar home + 3a-2 estado por home | CV-010 | `main` · não publicada | 🟡 Fatias feitas · testadas por você |
 | DS-005 fase 2 · Host embutido | CV-010 | `main` · não publicada | ✅ Done · build empacotada testada por você |
 | DS-005 fase 1 · Costura de biblioteca no Core | CV-010 | ramo do Core · sem merge | 🟠 Implemented · CI verde |
-| DS-005 fase 0 · Separar | CV-010 | `main` · não publicada | ✅ Done · aceita por você |

@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built, awaiting the Navigator's check. 3b–3d to do. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator. 3b–3d to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2192,3 +2192,17 @@ migration 016.
 3. Quit, then switch to ana:
    `cd ~/Library/Application\ Support/ai.mirrormind.desktop.ts.dev && mv runtime-home.v2.json runtime-home.v2.json.joao && mv runtime-home.v2.json.ana runtime-home.v2.json`.
 4. Open the app: ana's two Conversations are there, and continuing one works.
+
+## Navigator Check of 3a + 3a-2: Passed (2026-10-29)
+
+The Navigator reported "Deu certo". Read afterwards, read-only:
+
+- `joao-silva` (`home-b7421a1e-…`) has its own state folder (11 entries) and its database holds
+  2 messages, the latest at 20:50:14Z: a turn sent in the new home was recorded there.
+- ana's folder (`home-dafb7eb5-…`, 12 entries) is intact, and the binding is back on ana. Her database
+  still holds 6 messages, the latest at 17:36:32Z, so a continued turn in her Conversation is **not
+  evidenced** in the database; that her Conversations reappeared rests on the Navigator's word.
+- Production unchanged: binary `303ede287de3…`, migration 016.
+
+Defects 1 and 2 of the 3a check are closed. Phase 3 stays 🟡 until 3b–3d and the acceptance on the
+clean `mirror` account.
