@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted. 3a built, awaiting the Navigator's check; 3b–3d to do. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; decision 1's default folder reopened (it is the production checkout on a case-folding Mac). 3a built; its check waits on that decision. 3b–3d to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2070,10 +2070,32 @@ last check before the rename, the symlinked parent, the raw core call, accent st
 rule, a relative folder, a raw refusal shown, binding before creating, `create_dir_all`, and a home
 request that may create.
 
-**Navigator check (pending).** On your own account, with the TS Dev app:
+~~**Navigator check (pending).** On your own account, with the TS Dev app:~~ Withdrawn; see the correction below.
 
 1. Move the binding aside: `mv ~/Library/Application\ Support/ai.mirrormind.desktop.ts.dev/runtime-home.v2.json{,.ana}`.
 2. `npm run tauri:build:dev -- --bundles app`, then open the app: it shows "Create your Mirror".
 3. Type a name, create, and reach the model step and a first turn in one of its Journeys.
 4. Check `~/Mirror/<name>` exists and nothing appeared in `~/.mirror-minds`.
 5. To return to `ana`: quit, `mv …/runtime-home.v2.json.ana …/runtime-home.v2.json`.
+
+### Correction — the default folder is the production checkout (2026-10-29)
+
+Read before the Navigator's check: `~/Mirror` exists on his account and is a Mirror Mind git checkout,
+because APFS folds case and `~/Mirror` is `~/mirror`, the production checkout. With decision 1 as
+accepted, "Create my Mirror" would have created the home **inside the production checkout**. No one
+had run it; nothing was created.
+
+Fixed in the host, commit `1b245ab`, whatever the default becomes:
+
+- any folder inside a git repository is refused (`inside_repository`): the host walks from the parent
+  to the root looking for `.git`. Every Mirror checkout is a repository, wherever it lives;
+- the `.mirror-minds` component is compared without case.
+
+Three mutations (no walk, parent only, case-sensitive comparison) were caught. Gates: vitest 280
+files / 2,331 tests; cargo 385 passed / 5 ignored; real-host 2 pass. Production afterwards: binary
+`303ede287de3…`, migration 016.
+
+**Decision 1 reopened.** The Python Mirror's getting-started guide (`docs/getting-started.md`, lines
+70–71) clones the repository as `mirror` and enters it, so run from the home folder it makes
+`~/mirror`. The default would collide for the people most likely to try the app. Proposed default:
+`~/Mirror Homes/<user-name>`, which collides with no Mirror path and reads plainly in Finder.
