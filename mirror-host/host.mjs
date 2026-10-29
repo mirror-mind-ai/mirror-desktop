@@ -15,6 +15,12 @@
 // the core is a response, not a crash: the host keeps serving. A line the host cannot read as a
 // request is answered with `id: null`.
 //
+// Condition (b) of the 0.3 line: the host opens only a marked 0.3 home. Every method that names a
+// database (all but `createHome`) is refused, before the core is called, unless `dbPath` is
+// `<home>/memory.db` for a home that is a real directory (no symlink anywhere in its path) holding
+// `.mirror-desktop/home.json` with exactly `{line: "0.3", homeId, createdAt}`. The production
+// Python home carries no marker, so it is never opened. The supervisor checks the same marker.
+//
 // The host reads no environment variable, and stdout carries the protocol alone. `console.log` is
 // sent to stderr, and Node's ExperimentalWarning for `node:sqlite` is dropped. The host exits 0
 // when stdin closes.
@@ -22,8 +28,9 @@
 // This file lives beside the core's `node_modules` in a laid-out runtime
 // (`scripts/mirror_host_pin.mjs`), which is how `mirror-mind/desktop` resolves.
 
-import { realpathSync } from "node:fs";
+import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
+import { basename, dirname, isAbsolute } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
@@ -47,7 +54,50 @@ const CALLS = {
 };
 export const HOST_METHODS = Object.keys(CALLS);
 
+export const HOME_LINE = "0.3";
+const MARKER_KEYS = ["createdAt", "homeId", "line"];
+const HOME_ID = /^[A-Za-z0-9][A-Za-z0-9-]{7,63}$/;
+const MAX_MARKER_BYTES = 4_096;
+
+class HomeNotMarkedError extends Error {
+  constructor(reason, message) {
+    super(message);
+    this.reason = reason;
+  }
+}
+
+/** Throw unless `dbPath` is `<home>/memory.db` of a marked 0.3 home. */
+export function assertMarkedHome(dbPath) {
+  if (typeof dbPath !== "string" || !isAbsolute(dbPath) || basename(dbPath) !== "memory.db") {
+    throw new HomeNotMarkedError("invalid_home", "dbPath must be <home>/memory.db, absolute");
+  }
+  const home = dirname(dbPath);
+  let real;
+  try {
+    real = realpathSync(home);
+  } catch {
+    throw new HomeNotMarkedError("unmarked", `no home at ${home}`);
+  }
+  if (real !== home) throw new HomeNotMarkedError("invalid_home", "the home path passes through a symlink");
+  const markerPath = `${home}/.mirror-desktop/home.json`;
+  let marker;
+  try {
+    const stat = lstatSync(markerPath);
+    if (!stat.isFile() || stat.size > MAX_MARKER_BYTES) throw new Error("not a small regular file");
+    marker = JSON.parse(readFileSync(markerPath, "utf8"));
+  } catch {
+    throw new HomeNotMarkedError("unmarked", `${home} is not a marked 0.3 home`);
+  }
+  const valid = isRecord(marker)
+    && Object.keys(marker).sort().join(",") === MARKER_KEYS.join(",")
+    && marker.line === HOME_LINE
+    && typeof marker.homeId === "string" && HOME_ID.test(marker.homeId)
+    && typeof marker.createdAt === "string" && marker.createdAt.length > 0;
+  if (!valid) throw new HomeNotMarkedError("unmarked", `${home} carries a marker that is not a 0.3 home's`);
+}
+
 const REFUSALS = [
+  ["HomeNotMarkedError", (error) => error.reason, HomeNotMarkedError],
   ["DatabaseNotCurrentError", (error) => error.state],
   ["ConversationCallRejectedError", (error) => error.reason],
   ["CreateHomeRejectedError", (error) => error.reason],
@@ -82,10 +132,11 @@ export function answer(desktop, line) {
   }
   if (!isRecord(params)) return failure(id, "HostProtocolError", "malformed_request", "params is not an object");
   try {
+    if (method !== "createHome") assertMarkedHome(params.dbPath);
     return { id, ok: true, result: CALLS[method](desktop, params) };
   } catch (error) {
-    for (const [name, reasonOf] of REFUSALS) {
-      if (error instanceof desktop[name]) return failure(id, name, reasonOf(error), error.message);
+    for (const [name, reasonOf, ownClass] of REFUSALS) {
+      if (error instanceof (ownClass ?? desktop[name])) return failure(id, name, reasonOf(error), error.message);
     }
     return failure(id, "Error", "internal", error instanceof Error ? error.message : error);
   }

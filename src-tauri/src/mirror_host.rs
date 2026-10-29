@@ -105,6 +105,8 @@ pub(crate) enum MirrorHostError {
     TimedOut { method: String, stderr_tail: String },
     HostExited { stderr_tail: String },
     Protocol(String),
+    /// The home is not, or is no longer, a marked 0.3 home; no request was sent.
+    HomeNotMarked(String),
     /// The core refused the request; the host is healthy.
     Rejected { name: String, reason: String, message: String },
 }
@@ -197,6 +199,32 @@ impl MirrorHost {
             }
             host.kill();
         }
+    }
+
+    /// Send a request about `home`. The marker is checked again first, on disk, and `dbPath` is set
+    /// to the home's own database, whatever the caller put there. `createHome` is not a home
+    /// request: it names no existing home.
+    pub fn request_for_home(
+        &mut self,
+        home: &crate::mirror_home::MarkedHome,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, MirrorHostError> {
+        if method == "createHome" {
+            return Err(MirrorHostError::Protocol("createHome names no existing home".into()));
+        }
+        let Value::Object(mut params) = params else {
+            return Err(MirrorHostError::Protocol("params must be an object".into()));
+        };
+        let current = crate::mirror_home::MarkedHome::open(&home.home_path).map_err(MirrorHostError::HomeNotMarked)?;
+        if current.marker.home_id != home.marker.home_id {
+            return Err(MirrorHostError::HomeNotMarked(format!(
+                "{} now carries another home's marker",
+                home.home_path.display()
+            )));
+        }
+        params.insert("dbPath".into(), Value::String(current.db_path.to_string_lossy().into_owned()));
+        self.request(method, Value::Object(params))
     }
 
     /// Send one request and wait for its response within the method's deadline.
@@ -418,6 +446,7 @@ while IFS= read -r line; do
     *'"method":"hang"'*) /bin/sleep 60 & echo $! > grandchild.pid; wait;;
     *'"method":"die"'*) echo "dying on purpose" >&2; exit 3;;
     *'"method":"refuse"'*) printf '{{"id":%s,"ok":false,"error":{{"name":"DatabaseNotCurrentError","reason":"pending","message":"not current"}}}}\n' "$id";;
+    *'"method":"echoParams"'*) printf '{{"id":%s,"ok":true,"result":%s}}\n' "$id" "$line";;
     *'"method":"wrongId"'*) printf '{{"id":999999,"ok":true,"result":null}}\n';;
     *'"method":"huge"'*) /usr/bin/head -c 9000000 /dev/zero | /usr/bin/tr '\0' 'x'; printf '\n';;
     *) printf '{{"id":%s,"ok":true,"result":{{"echo":%s}}}}\n' "$id" "$id";;
@@ -529,7 +558,12 @@ done"#
     #[test]
     fn an_answer_to_another_request_or_an_oversized_line_is_a_protocol_error_that_kills_the_host() {
         let directory = scratch("protocol");
-        let mut host = MirrorHost::new(fake_host(&directory, READY));
+        // The 9 MB line is written by `head | tr` in sh, which under a full parallel suite took longer
+        // than the 1.5 s the other tests use, so the size bound was never reached (measured
+        // 2026-10-29: TimedOut, 3 of 3 full runs). This test is about the bound, not the deadline.
+        let mut settings = fake_host(&directory, READY);
+        settings.deadlines.default = Duration::from_secs(30);
+        let mut host = MirrorHost::new(settings);
         assert!(matches!(host.request("wrongId", serde_json::json!({})).unwrap_err(), MirrorHostError::Protocol(_)));
         assert!(host.pid().is_none());
         assert!(matches!(host.request("huge", serde_json::json!({})).unwrap_err(), MirrorHostError::Protocol(_)));
@@ -608,6 +642,58 @@ done"#
         assert!(gone_within(pid, Duration::from_secs(2)));
     }
 
+    fn marked_home(parent: &Path) -> crate::mirror_home::MarkedHome {
+        let home = parent.join("ana");
+        fs::create_dir_all(home.join(".mirror-desktop")).unwrap();
+        fs::write(
+            home.join(".mirror-desktop").join("home.json"),
+            r#"{"line":"0.3","homeId":"home-1234-abcd","createdAt":"2026-10-29T00:00:00Z"}"#,
+        )
+        .unwrap();
+        crate::mirror_home::MarkedHome::open(&home).unwrap()
+    }
+
+    #[test]
+    fn a_home_request_carries_the_marked_home_database_and_nothing_the_caller_named() {
+        let directory = scratch("for-home");
+        let home = marked_home(&directory);
+        let mut host = MirrorHost::new(fake_host(&directory, READY));
+        let sent = host
+            .request_for_home(&home, "echoParams", serde_json::json!({"dbPath": "/elsewhere/memory.db", "request": {"x": 1}}))
+            .unwrap();
+        assert_eq!(sent["params"]["dbPath"], home.db_path.to_string_lossy().as_ref());
+        assert_eq!(sent["params"]["request"], serde_json::json!({"x": 1}));
+    }
+
+    #[test]
+    fn a_home_that_lost_its_marker_is_refused_before_any_host_starts() {
+        let directory = scratch("lost-marker");
+        let home = marked_home(&directory);
+        fs::remove_file(home.home_path.join(".mirror-desktop").join("home.json")).unwrap();
+        let mut host = MirrorHost::new(fake_host(&directory, READY));
+        assert!(matches!(
+            host.request_for_home(&home, "readJourneyTree", serde_json::json!({})).unwrap_err(),
+            MirrorHostError::HomeNotMarked(_)
+        ));
+        assert_eq!(host.starts(), 0);
+    }
+
+    #[test]
+    fn create_home_and_non_object_params_are_not_home_requests() {
+        let directory = scratch("not-home-requests");
+        let home = marked_home(&directory);
+        let mut host = MirrorHost::new(fake_host(&directory, READY));
+        assert!(matches!(
+            host.request_for_home(&home, "createHome", serde_json::json!({})).unwrap_err(),
+            MirrorHostError::Protocol(_)
+        ));
+        assert!(matches!(
+            host.request_for_home(&home, "readJourneyTree", serde_json::json!([1])).unwrap_err(),
+            MirrorHostError::Protocol(_)
+        ));
+        assert_eq!(host.starts(), 0);
+    }
+
     #[test]
     fn deadlines_follow_the_method() {
         let deadlines = MirrorHostDeadlines::standard();
@@ -629,19 +715,22 @@ done"#
             .request("createHome", serde_json::json!({"request": {"homePath": parent.join("ana"), "userName": "ana"}}))
             .unwrap();
         let db_path = created["dbPath"].clone();
-        assert_eq!(host.request("inspectMigrationState", serde_json::json!({"dbPath": db_path})).unwrap()["state"], "current");
+        // Unmarked, the real host refuses even the read-only report: condition (b), in the host.
+        match host.request("inspectMigrationState", serde_json::json!({"dbPath": db_path})).unwrap_err() {
+            MirrorHostError::Rejected { name, reason, .. } => assert_eq!((name.as_str(), reason.as_str()), ("HomeNotMarkedError", "unmarked")),
+            other => panic!("{other:?}"),
+        }
+        let home = marked_home(&parent);
+        assert_eq!(host.request_for_home(&home, "inspectMigrationState", serde_json::json!({})).unwrap()["state"], "current");
         let ensured = host
-            .request(
+            .request_for_home(
+                &home,
                 "ensureConversation",
-                serde_json::json!({"dbPath": db_path, "request": {"sessionId": "s", "journeyId": "j", "title": "t", "interface": "mirror-desktop-ts"}}),
+                serde_json::json!({"request": {"sessionId": "s", "journeyId": "j", "title": "t", "interface": "mirror-desktop-ts"}}),
             )
             .unwrap();
         assert!(ensured["conversationId"].is_string());
-        assert_eq!(host.request("readJourneyTree", serde_json::json!({"dbPath": db_path})).unwrap()["findings"], serde_json::json!([]));
-        match host.request("readJourneyTree", serde_json::json!({"dbPath": parent.join("none.db")})).unwrap_err() {
-            MirrorHostError::Rejected { name, reason, .. } => assert_eq!((name.as_str(), reason.as_str()), ("DatabaseNotCurrentError", "missing")),
-            other => panic!("{other:?}"),
-        }
+        assert_eq!(host.request_for_home(&home, "readJourneyTree", serde_json::json!({})).unwrap()["findings"], serde_json::json!([]));
         assert_eq!(host.handshake().unwrap()["desktopApiVersion"], 1);
         assert_eq!(host.starts(), 1);
         let _ = fs::remove_dir_all(&parent);

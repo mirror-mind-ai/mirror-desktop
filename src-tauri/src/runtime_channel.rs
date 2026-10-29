@@ -260,8 +260,24 @@ impl RuntimeChannelDiagnostic {
     }
 }
 
+/// CV-010.DS-005 slice 2c: the 0.3 line opens only a marked 0.3 home and never connects a Python
+/// Mirror (condition b, and decision 3 of phase 2). Every route that would read, validate, save or
+/// use the Python binding refuses first. The Python profile and its callers leave in slice 2d,
+/// when each route moves to the Mirror host; until then they are unreachable, not removed.
+pub(crate) const PYTHON_MIRROR_RETIRED: bool = true;
+
+pub(crate) fn python_mirror_retired() -> Result<(), String> {
+    if PYTHON_MIRROR_RETIRED {
+        return Err("Mirror Desktop TS is unbound: it opens only a marked 0.3 home and never connects a Python Mirror. \
+Connecting a 0.3 home arrives with DS-005 slice 2d; for development, create one with scripts/dev_ts_home.mjs."
+            .to_string());
+    }
+    Ok(())
+}
+
 impl RuntimeChannelProfile {
     pub fn active() -> Result<Self, String> {
+        python_mirror_retired()?;
         let home = env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
             "Could not resolve HOME for the Mirror Desktop runtime channel.".to_string()
         })?;
@@ -418,6 +434,18 @@ impl RuntimeChannelProfile {
 #[cfg(test)]
 mod tests {
     use super::{runtime_search_directories, RuntimeChannel, RuntimeChannelProfile};
+    use super::{python_mirror_retired, PYTHON_MIRROR_RETIRED};
+
+    #[test]
+    fn the_0_3_line_never_opens_a_python_mirror() {
+        // CV-010.DS-005 slice 2c: decision 3 of phase 2 and condition (b) of the 0.3 line.
+        assert!(PYTHON_MIRROR_RETIRED);
+        let refusal = python_mirror_retired().unwrap_err();
+        assert!(refusal.contains("never connects a Python Mirror"), "{refusal}");
+        assert!(refusal.contains("unbound"), "the setup screen reads `unbound`: {refusal}");
+        let active = RuntimeChannelProfile::active().err().expect("no Python profile on the 0.3 line");
+        assert_eq!(active, refusal);
+    }
     use std::{
         fs,
         path::Path,

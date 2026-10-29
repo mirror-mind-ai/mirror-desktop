@@ -2,6 +2,7 @@ mod agent_settings;
 mod bounded_child;
 mod journey_appearance;
 mod mirror_discovery;
+mod mirror_home;
 mod mirror_host;
 mod model_intents;
 mod native_command_serialization;
@@ -2556,6 +2557,7 @@ fn validate_runtime_binding_request(
     binding: RuntimeBinding,
     persist: bool,
 ) -> Result<RuntimeChannelDiagnostic, String> {
+    crate::runtime_channel::python_mirror_retired()?;
     let channel = RuntimeChannel::active();
     let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&app_data_root)
@@ -2594,6 +2596,7 @@ fn inspect_runtime_binding_candidate() -> Result<Option<RuntimeBinding>, String>
 #[tauri::command(async)]
 fn discover_existing_mirror(chosen_root: Option<String>) -> Result<mirror_discovery::MirrorDiscovery, String> {
     let _serialized = crate::native_command_serialization::acquire();
+    crate::runtime_channel::python_mirror_retired()?;
     let home = env::var_os("HOME").map(PathBuf::from)
         .ok_or_else(|| "Could not resolve HOME for Mirror discovery.".to_string())?;
     let channel = RuntimeChannel::active();
@@ -15113,6 +15116,22 @@ mod cr163_mirror_append_bound_tests {
         let rest = &source[start..];
         let end = rest.find("\n}\n").expect("function end");
         rest[..end].to_string()
+    }
+
+    #[test]
+    fn the_python_discovery_and_binding_refuse_before_anything_else() {
+        // CV-010.DS-005 slice 2c: Mirror Desktop TS never reads, validates or saves a Python Mirror.
+        let source = production_source();
+        for signature in ["fn discover_existing_mirror(", "fn validate_runtime_binding_request("] {
+            let body = body_of(&source, signature);
+            let check = body.find("python_mirror_retired()?").unwrap_or_else(|| panic!("{signature} does not refuse"));
+            for later in ["mirror_discovery::discover(", "binding.validate(", "validated.persist("] {
+                if let Some(at) = body.find(later) {
+                    assert!(check < at, "{signature} reaches {later} before refusing");
+                }
+            }
+        }
+        assert!(discover_existing_mirror(None).unwrap_err().contains("never connects a Python Mirror"));
     }
 
     #[test]
