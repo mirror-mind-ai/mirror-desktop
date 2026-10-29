@@ -498,9 +498,8 @@ import {
 } from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
 import {
-  bindMirrorHome, chooseRuntimeDirectory, discoverExistingMirror, inspectRuntimeBindingCandidate, inspectRuntimeChannel,
-  saveRuntimeBinding, validateRuntimeBinding,
-  type RuntimeBinding, type RuntimeChannelDiagnostic,
+  bindMirrorHome, chooseRuntimeDirectory, inspectRuntimeChannel,
+  type RuntimeChannelDiagnostic,
 } from "./runtimeChannelStorage";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
 import { JourneySearchControl } from "./JourneySearchControl";
@@ -937,11 +936,7 @@ export function App({ model }: AppProps) {
     setWhatsNewState(resolveWhatsNewState(acknowledged, installed.version));
   }
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
-  const [runtimeMirrorRoot, setRuntimeMirrorRoot] = useState("");
-  const [runtimeMirrorHome, setRuntimeMirrorHome] = useState("");
-  const [runtimeMirrorUser, setRuntimeMirrorUser] = useState("");
   const [runtimeBindingState, setRuntimeBindingState] = useState<"idle" | "validating" | "saving">("idle");
-  const [runtimeBindingFeedback, setRuntimeBindingFeedback] = useState<string>();
   const [runtimeOnboardingState, setRuntimeOnboardingState] = useState<"idle" | "importing" | "empty" | "error" | "ready">("idle");
   const [runtimeOnboardingEditing, setRuntimeOnboardingEditing] = useState(false);
   // CV-010.DS-001: an unbound channel opens on discovery; the manual form stays one click away.
@@ -1772,37 +1767,13 @@ export function App({ model }: AppProps) {
     let cancelled = false;
     void inspectRuntimeChannel()
       .then((diagnostic) => {
-        if (!cancelled) {
-          setRuntimeChannel(diagnostic);
-          if (diagnostic.status === "validated") {
-            setRuntimeMirrorRoot(diagnostic.mirrorRoot ?? "");
-            setRuntimeMirrorHome(diagnostic.mirrorHome ?? "");
-            setRuntimeMirrorUser(diagnostic.mirrorUser ?? "");
-          }
-        }
+        if (!cancelled) setRuntimeChannel(diagnostic);
       })
       .catch((error) => {
         if (!cancelled) setRuntimeChannelError(error instanceof Error ? error.message : String(error));
       });
     return () => { cancelled = true; };
   }, []);
-
-  useEffect(() => {
-    if (runtimeChannel?.status !== "unbound" || runtimeMirrorRoot || runtimeMirrorHome || runtimeMirrorUser) return;
-    let cancelled = false;
-    void inspectRuntimeBindingCandidate()
-      .then((candidate) => {
-        if (!cancelled && candidate) {
-          setRuntimeMirrorRoot(candidate.mirrorRoot);
-          setRuntimeMirrorHome(candidate.mirrorHome);
-          setRuntimeMirrorUser(candidate.mirrorUser);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) setRuntimeChannelError(error instanceof Error ? error.message : String(error));
-      });
-    return () => { cancelled = true; };
-  }, [runtimeChannel?.status, runtimeMirrorHome, runtimeMirrorRoot, runtimeMirrorUser]);
 
   useEffect(() => {
     if (runtimeChannel?.status !== "validated" || !registryLoaded) return;
@@ -5362,17 +5333,6 @@ export function App({ model }: AppProps) {
 
   const developmentChannel = runtimeChannel?.channel === "development";
   const evaluationChannel = runtimeChannel?.channel === "evaluation";
-  const runtimeBindingDraft: RuntimeBinding | undefined = runtimeChannel && runtimeMirrorRoot && runtimeMirrorHome && runtimeMirrorUser
-    ? {
-        schemaVersion: "1.0.0",
-        channel: runtimeChannel.channel === "development" ? "development" : "user",
-        mirrorRoot: runtimeMirrorRoot,
-        mirrorHome: runtimeMirrorHome,
-        mirrorUser: runtimeMirrorUser,
-        dbPath: `${runtimeMirrorHome.replace(/\/$/, "")}/memory.db`,
-      }
-    : undefined;
-
   async function importJourneysAfterBinding() {
     setRuntimeOnboardingState("importing");
     setRuntimeOnboardingMessage(undefined);
@@ -5413,26 +5373,6 @@ export function App({ model }: AppProps) {
     }
   }
 
-  /** CV-010.DS-001: fill the Settings form from discovery. Never saves; Validate and Save stay explicit. */
-  async function fillRuntimeBindingFromDiscovery() {
-    setRuntimeChannelError(undefined);
-    setRuntimeBindingFeedback("Looking for your Mirror…");
-    try {
-      const discovery = await discoverExistingMirror();
-      if (!discovery.binding) {
-        setRuntimeBindingFeedback(`No Mirror proposed (${discovery.reason ?? discovery.status}). Nothing was changed.`);
-        return;
-      }
-      setRuntimeMirrorRoot(discovery.binding.mirrorRoot);
-      setRuntimeMirrorHome(discovery.binding.mirrorHome);
-      setRuntimeMirrorUser(discovery.binding.mirrorUser);
-      setRuntimeBindingFeedback(`Found ${discovery.binding.mirrorUser}'s Mirror. Nothing was saved; Validate to check it.`);
-    } catch (error) {
-      setRuntimeBindingFeedback(undefined);
-      setRuntimeChannelError(error instanceof Error ? error.message : String(error));
-    }
-  }
-
   /** CV-010.DS-005 slice 2d-1: choose a 0.3 home, bind it, then load its Journeys. */
   async function chooseAndBindMirrorHome() {
     setRuntimeChannelError(undefined);
@@ -5449,33 +5389,6 @@ export function App({ model }: AppProps) {
       setRuntimeChannel(await bindMirrorHome(homePath));
       setRuntimeOnboardingEditing(false);
       await importJourneysAfterBinding();
-    } catch (error) {
-      setRuntimeChannelError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setRuntimeBindingState("idle");
-    }
-  }
-
-  async function submitRuntimeBinding(persist: boolean, binding: RuntimeBinding | undefined = runtimeBindingDraft) {
-    if (!binding) {
-      setRuntimeChannelError("Choose Mirror source and home, then enter the Mirror user.");
-      setRuntimeBindingFeedback(undefined);
-      return;
-    }
-    setRuntimeBindingState(persist ? "saving" : "validating");
-    setRuntimeChannelError(undefined);
-    setRuntimeBindingFeedback(undefined);
-    try {
-      const diagnostic = persist
-        ? await saveRuntimeBinding(binding)
-        : await validateRuntimeBinding(binding);
-      setRuntimeChannel(diagnostic);
-      if (persist) {
-        setRuntimeBindingFeedback("Mirror connected. Loading your Journeys…");
-        await importJourneysAfterBinding();
-      } else {
-        setRuntimeBindingFeedback("Binding validated. Save it to activate this channel across restarts.");
-      }
     } catch (error) {
       setRuntimeChannelError(error instanceof Error ? error.message : String(error));
     } finally {

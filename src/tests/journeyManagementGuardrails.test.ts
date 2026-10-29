@@ -3,7 +3,6 @@ import { createPersistedJourneyPreferences } from "../domain/journeyPreferencePe
 import appSource from "../app/App.tsx?raw";
 import importedActivitySource from "../app/ImportedActivity.tsx?raw";
 import tauriMainSource from "../../src-tauri/src/main.rs?raw";
-import mirrorImportScriptSource from "../../scripts/export_mirror_bootstrap.py?raw";
 
 describe("Journey management guardrails", () => {
   it("persists only non-secret Journey UI preferences", () => {
@@ -47,16 +46,6 @@ describe("Journey management guardrails", () => {
       "voiceLanguage",
     ]);
     expect(JSON.stringify(persisted).toLowerCase()).not.toMatch(/api[_-]?key|token|secret|password|env/);
-  });
-
-  it("delegates Mirror bootstrap to the canonical registry exporter", () => {
-    expect(mirrorImportScriptSource).toContain('"export-registry"');
-    expect(mirrorImportScriptSource).toContain('schema_version != "0.2.0"');
-    expect(mirrorImportScriptSource).not.toContain("sqlite3");
-    expect(mirrorImportScriptSource).not.toContain("load_journeys");
-    expect(mirrorImportScriptSource).not.toContain("write_local_conversations");
-    expect(mirrorImportScriptSource).not.toContain("conversation-id");
-    expect(mirrorImportScriptSource).not.toContain("list-conversations");
   });
 
   it("retires legacy Harness projections without exposing continuity commands", () => {

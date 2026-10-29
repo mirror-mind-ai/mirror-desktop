@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 import piProcessStreamSource from "../agent/piProcessStream.ts?raw";
 import providerConfigSource from "../agent/providerConfig.ts?raw";
 import tauriMainSource from "../../src-tauri/src/main.rs?raw";
-import mirrorLogScriptSource from "../../scripts/log_mirror_conversation.py?raw";
 import appSource from "../app/App.tsx?raw";
-import mirrorExportScriptSource from "../../scripts/export_mirror_bootstrap.py?raw";
 
 describe("Mirror-mediated Pi invocation", () => {
   it("makes Mirror-mediated invocation the explicit default provider mode", () => {
@@ -69,14 +67,5 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(appSource).not.toContain("loadJourneyConversation");
     expect(tauriMainSource).not.toContain("hydrate_pi_session_from_local_conversation");
     expect(tauriMainSource).not.toContain("reload_journey_from_mirror");
-    expect(mirrorExportScriptSource).not.toContain('"origin": "mirror_import"');
-    expect(mirrorExportScriptSource).not.toContain("write_local_conversations");
-  });
-
-  it("keeps the old narrow Mirror logging helper outside the live runtime", () => {
-    expect(mirrorLogScriptSource).toContain('interface="nautilus_harness"');
-    expect(mirrorLogScriptSource).toContain("journey=args.journey_id");
-    expect(mirrorLogScriptSource).toContain("mem.add_message(conversation.id, role=args.role, content=args.content)");
-    expect(mirrorLogScriptSource).not.toMatch(/api[_-]?key|token|secret|password/);
   });
 });

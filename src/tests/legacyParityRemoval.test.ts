@@ -4,7 +4,6 @@ import conversationStorageSource from "../app/journeyConversationStorage.ts?raw"
 import threadStorageSource from "../app/journeyThreadStorage.ts?raw";
 import piProcessSource from "../agent/piProcessStream.ts?raw";
 import tauriSource from "../../src-tauri/src/main.rs?raw";
-import bootstrapSource from "../../scripts/export_mirror_bootstrap.py?raw";
 
 const obsoleteSymbols = [
   "openMirrorConversationPicker",
@@ -47,8 +46,6 @@ describe("legacy parity removal", () => {
   });
 
   it("keeps bootstrap registry-only and invokes bounded retirement", () => {
-    expect(bootstrapSource).not.toContain("conversationsByJourneyId");
-    expect(bootstrapSource).not.toContain("write_local_conversations");
     expect(threadStorageSource).toContain('invoke<LegacyParityRetirementSummary>("retire_legacy_parity_state")');
     expect(appSource).toContain("retireLegacyParityState()");
   });

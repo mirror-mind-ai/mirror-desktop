@@ -1,14 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { parseMirrorDiscovery, type MirrorDiscovery } from "../domain/mirrorDiscovery";
-
-export type RuntimeBinding = {
-  schemaVersion: "1.0.0";
-  channel: "user" | "development";
-  mirrorRoot: string;
-  mirrorHome: string;
-  mirrorUser: string;
-  dbPath: string;
-};
 
 export type RuntimeChannelDiagnostic = {
   channel: "user" | "development" | "evaluation";
@@ -22,23 +12,6 @@ export type RuntimeChannelDiagnostic = {
   status: "unbound" | "invalid" | "validated";
   message?: string;
 };
-
-const BINDING_KEYS = ["schemaVersion", "channel", "mirrorRoot", "mirrorHome", "mirrorUser", "dbPath"] as const;
-
-export function parseRuntimeBinding(value: unknown): RuntimeBinding {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Runtime binding candidate is invalid.");
-  }
-  const binding = value as Record<string, unknown>;
-  if (Object.keys(binding).length !== BINDING_KEYS.length
-    || Object.keys(binding).some((key) => !BINDING_KEYS.includes(key as typeof BINDING_KEYS[number]))
-    || !BINDING_KEYS.every((key) => typeof binding[key] === "string" && binding[key].length > 0)
-    || binding.schemaVersion !== "1.0.0"
-    || !["user", "development"].includes(binding.channel as string)) {
-    throw new Error("Runtime binding candidate contains unsupported fields.");
-  }
-  return binding as RuntimeBinding;
-}
 
 const ALLOWED_KEYS = [
   "channel", "productName", "bundleIdentifier", "appDataRoot", "mirrorRoot",
@@ -90,32 +63,12 @@ export async function inspectRuntimeChannel(): Promise<RuntimeChannelDiagnostic>
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("inspect_runtime_channel"));
 }
 
-export async function inspectRuntimeBindingCandidate(): Promise<RuntimeBinding | undefined> {
-  const candidate = await invoke<unknown>("inspect_runtime_binding_candidate");
-  return candidate === null ? undefined : parseRuntimeBinding(candidate);
-}
-
-export async function chooseRuntimeDirectory(kind: "mirrorRoot" | "mirrorHome"): Promise<string | undefined> {
+/** CV-010.DS-005 slice 2f-2: the only folder the 0.3 line asks for is a Mirror home. */
+export async function chooseRuntimeDirectory(kind: "mirrorHome"): Promise<string | undefined> {
   return (await invoke<string | null>("choose_runtime_directory", { kind })) ?? undefined;
 }
 
 /** CV-010.DS-005 slice 2d-1: bind this app to a Mirror home made for Mirror Desktop TS. */
 export async function bindMirrorHome(homePath: string): Promise<RuntimeChannelDiagnostic> {
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("bind_mirror_home", { homePath }));
-}
-
-export async function validateRuntimeBinding(binding: RuntimeBinding): Promise<RuntimeChannelDiagnostic> {
-  return parseRuntimeChannelDiagnostic(await invoke<unknown>("validate_runtime_binding", { binding }));
-}
-
-export async function saveRuntimeBinding(binding: RuntimeBinding): Promise<RuntimeChannelDiagnostic> {
-  return parseRuntimeChannelDiagnostic(await invoke<unknown>("save_runtime_binding", { binding }));
-}
-
-/** CV-010.DS-001: find an existing Mirror the way Core would. Reads only; nothing is persisted. */
-export async function discoverExistingMirror(chosenRoot?: string): Promise<MirrorDiscovery> {
-  return parseMirrorDiscovery(
-    await invoke<unknown>("discover_existing_mirror", { chosenRoot: chosenRoot ?? null }),
-    parseRuntimeBinding,
-  );
 }

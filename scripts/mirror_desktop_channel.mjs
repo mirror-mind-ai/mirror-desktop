@@ -5,7 +5,6 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { prepareBundledBuild } from "./mirror_host_pin.mjs";
-import { loadRuntimeBinding } from "./runtime_binding_file.mjs";
 
 const mode = process.argv[2];
 const tauri = resolve("node_modules", ".bin", process.platform === "win32" ? "tauri.cmd" : "tauri");
@@ -52,18 +51,6 @@ const channels = {
     bundle: "Mirror Desktop TS Eval.app",
     installsEvaluationBundle: true,
   },
-  "import-user": {
-    channel: "user",
-    identifier: "ai.mirrormind.desktop.ts",
-    args: [],
-    bundle: "Mirror Desktop TS.app",
-  },
-  "import-dev": {
-    channel: "development",
-    identifier: "ai.mirrormind.desktop.ts.dev",
-    args: [],
-    bundle: "Mirror Desktop TS Dev.app",
-  },
 };
 
 function cleanLaunchEnvironment(extra = {}) {
@@ -82,24 +69,6 @@ function userBuildEnvironment() {
     TAURI_SIGNING_PRIVATE_KEY: readFileSync(signingKey, "utf8"),
     TAURI_SIGNING_PRIVATE_KEY_PASSWORD: "",
   });
-}
-
-function runBootstrap(profile) {
-  const binding = loadRuntimeBinding(profile);
-  const environment = cleanLaunchEnvironment({
-    MIRROR_HOME: binding.mirrorHome,
-    MIRROR_USER: binding.mirrorUser,
-    DB_PATH: binding.dbPath,
-  });
-  const bootstrap = spawnSync("python3", [
-    "scripts/export_mirror_bootstrap.py",
-    "--mirror-root", binding.mirrorRoot,
-    "--app-identifier", profile.identifier,
-  ], { cwd: process.cwd(), env: environment, stdio: "inherit" });
-  if (bootstrap.error || bootstrap.status !== 0) {
-    console.error(bootstrap.error?.message ?? "Could not initialize the canonical Journey registry.");
-    process.exit(bootstrap.status ?? 1);
-  }
 }
 
 function installEvaluationBundle(profile) {
@@ -148,8 +117,8 @@ function launchDesktopValidation() {
     console.error("Source-built desktop validation launch currently supports macOS only.");
     process.exit(2);
   }
-  const profiles = [channels["import-user"], channels["import-dev"]];
-  for (const profile of profiles) runBootstrap(profile);
+  // CV-010.DS-005 slice 2f-2: no Python import before launch; each app binds its own 0.3 home.
+  const profiles = [channels["build-user"], channels["build-dev"]];
   for (const profile of profiles) {
     const bundle = resolve("src-tauri", "target", "release", "bundle", "macos", profile.bundle);
     if (!existsSync(bundle)) {
@@ -172,12 +141,8 @@ if (mode === "validate-desktop") {
 }
 const selected = channels[mode];
 if (!selected) {
-  console.error("Usage: node scripts/mirror_desktop_channel.mjs <user|dev|build-dev|build-user|build-eval|install-eval|import-user|import-dev|validate-desktop>");
+  console.error("Usage: node scripts/mirror_desktop_channel.mjs <user|dev|build-dev|build-user|build-eval|install-eval|validate-desktop>");
   process.exit(2);
-}
-if (mode === "import-user" || mode === "import-dev") {
-  runBootstrap(selected);
-  process.exit(0);
 }
 // CV-010.DS-005 slice 2f: every packaged build carries the pinned Mirror host runtime; dev runs the
 // repository's materialized one.

@@ -4,8 +4,7 @@ const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
 import {
-  bindMirrorHome, chooseRuntimeDirectory, inspectRuntimeBindingCandidate, inspectRuntimeChannel,
-  parseRuntimeBinding, parseRuntimeChannelDiagnostic, saveRuntimeBinding, validateRuntimeBinding,
+  bindMirrorHome, chooseRuntimeDirectory, inspectRuntimeChannel, parseRuntimeChannelDiagnostic,
 } from "../app/runtimeChannelStorage";
 
 const development = {
@@ -29,37 +28,13 @@ describe("runtime channel storage", () => {
     expect(invoke).toHaveBeenCalledWith("inspect_runtime_channel");
   });
 
-  it("accepts only an exact environment candidate from native discovery", async () => {
-    const candidate = {
-      schemaVersion: "1.0.0",
-      channel: "user",
-      mirrorRoot: "/Users/example/mirror",
-      mirrorHome: "/Users/example/.mirror-minds/example",
-      mirrorUser: "example",
-      dbPath: "/Users/example/.mirror-minds/example/memory.db",
-    };
-    invoke.mockResolvedValueOnce(candidate);
-    await expect(inspectRuntimeBindingCandidate()).resolves.toEqual(candidate);
-    expect(() => parseRuntimeBinding({ ...candidate, token: "secret" })).toThrow(/unsupported fields/);
-    expect(() => parseRuntimeBinding({ ...candidate, mirrorUser: "" })).toThrow(/unsupported fields/);
-  });
-
-  it("validates and saves an explicit binding through separate native commands", async () => {
-    const binding = {
-      schemaVersion: "1.0.0" as const,
-      channel: "development" as const,
-      mirrorRoot: development.mirrorRoot,
-      mirrorHome: development.mirrorHome,
-      mirrorUser: development.mirrorUser,
-      dbPath: development.dbPath,
-    };
-    invoke.mockResolvedValueOnce(development).mockResolvedValueOnce(development).mockResolvedValueOnce(binding.mirrorRoot);
-    await expect(validateRuntimeBinding(binding)).resolves.toEqual(development);
-    await expect(saveRuntimeBinding(binding)).resolves.toEqual(development);
-    await expect(chooseRuntimeDirectory("mirrorRoot")).resolves.toBe(binding.mirrorRoot);
-    expect(invoke).toHaveBeenNthCalledWith(1, "validate_runtime_binding", { binding });
-    expect(invoke).toHaveBeenNthCalledWith(2, "save_runtime_binding", { binding });
-    expect(invoke).toHaveBeenNthCalledWith(3, "choose_runtime_directory", { kind: "mirrorRoot" });
+  // CV-010.DS-005 slice 2f-2: the Python binding's candidate, validate and save routes are gone; the
+  // one folder the app asks for is a Mirror home, bound through bind_mirror_home.
+  it("asks only for a Mirror home folder", async () => {
+    invoke.mockResolvedValueOnce("/Users/example/mirror-ts-homes/ana").mockResolvedValueOnce(null);
+    await expect(chooseRuntimeDirectory("mirrorHome")).resolves.toBe("/Users/example/mirror-ts-homes/ana");
+    await expect(chooseRuntimeDirectory("mirrorHome")).resolves.toBeUndefined();
+    expect(invoke).toHaveBeenNthCalledWith(1, "choose_runtime_directory", { kind: "mirrorHome" });
   });
 
   it("accepts a bounded unbound state without runtime coordinates", () => {

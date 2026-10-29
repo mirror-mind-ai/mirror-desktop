@@ -7,12 +7,11 @@ import developmentConfig from "../../src-tauri/tauri.dev.conf.json";
 import evaluationConfig from "../../src-tauri/tauri.eval.conf.json";
 import tsUpdaterConfig from "../../src-tauri/tauri.ts-update.conf.json";
 import rustSource from "../../src-tauri/src/main.rs?raw";
-import runtimeBindingSource from "../../src-tauri/src/runtime_binding.rs?raw";
+import piToolchainSource from "../../src-tauri/src/pi_toolchain.rs?raw";
 import runtimeChannelSource from "../../src-tauri/src/runtime_channel.rs?raw";
 import appSource from "../app/App.tsx?raw";
 import journeyPreferenceSource from "../domain/journeyPreferencePersistence.ts?raw";
 import channelLauncher from "../../scripts/mirror_desktop_channel.mjs?raw";
-import bindingFileContract from "../../scripts/runtime_binding_file.mjs?raw";
 import productionPromotion from "../../scripts/promote_production.mjs?raw";
 
 const scripts = packageJson.scripts as Record<string, string>;
@@ -108,21 +107,12 @@ describe("runtime channel configuration", () => {
     ]) {
       expect(command).toContain("scripts/mirror_desktop_channel.mjs");
     }
-    expect(scripts["import:mirror"]).toContain("scripts/mirror_desktop_channel.mjs import-user");
-    expect(scripts["import:mirror:dev"]).toContain("scripts/mirror_desktop_channel.mjs import-dev");
     expect(scripts["validate:desktop:launch"]).toContain("scripts/mirror_desktop_channel.mjs validate-desktop");
     expect(channelLauncher).toContain('"src-tauri/tauri.dev.conf.json"');
     expect(channelLauncher).toContain('"development-channel"');
-    expect(channelLauncher).toContain("loadRuntimeBinding(profile)");
-    expect(bindingFileContract).toContain('"runtime-binding.v1.json"');
-    expect(bindingFileContract).toContain("requireCanonicalPath(binding.dbPath");
-    expect(bindingFileContract).toContain('basename(binding.dbPath) !== "memory.db"');
     expect(channelLauncher).not.toContain("alisson-vale");
     expect(channelLauncher).not.toContain('MIRROR_USER: "mirror-dev"');
-    expect(channelLauncher).toContain('"scripts/export_mirror_bootstrap.py"');
-    expect(channelLauncher).toContain('"--mirror-root"');
     expect(channelLauncher).toContain('"ai.mirrormind.desktop.ts.dev"');
-    expect(channelLauncher).toContain('mode === "import-user" || mode === "import-dev"');
     expect(channelLauncher).toContain("installEvaluationBundle");
     expect(channelLauncher).toContain('const inheritedMirrorEnvironment = ["MIRROR_HOME", "MIRROR_USER", "DB_PATH"]');
     expect(channelLauncher).toContain('delete environment[name]');
@@ -165,8 +155,8 @@ describe("runtime channel configuration", () => {
     expect(runtimeChannelSource).toContain('.fnm/node-versions');
     expect(runtimeChannelSource).toContain('.volta/bin');
     expect(runtimeChannelSource).toContain('discover_versioned_runtime_directories');
-    expect(runtimeBindingSource).toContain('resolve_pi_toolchain');
-    expect(runtimeBindingSource).toContain('executable_at(directory, "node")');
+    expect(piToolchainSource).toContain('resolve_pi_toolchain');
+    expect(piToolchainSource).toContain('executable_at(directory, "node")');
     expect(rustSource).toContain("mirror_runtime_command");
     expect(rustSource).not.toContain('PathBuf::from("/Users/alissonvale/mirror")');
     expect(rustSource).not.toContain("Ok(mirror_root)\n    } else {\n        harness_root()");
@@ -213,7 +203,7 @@ describe("runtime channel configuration", () => {
     expect(appSource).not.toContain("runtimeChannelError || runtimeChannel?.message");
     expect(appSource).not.toContain('?? "nautilus-harness"');
     expect(journeyPreferenceSource).not.toContain('activeJourneyId: "nautilus-harness"');
-    expect(appSource).toContain("Choose Mirror source and home, then enter the Mirror user.");
+    expect(appSource).not.toContain("Choose Mirror source and home, then enter the Mirror user.");  // CV-010.DS-005 slice 2f-2: the Python binding form is gone.
     expect(appSource.match(/autoCapitalize="none" autoCorrect="off" spellCheck=\{false\}/g)).toBeNull();
     expect(cssSource).toContain(".runtime-onboarding-shell");
     expect(cssSource).toContain(".runtime-onboarding-card");

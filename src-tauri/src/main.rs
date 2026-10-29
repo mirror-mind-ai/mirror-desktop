@@ -1,6 +1,5 @@
 mod agent_settings;
 mod journey_appearance;
-mod mirror_discovery;
 mod mirror_home;
 mod mirror_host;
 mod mirror_host_bridge;
@@ -11,7 +10,7 @@ mod pi_global_extensions;
 mod pi_process_registry;
 mod pi_rpc;
 mod run_loop_guard;
-mod runtime_binding;
+mod pi_toolchain;
 mod runtime_channel;
 mod turn_journal;
 mod voice_transcription;
@@ -43,9 +42,8 @@ use pi_rpc::{
     observe_line as observe_pi_rpc_line, one_at_a_time_line, prompt_line, steer_line,
     RpcCommandResponse, RpcObservation,
 };
-use runtime_binding::RuntimeBinding;
 use runtime_channel::{
-    runtime_search_directories, RuntimeChannel, RuntimeChannelDiagnostic, RuntimeChannelProfile,
+    RuntimeChannel, RuntimeChannelDiagnostic, RuntimeChannelProfile,
 };
 use voice_transcription::{
     voice_transcription_catalog, voice_transcription_install, voice_transcription_remove, voice_transcription_status,
@@ -2241,82 +2239,10 @@ fn mirror_runtime_command(program: &str) -> Result<Command, String> {
     active_runtime_channel()?.runtime_command(program)
 }
 
-// CR149: a helper, not a command — it takes `&AppHandle` and was never registered. The stray
-// attribute would have made its two callers deadlock on the serialisation guard once converted.
-fn validate_runtime_binding_request(
-    app: &AppHandle,
-    binding: RuntimeBinding,
-    persist: bool,
-) -> Result<RuntimeChannelDiagnostic, String> {
-    crate::runtime_channel::python_mirror_retired()?;
-    let channel = RuntimeChannel::active();
-    let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
-    fs::create_dir_all(&app_data_root)
-        .map_err(|error| format!("Could not create application data root: {error}"))?;
-    channel.validate_app_identity(&app.config().identifier, &app_data_root)?;
-    let home = env::var_os("HOME").map(PathBuf::from)
-        .ok_or_else(|| "Could not resolve HOME for runtime binding.".to_string())?;
-    let validated = binding.validate(channel.binding_channel(), &runtime_search_directories(&home))?;
-    if persist {
-        validated.persist(&app_data_root)?;
-    }
-    Ok(RuntimeChannelProfile::from_validated(channel, &home, validated).diagnostic(&app_data_root))
-}
-
-#[tauri::command(async)]
-fn inspect_runtime_binding_candidate() -> Result<Option<RuntimeBinding>, String> {
-    let _serialized = crate::native_command_serialization::acquire();
-    let channel = RuntimeChannel::active();
-    if channel != RuntimeChannel::User {
-        return Ok(None);
-    }
-    let home = env::var_os("HOME").map(PathBuf::from)
-        .ok_or_else(|| "Could not resolve HOME for runtime discovery.".to_string())?;
-    RuntimeBinding::environment_candidate(
-        channel.binding_channel(),
-        &home,
-        env::var("MIRROR_HOME").ok().as_deref(),
-        env::var("MIRROR_USER").ok().as_deref(),
-        env::var("DB_PATH").ok().as_deref(),
-    )
-}
-
-/// CV-010.DS-001: find an existing Mirror the way Core would, without changing Core. Reads only;
-/// it never persists, and only the User channel may connect what it finds — the others preview it,
-/// so a development build can exercise discovery without binding a production Mirror.
-#[tauri::command(async)]
-fn discover_existing_mirror(chosen_root: Option<String>) -> Result<mirror_discovery::MirrorDiscovery, String> {
-    let _serialized = crate::native_command_serialization::acquire();
-    crate::runtime_channel::python_mirror_retired()?;
-    let home = env::var_os("HOME").map(PathBuf::from)
-        .ok_or_else(|| "Could not resolve HOME for Mirror discovery.".to_string())?;
-    let channel = RuntimeChannel::active();
-    let chosen = chosen_root.map(PathBuf::from);
-    Ok(mirror_discovery::discover(
-        &home,
-        chosen.as_deref(),
-        channel.binding_channel(),
-        channel == RuntimeChannel::User,
-        &runtime_search_directories(&home),
-    ))
-}
-
-#[tauri::command(async)]
-fn validate_runtime_binding(app: AppHandle, binding: RuntimeBinding) -> Result<RuntimeChannelDiagnostic, String> {
-    let _serialized = crate::native_command_serialization::acquire();
-    validate_runtime_binding_request(&app, binding, false)
-}
-
-#[tauri::command(async)]
-fn save_runtime_binding(app: AppHandle, binding: RuntimeBinding) -> Result<RuntimeChannelDiagnostic, String> {
-    let _serialized = crate::native_command_serialization::acquire();
-    validate_runtime_binding_request(&app, binding, true)
-}
-
 #[tauri::command]
 fn choose_runtime_directory(kind: String) -> Result<Option<String>, String> {
+    // CV-010.DS-005 slice 2f-2: a Mirror home is the only folder the 0.3 line asks for.
     let title = match kind.as_str() {
-        "mirrorRoot" => "Choose Mirror source directory",
         "mirrorHome" => "Choose Mirror home directory",
         _ => return Err("Runtime directory kind is unsupported.".to_string()),
     };
@@ -10097,10 +10023,6 @@ fn main() {
             save_model_intents,
             compact_pi_session,
             inspect_runtime_channel,
-            inspect_runtime_binding_candidate,
-            discover_existing_mirror,
-            validate_runtime_binding,
-            save_runtime_binding,
             bind_mirror_home,
             choose_runtime_directory,
             load_journey_projections,
@@ -14759,19 +14681,20 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
     }
 
     #[test]
-    fn the_python_discovery_and_binding_refuse_before_anything_else() {
-        // CV-010.DS-005 slice 2c: Mirror Desktop TS never reads, validates or saves a Python Mirror.
+    fn the_python_discovery_and_binding_are_gone() {
+        // CV-010.DS-005 slice 2f-2: refused since 2c, now removed. Nothing reads, validates or saves
+        // a Python Mirror, and the folder picker asks for a Mirror home only.
         let source = production_source();
-        for signature in ["fn discover_existing_mirror(", "fn validate_runtime_binding_request("] {
-            let body = body_of(&source, signature);
-            let check = body.find("python_mirror_retired()?").unwrap_or_else(|| panic!("{signature} does not refuse"));
-            for later in ["mirror_discovery::discover(", "binding.validate(", "validated.persist("] {
-                if let Some(at) = body.find(later) {
-                    assert!(check < at, "{signature} reaches {later} before refusing");
-                }
-            }
+        // Composed, so this test's own text does not name what it looks for.
+        for gone in [
+            concat!("fn discover", "_existing_mirror("), concat!("fn validate_runtime", "_binding_request("),
+            concat!("fn inspect_runtime", "_binding_candidate("), concat!("fn validate_runtime", "_binding("),
+            concat!("fn save_runtime", "_binding("), concat!("mirror", "_discovery::"), concat!("Runtime", "Binding"),
+        ] {
+            assert!(!source.contains(gone), "{gone} is back");
         }
-        assert!(discover_existing_mirror(None).unwrap_err().contains("never connects a Python Mirror"));
+        assert!(!body_of(&source, "fn choose_runtime_directory(").contains("\"mirrorRoot\""));
+        assert!(choose_runtime_directory("mirrorRoot".into()).unwrap_err().contains("unsupported"));
     }
 
     #[test]

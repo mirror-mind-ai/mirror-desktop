@@ -1,4 +1,3 @@
-use crate::runtime_binding::{BindingChannel, ValidatedRuntimeBinding};
 use serde::Serialize;
 use std::{
     env, fs,
@@ -117,13 +116,6 @@ impl RuntimeChannel {
             }
         }
         Ok(())
-    }
-
-    pub(crate) fn binding_channel(self) -> BindingChannel {
-        match self {
-            Self::User | Self::Evaluation => BindingChannel::User,
-            Self::Development => BindingChannel::Development,
-        }
     }
 
     pub fn validate_app_identity(
@@ -259,17 +251,10 @@ impl RuntimeChannelDiagnostic {
     }
 }
 
-/// CV-010.DS-005 slice 2c: the 0.3 line opens only a marked 0.3 home and never connects a Python
-/// Mirror (condition b, and decision 3 of phase 2). Python discovery and the Python binding refuse
-/// first. Since slice 2d-1 the profile itself comes from the 0.3 home binding, and `uv` is refused.
-pub(crate) const PYTHON_MIRROR_RETIRED: bool = true;
-
-pub(crate) fn python_mirror_retired() -> Result<(), String> {
-    if PYTHON_MIRROR_RETIRED {
-        return Err("Mirror Desktop TS never connects a Python Mirror: it opens only a Mirror home made for it.".to_string());
-    }
-    Ok(())
-}
+// CV-010.DS-005: the 0.3 line opens only a marked 0.3 home and never connects a Python Mirror
+// (condition b, and decision 3 of phase 2). Slice 2c made Python discovery and the Python binding
+// refuse first; slice 2f-2 removed them. The profile comes from the 0.3 home binding, and `uv` is
+// refused.
 
 /// The refusal every `uv` route meets on the 0.3 line.
 pub(crate) const UV_RETIRED: &str =
@@ -291,7 +276,7 @@ impl RuntimeChannelProfile {
         let marked = crate::mirror_home::load_home_binding(&app_data_root)?
             .ok_or_else(|| UNBOUND_0_3.to_string())?;
         let (pi_bin, node_bin, pi_runtime_directory) =
-            crate::runtime_binding::resolve_pi_toolchain(&runtime_search_directories(&home))?;
+            crate::pi_toolchain::resolve_pi_toolchain(&runtime_search_directories(&home))?;
         Ok(Self::from_home(channel, &home, &marked, pi_bin, node_bin, pi_runtime_directory))
     }
 
@@ -332,30 +317,6 @@ impl RuntimeChannelProfile {
             marker: crate::mirror_home::HomeMarker { home_id: format!("home-{name}-0000"), created_at: "2026-10-29T00:00:00Z".into() },
         };
         Self::from_home(channel, home, &marked, PathBuf::from("/trusted/pi"), PathBuf::from("/trusted/node"), PathBuf::from("/trusted"))
-    }
-
-    pub(crate) fn from_validated(
-        channel: RuntimeChannel,
-        home: &Path,
-        validated: ValidatedRuntimeBinding,
-    ) -> Self {
-        let pi_bin = validated.pi_bin;
-        let node_bin = validated.node_bin;
-        let pi_runtime_directory = validated.pi_runtime_directory;
-        let binding = validated.binding;
-        Self {
-            channel,
-            product_name: channel.product_name(),
-            bundle_identifier: channel.bundle_identifier(),
-            mirror_root: binding.mirror_root,
-            mirror_home: binding.mirror_home,
-            mirror_user: binding.mirror_user,
-            db_path: binding.db_path,
-            pi_bin,
-            node_bin,
-            pi_runtime_directory,
-            home: home.to_path_buf(),
-        }
     }
 
     fn runtime_search_directories(&self) -> Vec<PathBuf> {
@@ -424,14 +385,10 @@ impl RuntimeChannelProfile {
 #[cfg(test)]
 mod tests {
     use super::{runtime_search_directories, RuntimeChannel, RuntimeChannelProfile};
-    use super::{python_mirror_retired, PYTHON_MIRROR_RETIRED};
 
     #[test]
     fn the_0_3_line_never_opens_a_python_mirror() {
         // CV-010.DS-005 slice 2c: decision 3 of phase 2 and condition (b) of the 0.3 line.
-        assert!(PYTHON_MIRROR_RETIRED);
-        let refusal = python_mirror_retired().unwrap_err();
-        assert!(refusal.contains("never connects a Python Mirror"), "{refusal}");
         // Slice 2d-1: the profile is built from the 0.3 home binding and runs no `uv`.
         let profile = RuntimeChannelProfile::for_home(RuntimeChannel::Development, std::path::Path::new("/Users/example"));
         let refused = profile.runtime_command("uv").unwrap_err();

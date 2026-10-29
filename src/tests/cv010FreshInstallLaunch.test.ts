@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { conversationDraftKey, visibleComposerDraftKey } from "../domain/conversationSpaces";
 import appSource from "../app/App.tsx?raw";
-import discoverySource from "../app/MirrorDiscoveryCard.tsx?raw";
 
 // CV-010.DS-005 phase 0, found on the first launch of Mirror Desktop TS Dev (2026-10-28).
 // A fresh install has no selected Journey. The effect that restores the visible Composer draft
@@ -34,7 +33,7 @@ describe("a fresh install with no selected Journey", () => {
   });
 
   it("names this line on the first-run screens", () => {
-    for (const source of [appSource, discoverySource]) {
+    for (const source of [appSource]) {
       expect(source).not.toMatch(/<p className="eyebrow">Mirror Desktop(?! TS)/);
     }
   });
