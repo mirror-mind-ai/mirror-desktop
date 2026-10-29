@@ -186,7 +186,7 @@ including any Navigator check, is met.
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
-| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a, 2b, 2c and 2d-1 (profile, setup and reads through the host) are built. Owed: 2d-2 (writes and outbox), 2e, 2f. Bundling the runtime is in 2f. |
+| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a–2d are built: every Mirror operation the 0.3 build carries goes through the host, and nothing spawns Python. Owed: 2e (the turn-path test), 2f (bundling and preflight). |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
@@ -1457,3 +1457,105 @@ DS-001 itself is unchanged on `release/0.2`.
 - **What does not work yet.** **Creating a Conversation and sending a turn will fail with the
   `UV_RETIRED` sentence**, because provisioning and the append are 2d-2. Rename and rebind fail the
   same way.
+
+## Phase 2 Slice 2d-2 Built — Writes Through the Host, and the Python Routes Gone (2026-10-29)
+
+The Navigator first ran 2d-1 by hand: a dev home was created with `dev_ts_home.mjs`, bound in the TS
+Dev app, and its Journey tree loaded. **The instruction given for that test was wrong.** It omitted
+creating the parent folder, and the script refused with "the parent … does not exist". The script now
+says how to fix it (`mkdir -p <parent>`).
+
+### What changed
+
+- **The append** (`run_explicit_mirror_append`) goes to the bound home through
+  `appendConversationMessages` on the host.
+  - **What stays the same.** The request is identical. The receipt check is identical, including
+    the named rejection reasons and their safe alphabet. The outbox, settlement, CR093's
+    binding-repair retry and CR095's rebind record are unchanged.
+  - **CR163's bound** is now the supervisor's append deadline, set from `MIRROR_APPEND_TIMEOUT` (30 s).
+    A hung request kills the host's process group.
+  - **Failures** are written to the same record, ids only, never message content. The stderr is now
+    the host's, cut to its last 4 KB.
+  - **A new reason,** `mirror_append_home_unavailable`, names a home the host refuses.
+- **Provisioning** (`provision_mirror_conversation`) becomes `ensureConversation`. The interface
+  stays `nautilus_harness`, as the Python script wrote it.
+- **Rename and rebind** go through `renameConversation` and `rebindConversationJourney`, and answer
+  in the shape the catalog script used. CR093's repair therefore runs on the 0.3 line too.
+- **Not carried, refused before any state is touched** (decision 3 of phase 2):
+
+  | Route | Refusal |
+  |---|---|
+  | `delete_desktop_conversation` | "Deleting Conversations is not available in Mirror Desktop TS yet." |
+  | `mutate_journey_registry` | "Journey administration is not available in Mirror Desktop TS yet." |
+  | `open_mirror_conversation_in_terminal` | "Terminal recall is not available in Mirror Desktop TS yet." |
+  | `inspect_published_projection` | "The Canvas is not available in Mirror Desktop TS yet." |
+
+  Each command still takes the serialization guard first, which the command census requires. That
+  guard caught two refusals that had lost it.
+- **Removed from `main`** (all remain on `release/0.2`):
+  - `bounded_child.rs`;
+  - `scripts/provision_mirror_conversation.py` and `scripts/mirror_conversation_catalog.py`, and
+    their bundle `resources`;
+  - the terminal-recall launcher and its handoff cleanup;
+  - `mirror_administrative_command`;
+  - `journey_registry_contains_id`;
+  - the profile's `uv_bin`.
+
+  **No Rust route spawns `uv` or `python`.** The only remaining `"uv"` is the refusal itself.
+
+### What still remains, unreachable
+
+The retired Python *binding* code still sits on `main`, but it never runs Python, because every entry
+to it refuses first:
+
+- binding validation in `runtime_binding.rs`, which resolves `uv` and reads `pyproject.toml`;
+- DS-001's discovery in `mirror_discovery.rs`;
+- the front end's `submitRuntimeBinding` and `fillRuntimeBindingFromDiscovery`.
+
+Removing it is cleanup, not transport, and it fits slice 2f, which replaces the Python release
+preflight.
+
+### Tests changed, and why
+
+- **CR163's tests** now drive the append through a real supervisor, with a fake host in `sh`
+  standing where `uv run` stood. They require the same as before:
+  - a hung append times out within the bound;
+  - its stderr is recorded, and the messages are never recorded;
+  - the serialization guard is released within the bound;
+  - a rejection keeps its reason;
+  - the request is identical;
+  - an unwritable record does not change the result.
+
+  New tests cover a reason outside the safe alphabet, a receipt in the wrong shape, a home the host
+  refuses, an oversized item refused before the host is asked, and the 4 KB stderr cap.
+- **CR163's list of unbounded waits** is down to one, Pi session provisioning, because `journey
+  mutate` is gone.
+- **Seven front-end tests** pinned code of the removed routes: the catalog script, the provisioning
+  script, `journey mutate`'s error mapping and the recall `osascript`. They now pin the 0.3 wiring or
+  the plain refusal. The Python behaviour stays tested on `release/0.2`.
+
+### Evidence
+
+- **Real chain.** The ignored bridge test, against the materialized runtime:
+  1. created a home and a Conversation;
+  2. appended through `run_explicit_mirror_append_using`, then replayed it (idempotent);
+  3. sent a conflicting append, which was refused as `mirror_append_idempotency_conflict`;
+  4. renamed and rebound the Conversation through the response adapters.
+
+  The 2c real-host test passes too.
+- **Seven mutations, each caught:**
+  - a timeout reported as a process failure;
+  - the rejection reason unfiltered;
+  - the delete refusing only after validating;
+  - the stderr uncut;
+  - the receipt unchecked;
+  - rename without its Journey check;
+  - provisioning calling `uv`.
+- **Gates:**
+  - vitest: 280 files, 2,335 tests;
+  - tsc: clean;
+  - build: passes;
+  - cargo `--locked`: 411 passed, 5 ignored, in 2 of 2 runs. The two warnings were already there;
+  - the development-channel check shows only the old warning;
+  - the pin verifies, and the roadmap reads READY.
+- **Production:** binary `303ede287de3…`, migration 016.
