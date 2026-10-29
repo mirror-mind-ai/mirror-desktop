@@ -5378,14 +5378,21 @@ export function App({ model }: AppProps) {
     setRuntimeChannelError(undefined);
     setRuntimeBindingState("saving");
     try {
-      setRuntimeChannel(await createMirrorHome(userName, folder));
-      setRuntimeOnboardingEditing(false);
-      await importJourneysAfterBinding();
+      await createMirrorHome(userName, folder);
+      reloadForBoundHome();
     } catch (error) {
       setRuntimeChannelError(error instanceof Error ? error.message : String(error));
-    } finally {
       setRuntimeBindingState("idle");
     }
+  }
+
+  /**
+   * CV-010.DS-005 slice 3a-2: Desktop's state is per home, and the window holds the previous home's
+   * Journeys, threads and Conversation lists in memory. A reload reads them again from the home now
+   * bound, and a home with no Journey registry yet imports its Journeys on the way in.
+   */
+  function reloadForBoundHome() {
+    window.location.reload();
   }
 
   /** The folder a new home goes in; a refusal is shown, a cancelled choice changes nothing. */
@@ -5412,12 +5419,10 @@ export function App({ model }: AppProps) {
     if (!homePath) return;
     setRuntimeBindingState("saving");
     try {
-      setRuntimeChannel(await bindMirrorHome(homePath));
-      setRuntimeOnboardingEditing(false);
-      await importJourneysAfterBinding();
+      await bindMirrorHome(homePath);
+      reloadForBoundHome();
     } catch (error) {
       setRuntimeChannelError(error instanceof Error ? error.message : String(error));
-    } finally {
       setRuntimeBindingState("idle");
     }
   }

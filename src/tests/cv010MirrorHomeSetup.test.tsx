@@ -85,13 +85,23 @@ describe("the 0.3 setup screen", () => {
       expect(start).toBeGreaterThan(0);
       return appSource.slice(start, appSource.indexOf("\n  }\n", start));
     };
+    // Slice 3a-2: a bound home's state is read again from disk, never kept from the previous home.
     const chosen = bodyOf("chooseAndBindMirrorHome");
     expect(chosen).toContain('chooseRuntimeDirectory("mirrorHome")');
-    expect(chosen).toContain("bindMirrorHome(");
-    expect(chosen).toContain("importJourneysAfterBinding()");
+    expect(chosen.indexOf("await bindMirrorHome(homePath)")).toBeLessThan(chosen.indexOf("reloadForBoundHome()"));
     const created = bodyOf("createAndBindMirrorHome");
-    expect(created.indexOf("createMirrorHome(userName, folder)")).toBeLessThan(created.indexOf("importJourneysAfterBinding()"));
-    expect(created).toContain('setRuntimeBindingState("idle")');
+    expect(created.indexOf("await createMirrorHome(userName, folder)")).toBeLessThan(created.indexOf("reloadForBoundHome()"));
+    for (const body of [chosen, created]) {
+      expect(body).not.toContain("importJourneysAfterBinding()");
+      expect(body).not.toContain("setRuntimeChannel(");
+      const refused = body.slice(body.lastIndexOf("} catch (error) {"));
+      expect(refused).toContain('setRuntimeBindingState("idle")');
+      expect(refused).not.toContain("reloadForBoundHome()");
+    }
+    const reload = appSource.slice(appSource.indexOf("function reloadForBoundHome("));
+    expect(reload.slice(0, reload.indexOf("\n  }\n"))).toContain("window.location.reload()");
+    // Starting on a home with no registry still imports its Journeys.
+    expect(appSource).toContain('if (runtimeOnboardingState === "idle") void importJourneysAfterBinding();');
     expect(bodyOf("chooseHomeFolder")).toContain('chooseRuntimeDirectory("homeFolder")');
   });
 });

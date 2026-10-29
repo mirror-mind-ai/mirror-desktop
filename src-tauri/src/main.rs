@@ -1,4 +1,5 @@
 mod agent_settings;
+mod home_state;
 mod journey_appearance;
 mod mirror_home;
 mod mirror_host;
@@ -685,7 +686,7 @@ fn run_mirror_conversation_catalog(
 
 fn desktop_conversation_catalog_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     Ok(app_data_dir.join("conversation-spaces").join(safe_journey_id).join("catalog.json"))
 }
@@ -989,7 +990,7 @@ fn recover_pending_desktop_conversation_creation(
         return Ok(Some(recovered));
     }
     if operation.get("phase").and_then(Value::as_str) == Some("reserved") {
-        let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+        let app_data_dir = crate::home_state::home_state_dir(app).map_err(|error| error.to_string())?;
         let requested = operation.get("requestedPiSessionId").and_then(Value::as_str).unwrap().to_string();
         let pi_name = operation.get("piSessionName").and_then(Value::as_str).unwrap().to_string();
         let mirror_name = operation.get("mirrorName").and_then(Value::as_str).unwrap().to_string();
@@ -1184,7 +1185,7 @@ fn recover_pending_desktop_conversation_reset(
         return Ok(Some(existing.clone()));
     }
     if operation.get("phase").and_then(Value::as_str) == Some("reserved") {
-        let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+        let app_data_dir = crate::home_state::home_state_dir(app).map_err(|error| error.to_string())?;
         let requested = operation.get("requestedPiSessionId").and_then(Value::as_str).unwrap().to_string();
         let (pi_session_id, pi_session_file) = provision_pi_session(
             &requested,
@@ -1295,7 +1296,7 @@ fn read_desktop_conversation_deletion(path: &Path, journey_id: &str) -> Result<O
 }
 
 fn remove_desktop_conversation_files(app: &AppHandle, journey_id: &str, entry: &Value) -> Result<(), String> {
-    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_dir = crate::home_state::home_state_dir(app).map_err(|error| error.to_string())?;
     let thread_id = entry.get("threadId").and_then(Value::as_str)
         .ok_or_else(|| "Desktop Conversation deletion thread authority is invalid.".to_string())?;
     sanitize_session_id(thread_id)?;
@@ -1483,7 +1484,7 @@ async fn create_desktop_conversation(
     let conversation_id = format!("desktop-conversation-{}-{:x}", bounded_journey, nonce);
     let requested_pi_id = format!("desktop-{}-{:x}", bounded_journey, nonce);
     let thread_id = format!("desktop-thread-{}-{:x}", bounded_journey, nonce);
-    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_dir = crate::home_state::home_state_dir(&app).map_err(|error| error.to_string())?;
     let pi_session_dir = app_data_dir.join("pi-sessions");
     let pi_name = format!("{} · {} · Mirror Desktop", journey_name.chars().take(36).collect::<String>(), title.chars().take(36).collect::<String>());
     let mirror_name = title.clone();
@@ -1606,7 +1607,7 @@ async fn restart_desktop_conversation(
         "mirrorName":mirror_name, "runtimeChannel":runtime_channel, "activatedAt":activated_at,
     });
     write_desktop_conversation_reset(&operation_path, &operation, &journey_id, &persistence)?;
-    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_dir = crate::home_state::home_state_dir(&app).map_err(|error| error.to_string())?;
     let pi_session_dir = app_data_dir.join("pi-sessions");
     let task_app = app.clone();
     let task_journey = journey_id.clone();
@@ -1826,7 +1827,7 @@ async fn provision_journey_thread(
             .map_err(|error| format!("Could not reserve Journey start operation: {}", error))?;
         requested
     };
-    let pi_session_dir = app.path().app_data_dir()
+    let pi_session_dir = crate::home_state::home_state_dir(&app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?
         .join("pi-sessions");
     let journey_id_for_task = journey_id.clone();
@@ -1943,7 +1944,7 @@ async fn restart_journey_thread(
             .map_err(|error| format!("Could not reserve Journey restart: {}", error))?;
         (operation_id, requested_pi_id)
     };
-    let pi_session_dir = app.path().app_data_dir().map_err(|error| error.to_string())?.join("pi-sessions");
+    let pi_session_dir = crate::home_state::home_state_dir(&app).map_err(|error| error.to_string())?.join("pi-sessions");
     let (pi_name, mirror_name) = dedicated_native_names(&journey_name, next_generation);
     let task_journey = journey_id.clone();
     let progress_app = app.clone();
@@ -2062,7 +2063,7 @@ fn publish_refreshed_journey_registry(app_data_dir: &Path, payload: &str) -> Res
 #[tauri::command(async)]
 fn refresh_journey_registry(app: AppHandle) -> Result<String, String> {
     let _serialized = crate::native_command_serialization::acquire();
-    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_dir = crate::home_state::home_state_dir(&app).map_err(|error| error.to_string())?;
     fs::create_dir_all(&app_data_dir).map_err(|error| error.to_string())?;
     // CV-010.DS-005 slice 2d-1: the tree comes from the Mirror host, and Desktop stamps the envelope.
     let tree = mirror_host_bridge::request(&app, "readJourneyTree", json!({}))
@@ -2094,6 +2095,10 @@ fn create_mirror_home(app: AppHandle, user_name: String, folder: Option<String>)
             fs::create_dir(&homes).map_err(|error| format!("Could not create {}: {error}", homes.display()))?;
         }
     }
+    let current = mirror_home::load_home_binding(&app_data_root)?;
+    if let Some(refusal) = home_switch_refusal(current.as_ref().map(|home| home.marker.home_id.as_str()), None, desktop_is_busy(&app)) {
+        return Err(refusal.to_string());
+    }
     mirror_host_bridge::create_home(&app, &home_path, &user_name)
         .map_err(|error| mirror_host_bridge::describe_home_creation(error, &home_path))?;
     bind_marked_home(&app, &app_data_root, &home_path)
@@ -2110,6 +2115,11 @@ fn validated_app_data_root(app: &AppHandle) -> Result<PathBuf, String> {
 /// the binding saved.
 fn bind_marked_home(app: &AppHandle, app_data_root: &Path, home_path: &Path) -> Result<RuntimeChannelDiagnostic, String> {
     let home = mirror_home::MarkedHome::open(home_path)?;
+    let current = mirror_home::load_home_binding(app_data_root)?;
+    let next = Some(home.marker.home_id.as_str());
+    if let Some(refusal) = home_switch_refusal(current.as_ref().map(|home| home.marker.home_id.as_str()), next, desktop_is_busy(app)) {
+        return Err(refusal.to_string());
+    }
     let report = mirror_host_bridge::request_for(app, &home, "inspectMigrationState", json!({}))
         .map_err(mirror_host_bridge::describe)?;
     let state = report.get("state").and_then(Value::as_str).unwrap_or("unknown");
@@ -2118,6 +2128,30 @@ fn bind_marked_home(app: &AppHandle, app_data_root: &Path, home_path: &Path) -> 
     }
     mirror_home::persist_home_binding(app_data_root, &home)?;
     Ok(RuntimeChannelProfile::active()?.diagnostic(app_data_root))
+}
+
+/// CV-010.DS-005 slice 3a-2: Desktop's state is per home, and a turn, compaction or Journey thread
+/// in flight writes to the home it started in. The bound home changes only when none is in flight.
+/// `next` is `None` for a home about to be created, which is always another home.
+fn home_switch_refusal(current: Option<&str>, next: Option<&str>, busy: bool) -> Option<&'static str> {
+    match current {
+        Some(current) if busy && next != Some(current) => {
+            Some("Mirror Desktop TS is still working in your current Mirror home. Wait for it to finish, then try again.")
+        }
+        _ => None,
+    }
+}
+
+fn desktop_is_busy(app: &AppHandle) -> bool {
+    desktop_is_busy_with(&app.state::<PiProcessState>(), &app.state::<CompactionState>(), &app.state::<JourneyProvisioningState>())
+}
+
+/// A run reserved, a compaction, or a Journey thread being made; a poisoned lock counts as busy.
+fn desktop_is_busy_with(runs: &PiProcessState, compactions: &CompactionState, threads: &JourneyProvisioningState) -> bool {
+    let runs = runs.registry.lock().map(|registry| !registry.is_empty()).unwrap_or(true);
+    let compactions = compactions.in_flight.lock().map(|set| !set.is_empty()).unwrap_or(true);
+    let threads = threads.active.lock().map(|set| !set.is_empty()).unwrap_or(true);
+    runs || compactions || threads
 }
 
 #[tauri::command]
@@ -3242,9 +3276,7 @@ fn journal_authority(value: &RunAuthority) -> TurnJournalAuthority {
 
 fn turn_journal_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
-    Ok(app
-        .path()
-        .app_data_dir()
+    Ok(crate::home_state::home_state_dir(app)
         .map_err(|_| "turn_journal_unavailable".to_string())?
         .join(TURN_JOURNAL_DIRECTORY)
         .join(format!("{}.json", safe_journey_id)))
@@ -3398,9 +3430,7 @@ fn list_turn_journal(app: AppHandle, journey_id: String) -> Result<TurnJournalDo
 
 fn settlement_timing_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
-    Ok(app
-        .path()
-        .app_data_dir()
+    Ok(crate::home_state::home_state_dir(app)
         .map_err(|_| "settlement_timing_unavailable".to_string())?
         .join(SETTLEMENT_TIMING_DIRECTORY)
         .join(format!("{}.json", safe_journey_id)))
@@ -3996,7 +4026,7 @@ fn validate_recorded_conversation_session_authority(
     sanitize_session_id(thread_id)?;
     sanitize_session_id(session_id)?;
     validate_pi_session_file(app, session_file, session_id)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     let thread = load_conversation_thread_authority_at(&app_data_dir, journey_id, thread_id)?;
     validate_thread_runtime_channel(&thread)?;
@@ -4029,7 +4059,7 @@ fn validate_conversation_session_authority(
     sanitize_session_id(thread_id)?;
     sanitize_session_id(session_id)?;
     validate_pi_session_file(app, session_file, session_id)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     let thread = load_conversation_thread_authority_at(&app_data_dir, journey_id, thread_id)?;
     validate_thread_runtime_channel(&thread)?;
@@ -4356,7 +4386,7 @@ fn conversation_segment_manifest_path(
     sanitize_journey_id(journey_id)?;
     sanitize_session_id(thread_id)?;
     if generation == 0 { return Err("Conversation Segment generation must be positive.".to_string()); }
-    let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let app_data_dir = crate::home_state::home_state_dir(app).map_err(|error| error.to_string())?;
     Ok(app_data_dir.join("conversation-segments").join(journey_id).join(thread_id)
         .join(format!("generation-{}.json", generation)))
 }
@@ -5282,7 +5312,7 @@ fn project_dedicated_user_text_and_envelope(value: &str) -> (String, String) {
 
 fn validate_pi_session_file(app: &AppHandle, session_file: &str, pi_session_id: &str) -> Result<(), String> {
     let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
-    let app_data_root = app.path().app_data_dir()
+    let app_data_root = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     validate_pi_session_file_at(
         session_file,
@@ -5849,9 +5879,7 @@ fn request_desktop_quit(app: &AppHandle) {
 }
 
 fn mirror_append_outbox_path(app: &AppHandle) -> Result<PathBuf, String> {
-    Ok(app
-        .path()
-        .app_data_dir()
+    Ok(crate::home_state::home_state_dir(app)
         .map_err(|error| error.to_string())?
         .join(MIRROR_APPEND_OUTBOX_FILE))
 }
@@ -6289,7 +6317,7 @@ fn pi_session_for_active_generation(
     journey_id: &str,
     thread_id: &str,
 ) -> Result<(String, String), String> {
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|_| "Conversation thread authority is unavailable.".to_string())?;
     let thread = load_conversation_thread_authority_at(&app_data_dir, journey_id, thread_id)
         .map_err(|_| "Conversation thread authority is unavailable.".to_string())?;
@@ -6316,7 +6344,7 @@ fn pi_session_for_journal_record(
     app: &AppHandle,
     record: &TurnJournalRecord,
 ) -> Result<(String, String), String> {
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|_| "mirror_append_delivery_authority_missing".to_string())?;
     let thread = load_conversation_thread_authority_at(
         &app_data_dir,
@@ -6939,7 +6967,7 @@ fn validate_outbox_generation_authority(app: &AppHandle, item: &Value) -> Result
         .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
     let thread_id = item.get("threadId").and_then(Value::as_str)
         .ok_or_else(|| "mirror_append_item_invalid".to_string())?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|_| "mirror_append_authority_missing".to_string())?;
     let stored = load_conversation_thread_authority_at(&app_data_dir, journey_id, thread_id)
         .map_err(|_| "mirror_append_authority_missing".to_string())?;
@@ -7359,7 +7387,7 @@ fn append_mirror_outbox_item(
             })
             .ok_or_else(|| "mirror_append_item_missing".to_string())?;
         validate_outbox_generation_authority(&app, item)?;
-        let app_data_dir = app.path().app_data_dir()
+        let app_data_dir = crate::home_state::home_state_dir(&app)
             .map_err(|_| "mirror_append_authority_missing".to_string())?;
         validate_outbox_item_run_authority_at(&app_data_dir, item, &run_authority)?;
         item.clone()
@@ -7420,7 +7448,7 @@ fn validate_acknowledged_projection_authority(
     item_id: &str,
     conversation_id: &str,
 ) -> Result<(), String> {
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|_| "mirror_append_acknowledgement_missing".to_string())?;
     validate_acknowledged_projection_authority_at(&app_data_dir, authority, item_id, conversation_id)
 }
@@ -8383,9 +8411,7 @@ fn emit(app: &AppHandle, authority: &PiProcessEventAuthority, kind: PiProcessEve
 }
 
 fn journey_registry_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     Ok(app_data_dir.join(JOURNEY_REGISTRY_FILE))
 }
@@ -8701,17 +8727,13 @@ fn expand_home_path(path: PathBuf) -> Result<PathBuf, String> {
 }
 
 fn journey_preferences_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     Ok(app_data_dir.join(JOURNEY_PREFERENCES_FILE))
 }
 
 fn composer_drafts_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     Ok(app_data_dir.join(COMPOSER_DRAFTS_FILE))
 }
@@ -8722,13 +8744,13 @@ fn unwrap_persisted_thread(value: &Value) -> &Value {
 
 fn legacy_dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     Ok(app_data_dir.join("dedicated-journey-conversations").join(format!("{}.json", safe_journey_id)))
 }
 
 fn dedicated_journey_conversation_path(app: &AppHandle, journey_id: &str, generation: u64) -> Result<PathBuf, String> {
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     dedicated_journey_conversation_path_at(&app_data_dir, journey_id, generation)
 }
@@ -8739,7 +8761,7 @@ fn conversation_projection_path(
     thread_id: &str,
     generation: u64,
 ) -> Result<PathBuf, String> {
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     conversation_projection_path_at(&app_data_dir, journey_id, thread_id, generation)
 }
@@ -9142,7 +9164,7 @@ fn validate_post_frontier_outbox_authority(
                 && item.get("conversationId").and_then(Value::as_str) == Some(conversation_id)
         })).ok_or_else(|| "mirror_append_item_missing".to_string())?;
     validate_outbox_generation_authority(app, item)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|_| "mirror_append_authority_missing".to_string())?;
     validate_outbox_item_run_authority_at(&app_data_dir, item, authority)?;
     if item_id != authority.turn_id
@@ -9440,21 +9462,21 @@ fn load_dedicated_journey_conversation(
 
 fn journey_thread_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     Ok(app_data_dir.join("journey-threads").join(format!("{}.json", safe_journey_id)))
 }
 
 fn journey_thread_operation_path(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     let safe_journey_id = sanitize_journey_id(journey_id)?;
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     Ok(app_data_dir.join("journey-thread-operations").join(format!("{}.json", safe_journey_id)))
 }
 
 fn validate_run_authority(app: &AppHandle, authority: &RunAuthority) -> Result<(), String> {
     let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     let runtime_channel = active_runtime_channel()?.channel;
     validate_run_authority_at_with_channel(
@@ -9470,7 +9492,7 @@ fn validate_pre_admission_run_authority(
     authority: &RunAuthority,
 ) -> Result<(), String> {
     let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     let runtime_channel = active_runtime_channel()?.channel;
     validate_pre_admission_run_authority_at_with_channel(
@@ -11536,6 +11558,29 @@ mod tests {
             harness_user_message_id: "user-one".to_string(),
             harness_assistant_message_id: "assistant-one".to_string(),
         }
+    }
+
+    /// CV-010.DS-005 slice 3a-2: any of the three keeps the bound Mirror home from changing.
+    #[test]
+    fn desktop_is_busy_while_a_run_a_compaction_or_a_thread_is_in_flight() {
+        let (runs, compactions, threads) = (crate::PiProcessState::default(), crate::CompactionState::default(), crate::JourneyProvisioningState::default());
+        assert!(!crate::desktop_is_busy_with(&runs, &compactions, &threads));
+        compactions.in_flight.lock().unwrap().insert("journey-one".into());
+        assert!(crate::desktop_is_busy_with(&runs, &compactions, &threads));
+        compactions.in_flight.lock().unwrap().clear();
+        threads.active.lock().unwrap().insert("journey-one".into());
+        assert!(crate::desktop_is_busy_with(&runs, &compactions, &threads));
+        threads.active.lock().unwrap().clear();
+        let root = test_root("home-switch-busy");
+        let config = crate::ProviderConfig {
+            command: "pi".to_string(),
+            args: Vec::new(),
+            use_stdin: true,
+            safe_test_mode: true,
+            invocation_mode: "mirror".to_string(),
+        };
+        runs.registry.lock().unwrap().reserve(test_run_authority(&root), config).unwrap();
+        assert!(crate::desktop_is_busy_with(&runs, &compactions, &threads));
     }
 
     #[test]
@@ -14709,7 +14754,28 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         let persist = bind.find("persist_home_binding(").expect("bind persists the 0.3 binding");
         let current = bind.find("\"inspectMigrationState\"").expect("bind asks the host first");
         assert!(open < current && current < persist, "bind must check the marker, then the host, then persist");
+        let switch = bind.find("home_switch_refusal(").expect("bind refuses a switch while busy");
+        assert!(open < switch && switch < persist);
         assert!(source.contains(".manage(mirror_host_bridge::MirrorHostState::default())"));
+    }
+
+    #[test]
+    fn the_bound_home_changes_only_when_nothing_is_in_flight() {
+        // CV-010.DS-005 slice 3a-2.
+        assert_eq!(home_switch_refusal(None, Some("home-b"), true), None, "a first binding switches nothing");
+        assert_eq!(home_switch_refusal(Some("home-a"), Some("home-a"), true), None, "rebinding the same home");
+        assert_eq!(home_switch_refusal(Some("home-a"), Some("home-b"), false), None);
+        assert!(home_switch_refusal(Some("home-a"), Some("home-b"), true).is_some());
+        assert!(home_switch_refusal(Some("home-a"), None, true).is_some(), "a created home is another home");
+        let source = production_source();
+        let created = body_of(&source, "fn create_mirror_home(");
+        let refused = created.find("home_switch_refusal(").expect("create refuses a switch while busy");
+        assert!(refused < created.find("mirror_host_bridge::create_home(").unwrap(), "refused before anything is created");
+        let busy = body_of(&source, "fn desktop_is_busy(");
+        for state in ["PiProcessState", "CompactionState", "JourneyProvisioningState"] {
+            assert!(busy.contains(state), "{state}");
+        }
+
     }
 
     #[test]

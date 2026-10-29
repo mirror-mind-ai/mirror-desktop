@@ -641,6 +641,11 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
         children
     }
 
+    /// CV-010.DS-005 slice 3a-2: no run holds a reservation, so the bound Mirror home may change.
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
     /// Unmeasured: every held handle reports `Unknown`. Callers that only read phases keep using
     /// this; only the Tauri inspection command measures, through `inspect_measured`.
     pub fn inspect(&self) -> PiInvocationRegistryInspection {

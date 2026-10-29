@@ -170,9 +170,7 @@ pub fn import_journey_custom_image(
     let Some(source) = source else {
         return Ok(None);
     };
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(&app)
         .map_err(|error| format!("Could not resolve app data directory: {error}"))?;
     import_at(&app_data_dir, &journey_id, &source).map(Some)
 }
@@ -183,9 +181,7 @@ pub fn load_journey_custom_image(
     journey_id: String,
 ) -> Result<Option<String>, String> {
     let _serialized = crate::native_command_serialization::acquire();
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(&app)
         .map_err(|error| format!("Could not resolve app data directory: {error}"))?;
     let path = appearance_image_path(&app_data_dir, &journey_id)?;
     if !path.exists() {
@@ -214,9 +210,7 @@ pub fn load_journey_custom_image(
 #[tauri::command(async)]
 pub fn remove_journey_custom_image(app: AppHandle, journey_id: String) -> Result<(), String> {
     let _serialized = crate::native_command_serialization::acquire();
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
+    let app_data_dir = crate::home_state::home_state_dir(&app)
         .map_err(|error| format!("Could not resolve app data directory: {error}"))?;
     let path = appearance_image_path(&app_data_dir, &journey_id)?;
     match fs::remove_file(path) {
