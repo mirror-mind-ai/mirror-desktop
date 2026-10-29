@@ -186,7 +186,7 @@ including any Navigator check, is met.
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
-| 2 · The embedded host | 🟡 Planned | Planned below in six slices (2a–2f). Three decisions await the Navigator. |
+| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a (runtime pin) is built; 2b–2f are owed. |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
@@ -1072,6 +1072,12 @@ it never reaches `/Users/alissonvale/mirror` or `~/.mirror-minds/alisson-vale`.
 
 ### Decisions for the Navigator
 
+> **Answered 2026-10-29: all three recommendations.**
+>
+> 1. Desktop vendors a Core tarball packed from `desktop/library-seam-1a` at a recorded commit.
+> 2. Node ships as an official, pinned binary, not a SEA.
+> 3. The routes 0.3 does not carry say so plainly and never fall back to Python.
+
 1. **How Desktop depends on Core during development.** Recommended: vendor a tarball packed from
    `desktop/library-seam-1a` at a recorded commit, now `c7b4bf40`. The contract is exercised by its
    real consumer before Core merges and releases it. The alternative is to merge and release Core
@@ -1082,3 +1088,78 @@ it never reaches `/Users/alissonvale/mirror` or `~/.mirror-minds/alisson-vale`.
 3. **The routes not carried.** Recommended: delete, Journey administration, Canvas and altitude, and
    recall say plainly that they are not available in 0.3. They do not fall back to Python, because a
    fallback would break condition (b).
+
+## Phase 2 Slice 2a Built — Runtime Pin (2026-10-29)
+
+### What exists
+
+- **`mirror-host/pin.json`** records the runtime:
+  - **Node v24.22.2**, the newest LTS 24 release. Its macOS archives are pinned by SHA-256, copied
+    from that release's `SHASUMS256.txt`:
+    - `darwin-arm64`: `aa954934…`;
+    - `darwin-x64`: `d5e336d5…`.
+  - **The core,** `mirror-mind` 0.37.0, packed from Core commit `c7b4bf406e15…`
+    (`desktop/library-seam-1a`). The tarball is vendored at
+    `vendor/mirror-host/mirror-mind-0.37.0-c7b4bf40.tgz`, about 1 MB, with SHA-256 `bc9340de…`.
+    `npm pack` gave the same hash twice, so the tarball is reproducible.
+  - **`yaml` 2.9.0,** the core's only dependency. It is vendored too, checked against the sha512
+    integrity in Core's own lockfile.
+- **`scripts/mirror_host_pin.mjs`** has two commands.
+  - **`verify`** checks the pin.
+  - **`materialize`** builds `.mirror-host/runtime/<platform>/`, which is gitignored, all or
+    nothing. It works in a staging directory beside the target, in this order:
+    1. it verifies the Node archive's hash before extracting anything;
+    2. it checks that the archive holds `node-v<version>-<platform>`;
+    3. on the host platform, it checks that the binary reports the pinned version;
+    4. it verifies the core tarball's hash and yaml's integrity, then lays out `node_modules`;
+    5. it writes a `pin-receipt.json`;
+    6. it renames the staging directory into place.
+
+    An existing output is refused, unless `--replace` is given.
+- **Not yet wired into the Tauri bundle.** That happens with the host, in slice 2b.
+
+### Evidence
+
+- **The pin's gate, on this machine,** with the materialized `darwin-x64` runtime and the same
+  isolation as Core's runs:
+  - Core's full suite on the pinned Node: **3,582 passed, 0 failed**, 1 skipped. That includes
+    the `diagnose` FTS5 shadow-table test.
+  - Control: the same test on the system Node, v24.6.0, still fails 1 of 10.
+  - Core's package smoke on the pinned Node: 92 of 92.
+- **End to end from the materialized runtime.** With an empty environment (`env -i`) and a scratch
+  `HOME`, the pinned Node imported `mirror-mind/desktop`. It found API 1 with 15 names, created a
+  home (20 entries seeded, state `current`), recorded a Conversation, and read a tree of 1 root with
+  no findings. The scratch home was deleted afterwards.
+- **`src/tests/cv010HostPin.test.mjs`**, 9 tests, red first on the missing module. It covers:
+  - the pin;
+  - the vendored hashes;
+  - the floor;
+  - a missing platform;
+  - a malformed hash;
+  - materialization from a fake official archive;
+  - a hash mismatch, which leaves nothing;
+  - an archive missing its directory;
+  - a binary that reports another version;
+  - an existing output;
+  - the gitignore entry.
+- **Mutations, each caught and then restored:**
+  - skipping the Node hash check;
+  - lowering the floor to 24.0.0;
+  - accepting a missing platform;
+  - skipping the extracted version check;
+  - skipping the core tarball hash.
+
+  The version-check mutation was **not caught at first**. The existing test failed earlier, on the
+  archive's directory, and never reached the check. A test was added where the directory matches
+  and the binary reports v24.6.0.
+- **Production** stayed at migration 016 throughout.
+
+### Known gaps
+
+- **Unsigned hashes.** `SHASUMS256.txt` is signed by Node's releasers, but this machine has no
+  `gpg`. The recorded hashes were therefore taken over HTTPS, not verified against the signature.
+- **`darwin-arm64` is pinned but not exercised.** This machine is Intel, so that archive has never
+  been downloaded or run here.
+- **The pinned Node prints an ExperimentalWarning** on stderr when the core opens SQLite. The host
+  in slice 2b owns its process and filters it.
+- **Signing (CV-009).** The bundled Node needs the hardened runtime and the JIT entitlement.
