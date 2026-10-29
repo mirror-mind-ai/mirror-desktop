@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a built; the Navigator's check found Desktop state shared across homes (3a-2 proposed). 3b–3d to do. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built, awaiting the Navigator's check. 3b–3d to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2144,3 +2144,51 @@ each home has its own threads, sessions, catalog, registry, outbox and journal; 
 into her home's folder, all or nothing. Binding a home reloads the Journey list and its Conversations.
 About 52 call sites read `app_data_dir()` today; each is classified as home or app state, and a census
 test refuses an unclassified one.
+
+## Slice 3a-2 Built — Desktop's State per Home (2026-10-29)
+
+Commit `2a77286`, on the Navigator's "vai".
+
+- **One resolver.** `home_state::home_state_dir` returns `<app data>/homes/<homeId>/` for the bound
+  home (0700, refusing a link or a file in its place); unbound, there is none. 35 readers moved to it
+  (32 in `main.rs`, 3 Journey-image commands). The 16 readers of app state are named: the binding,
+  agent settings, model intents, voice, window geometry, What's New, the user avatar, native traces
+  and the 0.2 parity cleanup. A census test reads every module and refuses any other reader of the
+  app data folder. `HOME_STATE_ENTRIES` lists the 17 names a home's folder holds, and a test checks
+  each constant `main.rs` keeps them under is listed.
+- **Changed from the proposal.** Journey preferences went with the home: they hold pinned, active and
+  hidden Journeys and Conversations, and also the theme and voice language, so a new home starts on
+  the default theme.
+- **Reload on bind.** Creating or opening a home reloads the window, so nothing from the previous home
+  stays in memory, including the Conversation list's unbound refusal. A home with no registry imports
+  its Journeys on the way in, through the existing start-up path.
+- **The bound home changes only when idle.** `bind_marked_home` and `create_mirror_home` refuse to
+  switch homes while a run is reserved, a compaction or a Journey thread is in flight
+  (`desktop_is_busy_with`).
+- **Changed from the proposal: no migration in the app.** Records keep absolute Pi session paths
+  (`piSessionFile`), and no 0.3 build was published, so only a development folder holds unscoped
+  state. `scripts/dev_adopt_unscoped_state.mjs <home>` moves it once, all or nothing, rewriting those
+  paths, and refuses unless the home's database holds every Conversation the state names.
+
+**Run on the Navigator's TS Dev data**, with the app closed, after a backup
+(`/tmp/ts-dev-backup/ts-dev-app-data-before-3a2.tgz`): 12 entries moved into
+`homes/home-dafb7eb5-…` (ana's marker id), 6 files' paths rewritten, Conversations `8bfc5f21` and
+`a14439c8` found in ana's database, no old path left. `joao-silva` (`home-b7421a1e-…`) starts with no
+state. The binding still names `joao-silva`.
+
+**Gates.** vitest 281 files / 2,335 tests; cargo 391 passed / 5 ignored; real-host 2 pass; roadmap
+READY. **Mutations:** 15, all caught after two findings: H4 (the explicit link check) was equivalent,
+since `symlink_metadata` never reports a link as a folder, and was removed; H6 (never busy) escaped a
+source-only test, so the busy rule became `desktop_is_busy_with` and is tested against each of the
+three states (H6, H8–H10 caught). An ownership-free stale-path check in the script was dead logic
+(the same pattern as the rewrite) and was removed. Production afterwards: binary `303ede287de3…`,
+migration 016.
+
+**Navigator check (3a + 3a-2).**
+
+1. `npm run tauri:build:dev -- --bundles app` and open the TS Dev app. It opens on `joao-silva`
+   with its own Journeys and no Conversation of ana's.
+2. Send a turn there.
+3. Quit, then switch to ana:
+   `cd ~/Library/Application\ Support/ai.mirrormind.desktop.ts.dev && mv runtime-home.v2.json runtime-home.v2.json.joao && mv runtime-home.v2.json.ana runtime-home.v2.json`.
+4. Open the app: ana's two Conversations are there, and continuing one works.
