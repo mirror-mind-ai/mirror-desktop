@@ -186,7 +186,7 @@ including any Navigator check, is met.
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
-| 2 · The embedded host | 🟡 Candidate | A full plan |
+| 2 · The embedded host | 🟡 Planned | Planned below in six slices (2a–2f). Three decisions await the Navigator. |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
@@ -928,3 +928,157 @@ Three Core decisions were taken by the Navigator along the way:
 - re-seeding an existing home;
 - recall;
 - Journey administration, including writing `sibling_position`.
+
+## Phase 2 Plan — The Embedded Host (2026-10-29)
+
+### Outcome
+
+A Mirror Desktop TS build runs every Mirror operation it carries through the TypeScript core it
+ships with. It spawns no `uv` and no `python`, it opens only homes that carry the 0.3 marker, and
+it never reaches `/Users/alissonvale/mirror` or `~/.mirror-minds/alisson-vale`.
+
+### Measured before planning
+
+- **Eight Python routes in the Rust code** (`src-tauri/src/main.rs`, outside tests):
+
+  | Route | Today | In 0.3 |
+  |---|---|---|
+  | `provision_mirror_conversation` (line ~1978) | `uv run python scripts/provision_mirror_conversation.py` | `ensureConversation` |
+  | `run_mirror_conversation_catalog`: `catalog`, `inspect` | `uv run python scripts/mirror_conversation_catalog.py` | `listJourneyConversations`, `inspectConversation` |
+  | the same script: `rename`, `rebind-journey` | the same | `renameConversation`, `rebindConversationJourney` |
+  | the same script: `delete` | the same | **not carried** (no library call, needs a decision) |
+  | `run_explicit_mirror_append` (line ~7494, bounded by CR163) | `uv run python -m memory conversations append` | `appendConversationMessages`, same receipts |
+  | `refresh_journey_registry` (line ~2306) | `… journey export-registry` | `readJourneyTree`, with a new Rust validator (no `sourceVersion`) |
+  | Journey administration (line ~2366) | `… journey mutate` | **not carried** |
+  | Canvas and altitude reads (line ~3247) | `… journey-projection inspect` | **not carried** |
+  | Terminal recall (line ~1917) | a shell launcher running `… recall` | **not carried** |
+
+- **The binding is Python-shaped.** `RuntimeChannelProfile` holds `mirror_root`, `uv_bin` and
+  `db_path`. `runtime_command` allows only `pi` and `uv`, sets `cwd` to `mirror_root`, and exports
+  `MIRROR_HOME`, `MIRROR_USER` and `DB_PATH`.
+- **The risk this plan must close.** Pi runs with `cwd` set to `mirror_root`. The production
+  checkout's `.pi/extensions/mirror-logger.ts` spawns `uv run python` against `MIRROR_HOME`. A 0.3
+  build that kept this shape would run the Python core, which is 0.31.14, against a 0.3 home at
+  migration 018. Two calls already pass `--no-extensions`: provisioning and title suggestion. The
+  turn path must be confirmed in slice 2e.
+- **The Node pin.** Core CI ran on Node v24.21.0 (macOS) and v24.22.1 (Linux), and the
+  FTS5 shadow-table refusal held on both. This machine's v24.6.0 lets the write through. The pin is
+  therefore at least v24.21.0, and slice 2a measures the exact candidate.
+- **The release preflight** (`scripts/private_alpha_preflight.mjs`, `validateRuntimeCoordinates`)
+  requires `pyproject.toml` under a Mirror root, so a 0.3 release cannot pass it today.
+
+### Slices
+
+**2a · Runtime pin.**
+
+- **Node.** Bundle an official Node 24 build (at least v24.21.0, `darwin-arm64` and
+  `darwin-x64`) in the app's resources. Its download is verified against the release's
+  `SHASUMS256.txt`.
+- **Core.** Bundle the core as an `npm pack` tarball of `mirror-mind` at a recorded commit,
+  installed into `resources/mirror-host/node_modules` at build time. The tarball's SHA-256 is
+  recorded beside it.
+- **The gate.** Core's `diagnose` test and the package smoke must pass on the pinned Node before
+  the pin is accepted.
+- **Signing (CV-009).** The bundled Node needs the hardened runtime with the JIT entitlement. That
+  is named here and taken up when signing lands.
+
+**2b · Host and RPC.**
+
+- **The host.** `resources/mirror-host/host.mjs` imports `mirror-mind/desktop` and serves
+  line-delimited JSON requests on stdio: `{id, method, params}` in, and
+  `{id, ok, result | error: {name, reason, message}}` out.
+  - Its method allowlist is exactly the library's calls.
+  - Its first line is a handshake reporting `DESKTOP_API_VERSION`, the core version and the Node
+    version. Desktop refuses to proceed on a mismatch.
+- **The supervisor.** A new `src-tauri/src/mirror_host.rs` owns the host process:
+  - it starts the host with a cleared environment, no `MIRROR_*` variable and `cwd` set to the
+    host directory;
+  - each request has a deadline (CR163's 30 s for append);
+  - a request that times out kills the host's process group and restarts it, using the
+    `bounded_child.rs` lessons;
+  - restarts back off and are bounded, after which the app shows that the Mirror is unavailable;
+  - requests are serialized, because the core is synchronous.
+
+**2c · The home and its marker (condition b).**
+
+- **The binding.** The 0.3 binding becomes `{schemaVersion: "2.0.0", homePath}`. `mirror_root`,
+  `uv_bin`, `mirror_user` and `db_path` leave the 0.3 profile.
+- **The marker.** A marked home has `<home>/.mirror-desktop/home.json`, holding
+  `{line: "0.3", homeId, createdAt}`, written by Desktop after `createHome`.
+- **The guard.** Both Rust and the host refuse to open a home without the marker, before any core
+  call. The production home has no marker, so it is refused.
+- **Development.** A script, `scripts/dev_ts_home.mjs`, creates a scratch home through the bundled
+  host and marks it. It refuses any path under `~/.mirror-minds` and any existing path. The first-run
+  creation flow itself is phase 3.
+- **Discovery.** The Python discovery (DS-001) is disabled in TS builds, and the 0.3 setup screen
+  asks for a marked home.
+
+**2d · Transport swap.**
+
+- **What moves.** Each carried route in the table becomes a host request, and the four Python
+  scripts and `uv` calls leave the 0.3 build. Outbox, settlement and recovery keep their shape: only
+  the call that delivers changes.
+- **The registry.** `validate_journey_registry_payload` is replaced by a validator of
+  `readJourneyTree`'s shape. Its `findings` are surfaced, never hidden.
+- **What is not carried.** Delete, Journey administration, the Canvas and altitude reads, and
+  recall each show plainly that they are not available in 0.3. None of them falls back to Python.
+
+**2e · Pi isolation.**
+
+- Pi's turns in 0.3 run with `cwd` set to the Journey or app directory, never a Mirror checkout.
+- They carry no `MIRROR_*` variable and load no Mirror extension.
+- The turn path is read and pinned by a test, like provisioning's `--no-extensions`.
+- Mirror context injection returns in phase 3, through the host.
+
+**2f · Release preflight without Python.**
+
+- On `main` only, `validateRuntimeCoordinates` is replaced. The new check verifies the pinned Node
+  version and hash, the core tarball's hash, the host handshake from the built app, and the marker
+  guard.
+- The `release/0.2` preflight is untouched.
+
+### Acceptance
+
+- **A TS Dev build on a scratch marked home** creates a Conversation, sends turns that settle into
+  Mirror through `appendConversationMessages`, lists and inspects the Conversation, renames and
+  rebinds it, and renders the Journey tree.
+- **No interpreter.** `uv`, `python` and `python3` are shadowed by stubs that fail, as Core's smoke
+  does. Nothing calls them, and an interpreter census of the built app's resources finds no Python
+  script.
+- **Refusals.** An unmarked home is refused, and so is the production home path, by test and by
+  hand. Production is verified afterwards by binary hash, migration 016 and an unchanged file
+  snapshot.
+- **Supervision:**
+  - a host killed mid-request restarts, and the request reports a named failure;
+  - a hung request is killed at its deadline;
+  - a version mismatch at handshake is refused.
+- **Mutation controls.** Each of these fails a test:
+  - dropping the marker check in Rust;
+  - dropping it in the host;
+  - letting `MIRROR_HOME` reach the host;
+  - a method outside the allowlist;
+  - Pi started with `cwd` at a Mirror checkout.
+- **Gates.** vitest, tsc, build and cargo pass, the roadmap check reads READY, and the new preflight
+  passes on a built app.
+
+### Exclusions
+
+- The first-run assistant and home creation in the UI (phase 3).
+- Context injection into Pi (phase 3).
+- Delete, Journey administration, Canvas, altitude and recall in 0.3.
+- Any change to Core. A change the host needs goes back to CV24 as a story.
+- Any release. `0.3.0-alpha.1` is published only at the Navigator's word.
+- Production, its app data and `release/0.2`.
+
+### Decisions for the Navigator
+
+1. **How Desktop depends on Core during development.** Recommended: vendor a tarball packed from
+   `desktop/library-seam-1a` at a recorded commit, now `c7b4bf40`. The contract is exercised by its
+   real consumer before Core merges and releases it. The alternative is to merge and release Core
+   first and depend on the registry, which freezes the contract before anything has used it.
+2. **How Node ships.** Recommended: an official, pinned Node binary in the app's resources. Node SEA
+   (a single binary) is not chosen. Its support for the loader hooks the core needs is unproven, and
+   it would add a build step to every Core change.
+3. **The routes not carried.** Recommended: delete, Journey administration, Canvas and altitude, and
+   recall say plainly that they are not available in 0.3. They do not fall back to Python, because a
+   fallback would break condition (b).
