@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a built, awaiting the Navigator's check; 3b–3d to do. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a built; the Navigator's check found Desktop state shared across homes (3a-2 proposed). 3b–3d to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2116,3 +2116,31 @@ Gates: vitest 280 files / 2,331 tests; cargo 385 passed / 5 ignored.
 5. To return to `ana`: quit, then
    `mv ~/Library/Application\ Support/ai.mirrormind.desktop.ts.dev/runtime-home.v2.json{.ana,}`
    (first moving the new home's binding aside the same way if you want to keep it).
+
+### Navigator check of 3a — Desktop state is shared across homes (2026-10-29)
+
+The Navigator created `joao-silva`. Creation, marking and binding worked: `~/Mirror Homes/joao-silva`
+holds a current database and a marker, `runtime-home.v2.json` names it, and `~/mirror` and
+`~/.mirror-minds` gained nothing. But the app then showed **`ana`'s Personal Growth Conversation**
+("Olá!" / "Olá! Como posso ajudar?", 1 hour old), with the Conversation list saying the app is
+unbound.
+
+Read afterwards: `joao-silva`'s database has 0 messages and 0 Conversations, so nothing was mixed in
+Mirror. The defect is on Desktop's side:
+
+1. **Desktop's own state is keyed by Journey id, not by home.** Journey threads, Pi sessions,
+   segments, the dedicated Conversation, the catalog cache, the outbox and the turn journal live in the
+   app data folder under `personal-growth/…`. Every home seeded from the templates has a
+   `personal-growth`, so a second home inherits the first home's threads. A turn sent there would
+   continue `ana`'s Pi session (her transcript as context) and append to `joao-silva`'s database. The
+   same holds for "Open an existing Mirror home" since slice 2d-1, unseen until now because one home
+   was ever bound.
+2. **The Conversation list kept the "unbound" refusal** it got before the home was created; binding
+   does not reload it.
+
+**Proposed 3a-2.** Home-derived state moves under `<app data>/homes/<homeId>/` (the marker's id), so
+each home has its own threads, sessions, catalog, registry, outbox and journal; app-wide settings
+(model, window, voice, What's New) stay where they are. On first launch `ana`'s existing state moves
+into her home's folder, all or nothing. Binding a home reloads the Journey list and its Conversations.
+About 52 call sites read `app_data_dir()` today; each is classified as home or app state, and a census
+test refuses an unclassified one.
