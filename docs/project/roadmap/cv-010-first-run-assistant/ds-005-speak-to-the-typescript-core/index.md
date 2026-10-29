@@ -186,7 +186,7 @@ including any Navigator check, is met.
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
-| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a (runtime pin), 2b (host and supervisor) and 2c (home marker) are built. 2d–2f are owed. Bundling the runtime moved to 2f, and the setup screen for a 0.3 home moved to 2d. |
+| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a, 2b, 2c and 2d-1 (profile, setup and reads through the host) are built. Owed: 2d-2 (writes and outbox), 2e, 2f. Bundling the runtime is in 2f. |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
@@ -1351,3 +1351,109 @@ Dev build stays on its setup screen, and that screen states why.
   - the real-host test passes;
   - the pin verifies;
   - the roadmap check reads READY.
+
+## Phase 2 Slice 2d-1 Built — Profile, Setup and Reads Through the Host (2026-10-29)
+
+Slice 2d was split, at the Navigator's word, into two parts:
+
+- **2d-1** (this slice): the profile, the binding, the setup screen and the reads;
+- **2d-2:** the writes and the outbox.
+
+### What changed
+
+- **The profile is the 0.3 home** (`runtime_channel.rs`).
+  - **Its source.** `RuntimeChannelProfile::active()` reads `runtime-home.v2.json` through
+    `load_home_binding`, so the marker is checked, and it resolves Pi from the trusted tool
+    locations as before. Nothing names a Mirror source tree, a user or `uv`.
+  - **Pi now runs in the 0.3 home.** Its `cwd` is that home, a data folder and never a Mirror
+    checkout, so no `.pi/extensions` from the Python Mirror can load.
+    - **No Mirror variables.** `MIRROR_HOME`, `MIRROR_USER` and `DB_PATH` are **removed** from its
+      environment, and the Python variables were already removed.
+    - **This is the first half of 2e.** 2e still owes the test on the turn path itself.
+  - **No `uv`.** `runtime_command("uv")` refuses with `UV_RETIRED`, so every remaining Python route
+    fails with a plain sentence until 2d-2 moves it.
+  - **The diagnostic** names only `mirrorHome` and `dbPath`.
+- **`src-tauri/src/mirror_host_bridge.rs`** holds the app's single supervisor (`MirrorHostState`,
+  managed by Tauri, started on the first request) and the read adapters.
+  - **The runtime.** It is found in the repository's `.mirror-host/runtime/<platform>` by the
+    Development channel only. Other channels refuse, naming 2f.
+  - **`conversation_catalog`** answers `catalog` and `inspect` through `listJourneyConversations`
+    and `inspectConversation`, **in exactly the shape the Python script printed**. The identifier
+    rule, uniqueness, the "Untitled conversation" fallback and the Journey check are all kept, so no
+    caller changed. `rename` and `rebind-journey` refuse until 2d-2, and `delete` is not carried.
+  - **`registry_from_tree`** stamps the envelope Desktop owns: `schemaVersion` `0.1.0`,
+    `source: mirror`, `syncedAt`, and no `sourceVersion`. The tree's `findings`, when there are any,
+    go into the payload, which is then checked by the existing registry validator.
+  - **`describe`** turns host errors into sentences.
+- **`main.rs`.**
+  - `run_mirror_conversation_catalog` and `refresh_journey_registry` now call the bridge. The
+    bundled-catalog-script resolver is gone.
+  - **New command, `bind_mirror_home`.** It opens the marked home, has the host read it as
+    `current`, and only then saves the binding. A home that is not current is refused, because 0.3
+    does not migrate yet.
+- **The front end.**
+  - **Setup.** `MirrorHomeSetup.tsx` asks for one folder, "Open your Mirror home", and in the
+    Development channel it names `node scripts/dev_ts_home.mjs`.
+  - **Settings** binds a home through the same chooser.
+  - **The diagnostic parser** requires `mirrorHome` and `dbPath` only.
+  - **Python discovery** and the Python form are no longer rendered. Their functions
+    (`submitRuntimeBinding`, `fillRuntimeBindingFromDiscovery`) remain unreachable, and are
+    removed with the Python routes in 2d-2.
+
+### Two existing guards that reacted, as they should
+
+- **CR163's list of unbounded waits.** The third named exclusion, the catalog's wait on a Python
+  child, **no longer exists**: the catalog goes through the host, whose every request has a deadline.
+  The test now asserts its absence.
+- **The command census** went from 92 to 93 with `bind_mirror_home`, which is serialized and off the
+  main thread.
+
+### Tests that pinned the Python flow, and now pin the 0.3 one
+
+- `journeyRegistryRefreshBoundary`;
+- `runtimeChannelConfiguration`, both the profile and the setup copy;
+- two DS-001 wiring tests in `cv010MirrorDiscovery`.
+
+DS-001 itself is unchanged on `release/0.2`.
+
+### Evidence
+
+- **Real chain.** The new ignored test
+  `real_host_feeds_the_catalog_and_the_registry_in_the_shapes_the_app_reads` ran against the
+  materialized runtime. The supervisor created a home, which was marked. The real tree passed through
+  `registry_from_tree` and the registry validator. A Conversation was created, and the real catalog
+  and inspection came back through `catalog_entries` in the app's shape. The 2c real-host test
+  passes too.
+- **New tests, red first:**
+  - `mirror_host_bridge`: 7 tests;
+  - `runtime_channel`: 5 rewritten;
+  - `main.rs`: 1 for the routing and the order of steps in `bind_mirror_home`;
+  - `cv010MirrorHomeSetup`: 4 tests;
+  - `runtimeChannelStorage`: 2 tests.
+- **Mutations, seven, each caught:**
+  - `MIRROR_HOME` back in Pi's environment;
+  - `uv` allowed again;
+  - the registry without its validator;
+  - a repeated catalog id;
+  - the binding saved before the host check;
+  - the bind going through the Python command;
+  - a diagnostic without `dbPath`.
+- **Gates:**
+  - vitest: 280 files, 2,336 tests;
+  - tsc: clean;
+  - build: passes;
+  - cargo `--locked`: 415 passed, 5 ignored, in 2 of 2 runs;
+  - the development-channel `cargo check` shows only the warning that was already there. The
+    retired Python binding reader is marked dead until 2d-2;
+  - the pin verifies, and the roadmap reads READY.
+- **Production:** binary `303ede287de3…`, migration 016, and the TS Dev app data unbound.
+
+### What the Navigator will see, and its limits
+
+- **What works.** With a dev home bound, the TS Dev app should:
+  - load the Journey tree from the 0.3 home;
+  - show its sidebar;
+  - offer the Pi model chooser.
+- **What does not work yet.** **Creating a Conversation and sending a turn will fail with the
+  `UV_RETIRED` sentence**, because provisioning and the append are 2d-2. Rename and rebind fail the
+  same way.
