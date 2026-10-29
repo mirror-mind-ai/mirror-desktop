@@ -3796,11 +3796,8 @@ fn run_manual_compaction(
         Vec::new()
     };
     let args = manual_compaction_args(config, session_file, &global_extensions);
-    let mut command = Command::new(&config.command);
-    command.args(args);
-    if config.invocation_mode == "mirror" {
-        active_runtime_channel()?.apply_to_command(&mut command);
-    }
+    let profile = active_runtime_channel()?;
+    let mut command = pi_turn_command(&config.command, args, &profile);
     let mut child = command
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn()
@@ -7543,60 +7540,30 @@ fn acknowledge_mirror_append_item(
     Ok(json!({"status":"already_acknowledged"}))
 }
 
-fn mirror_runtime_skill_paths() -> Result<Vec<PathBuf>, String> {
-    let profile = active_runtime_channel()?;
-    let core = profile
-        .mirror_root
-        .join(".pi")
-        .join("skills")
-        .canonicalize()
-        .map_err(|_| "Mirror core skills are unavailable.".to_string())?;
-    let runtime_root = profile.mirror_home.join("runtime").join("skills").join("pi");
-    let catalog_path = runtime_root.join("extensions.json");
-    let mut paths = vec![core];
-    if !catalog_path.exists() {
-        return Ok(paths);
+/// CV-010.DS-005 slice 2e: the one way a Pi turn or compaction is built. Whatever the invocation
+/// mode, it runs in the bound 0.3 home (a data folder, never a Mirror checkout whose
+/// `.pi/extensions` would load), with `MIRROR_HOME`, `MIRROR_USER`, `DB_PATH` and the Python
+/// variables removed: the shell that launched the app may export a production Mirror's.
+fn pi_turn_command(program: &str, args: Vec<String>, profile: &RuntimeChannelProfile) -> Command {
+    let mut command = Command::new(program);
+    command.args(args);
+    isolate_pi_command(command, profile)
+}
+
+fn isolate_pi_command(mut command: Command, profile: &RuntimeChannelProfile) -> Command {
+    profile.apply_to_command(&mut command);
+    command
+}
+
+/// The flags a Mirror-mediated turn adds: approval, no auto-discovered extensions, and the global
+/// extensions named explicitly (conversation writers and Mirror's package already refused).
+fn mediated_turn_flags(global_extensions: &[PathBuf]) -> Vec<String> {
+    let mut flags = vec!["--approve".to_string(), "--no-extensions".to_string()];
+    for entry in global_extensions {
+        flags.push("--extension".to_string());
+        flags.push(entry.to_string_lossy().into_owned());
     }
-    let metadata = fs::symlink_metadata(&catalog_path)
-        .map_err(|_| "Mirror external skill catalog is unavailable.".to_string())?;
-    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 1024 * 1024 {
-        return Err("Mirror external skill catalog is invalid.".to_string());
-    }
-    let catalog: Value = serde_json::from_slice(
-        &fs::read(catalog_path)
-            .map_err(|_| "Mirror external skill catalog is unavailable.".to_string())?,
-    )
-    .map_err(|_| "Mirror external skill catalog is invalid.".to_string())?;
-    let extensions = catalog
-        .get("extensions")
-        .and_then(Value::as_array)
-        .filter(|items| items.len() <= 64)
-        .ok_or_else(|| "Mirror external skill catalog is invalid.".to_string())?;
-    if catalog.get("schema_version").and_then(Value::as_str) != Some("1")
-        || catalog.get("runtime").and_then(Value::as_str) != Some("pi")
-    {
-        return Err("Mirror external skill catalog is invalid.".to_string());
-    }
-    let canonical_runtime = runtime_root
-        .canonicalize()
-        .map_err(|_| "Mirror external skill runtime is unavailable.".to_string())?;
-    for extension in extensions {
-        let candidate = extension
-            .get("installed_skill_path")
-            .and_then(Value::as_str)
-            .map(PathBuf::from)
-            .ok_or_else(|| "Mirror external skill catalog is invalid.".to_string())?;
-        let canonical = candidate
-            .canonicalize()
-            .map_err(|_| "Mirror external skill is unavailable.".to_string())?;
-        if !canonical.starts_with(&canonical_runtime) {
-            return Err("Mirror external skill escaped its runtime root.".to_string());
-        }
-        paths.push(canonical);
-    }
-    paths.sort();
-    paths.dedup();
-    Ok(paths)
+    flags
 }
 
 /// CR147: said on the surface instead of being folded into a duplicate's silence. Both
@@ -7956,18 +7923,13 @@ fn run_pi_process_unguarded(
     }
     if mirror_mediated {
         args.retain(|arg| arg != "--approve" && arg != "--no-approve");
-        args.push("--approve".to_string());
-        args.push("--no-extensions".to_string());
-        match current_user_home_directory() {
+        let global_extensions = match current_user_home_directory() {
             Ok(home) => {
                 let resolution = resolve_global_pi_extensions(&home.join(".pi").join("agent"));
-                for entry in resolution.entries {
-                    args.push("--extension".to_string());
-                    args.push(entry.to_string_lossy().into_owned());
-                }
                 for note in resolution.skipped {
                     emit(&app, &authority, PiProcessEventKind::Stderr, note);
                 }
+                resolution.entries
             }
             Err(error) => {
                 emit(
@@ -7976,20 +7938,13 @@ fn run_pi_process_unguarded(
                     PiProcessEventKind::Stderr,
                     format!("Global Pi extensions were not loaded: {}", error),
                 );
+                Vec::new()
             }
-        }
-        match mirror_runtime_skill_paths() {
-            Ok(paths) => {
-                for path in paths {
-                args.push("--skill".to_string());
-                args.push(path.to_string_lossy().into_owned());
-                }
-            }
-            Err(error) => {
-                fail_pi_process_before_completion(&app, &registry, &target, &authority, error);
-                return;
-            }
-        }
+        };
+        // CV-010.DS-005 slice 2e: no Mirror skills. On the 0.2 line they came from the Python
+        // checkout's `.pi/skills` and drove `uv run python -m memory`; a 0.3 home has neither, and
+        // Mirror context returns through the host in phase 3.
+        args.extend(mediated_turn_flags(&global_extensions));
     }
     let use_stdin = mirror_mediated || config.safe_test_mode || config.use_stdin;
 
@@ -8022,17 +7977,16 @@ fn run_pi_process_unguarded(
         );
     }
 
-    let mut process_command = Command::new(&command);
-    process_command.args(args);
+    // CV-010.DS-005 slice 2e: every mode, raw included, runs isolated in the bound 0.3 home.
+    let profile = match active_runtime_channel() {
+        Ok(profile) => profile,
+        Err(error) => {
+            fail_pi_process_before_completion(&app, &registry, &target, &authority, error);
+            return;
+        }
+    };
+    let mut process_command = pi_turn_command(&command, args, &profile);
     if mirror_mediated {
-        let profile = match active_runtime_channel() {
-            Ok(profile) => profile,
-            Err(error) => {
-                fail_pi_process_before_completion(&app, &registry, &target, &authority, error);
-                return;
-            }
-        };
-        profile.apply_to_command(&mut process_command);
         match serde_json::to_string(&run_authority.correlation) {
             Ok(payload) => {
                 process_command.env("NAUTILUS_TURN_CORRELATION_V1", payload);
@@ -14833,6 +14787,41 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         for forbidden in ["wait_with_output", "Stdio::null", ".output()", ".spawn()", "\"uv\"", "\"python\""] {
             assert!(!production.contains(forbidden) && !using.contains(forbidden), "{forbidden} is back in the append path");
         }
+    }
+
+    /// CV-010.DS-005 slice 2e: every Pi turn and compaction is built by one constructor, in the
+    /// 0.3 home, with no Mirror variable, whatever the invocation mode.
+    #[test]
+    fn every_pi_turn_is_built_isolated_in_the_0_3_home() {
+        let source = production_source();
+        assert!(!source.contains("Command::new(&command)"), "a Pi turn bypasses pi_turn_command");
+        assert!(!source.contains("Command::new(&config.command)"), "a compaction bypasses pi_turn_command");
+        assert_eq!(source.matches("pi_turn_command(").count(), 3, "the definition, the turn and the compaction");
+        assert_eq!(source.matches("isolate_pi_command(").count(), 2, "the definition and pi_turn_command");
+        assert!(!source.contains(concat!("mirror_runtime", "_skill_paths")), "Mirror's Python skills are loaded again");
+        assert!(!source.contains("\"--skill\""));
+
+        let directory = scratch("pi-isolation");
+        let profile = RuntimeChannelProfile::for_home(crate::runtime_channel::RuntimeChannel::Development, &directory);
+        fs::create_dir_all(&profile.mirror_home).unwrap();
+        // A shell that exported production's coordinates launched the app; set them on the base
+        // command as the inherited environment would carry them, and prove the child never sees them.
+        let mut base = Command::new("/bin/sh");
+        base.args(["-c", "pwd -P; env"]).env("MIRROR_HOME", "/Users/example/.mirror-minds/production").env("DB_PATH", "/x/memory.db");
+        let mut command = isolate_pi_command(base, &profile);
+        let output = command.output().unwrap();
+        let printed = String::from_utf8_lossy(&output.stdout);
+        let mut lines = printed.lines();
+        assert_eq!(lines.next().unwrap(), fs::canonicalize(&profile.mirror_home).unwrap().to_string_lossy());
+        for variable in ["MIRROR_HOME=", "MIRROR_USER=", "DB_PATH=", "PYTHONPATH="] {
+            assert!(!printed.lines().any(|line| line.starts_with(variable)), "{variable} reached Pi: {printed}");
+        }
+    }
+
+    #[test]
+    fn a_mediated_turn_loads_no_mirror_skill_and_names_its_extensions() {
+        let args = mediated_turn_flags(&[PathBuf::from("/x/ext/index.ts")]);
+        assert_eq!(args, vec!["--approve", "--no-extensions", "--extension", "/x/ext/index.ts"]);
     }
 
     #[test]

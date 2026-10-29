@@ -38,12 +38,13 @@ describe("Mirror-mediated Pi invocation", () => {
   it("runs Mirror-mediated processes from the Mirror runtime root without duplicate after-the-fact logging", () => {
     expect(tauriMainSource).toContain('let mirror_mediated = config.invocation_mode == "mirror"');
     expect(tauriMainSource).toContain("active_runtime_channel");
-    expect(tauriMainSource).toContain("profile.apply_to_command(&mut process_command)");
+    // CV-010.DS-005 slice 2e: one isolated constructor, in the 0.3 home, for every mode; no Mirror
+    // skills from a Python checkout (Mirror context returns through the host in phase 3).
+    expect(tauriMainSource).toContain("pi_turn_command(&command, args, &profile)");
     expect(tauriMainSource).toContain("run_authority.pi_session_file");
-    expect(tauriMainSource).toContain('args.push("--approve".to_string())');
-    expect(tauriMainSource).toContain('args.push("--no-extensions".to_string())');
-    expect(tauriMainSource).toContain("mirror_runtime_skill_paths");
-    expect(tauriMainSource).toContain('join("extensions.json")');
+    expect(tauriMainSource).toContain("args.extend(mediated_turn_flags(&global_extensions))");
+    expect(tauriMainSource).not.toContain("mirror_runtime_skill_paths");
+    expect(tauriMainSource).not.toContain('join("extensions.json")');
     expect(tauriMainSource).not.toContain('log_mirror_message(&session_id, &journey_id, "user", &prompt)');
     expect(tauriMainSource).not.toContain('log_mirror_message(&session_id, &journey_id, "assistant", &output)');
     expect(tauriMainSource).not.toContain("query_pi_session_context");

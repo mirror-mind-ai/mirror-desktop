@@ -8,6 +8,7 @@ pub struct GlobalExtensionResolution {
 }
 
 const CONVERSATION_WRITER_MARKER: &str = "mirror-logger";
+const MIRROR_PACKAGE: &str = "mirror-mind";
 const EXTENSION_FILE_SUFFIXES: [&str; 4] = [".ts", ".js", ".mjs", ".cjs"];
 
 pub fn resolve_global_pi_extensions(pi_agent_dir: &Path) -> GlobalExtensionResolution {
@@ -42,6 +43,13 @@ fn resolve_settings_packages(pi_agent_dir: &Path, resolution: &mut GlobalExtensi
             resolution.skipped.push(format!("Global Pi package '{}' uses an unsupported source and was not loaded.", source));
             continue;
         };
+        // CV-010.DS-005 slice 2e: Mirror's own package is refused whole on the 0.3 line.
+        if name == MIRROR_PACKAGE {
+            resolution.skipped.push(format!(
+                "Global Pi package '{}' was refused: Mirror Desktop TS reaches Mirror only through its own host.", source
+            ));
+            continue;
+        }
         if name.contains(CONVERSATION_WRITER_MARKER) {
             resolution.skipped.push(format!(
                 "Global Pi package '{}' was refused: conversation writers stay excluded from Desktop invocations.", source
@@ -193,6 +201,20 @@ mod tests {
         assert!(resolution.entries[1].ends_with("@scope/pi-gmail/index.ts"));
         assert!(resolution.skipped.is_empty());
         fs::remove_dir_all(agent).unwrap();
+    }
+
+    /// CV-010.DS-005 slice 2e: Mirror's own package is refused whole. Its declared extension is the
+    /// conversation writer, and it also declares skills that drive a Mirror outside the 0.3 host.
+    #[test]
+    fn refuses_the_mirror_package_whole_whatever_its_entries_are_named() {
+        let agent = fixture_dir("mirror-package");
+        install_package(&agent, "mirror-mind", &["./.pi/extensions/doorman.ts"]);
+        install_package(&agent, "harmless", &["index.ts"]);
+        write(&agent.join("settings.json"), r#"{"packages":["npm:mirror-mind","npm:harmless"]}"#);
+        let resolution = resolve_global_pi_extensions(&agent);
+        assert_eq!(resolution.entries.len(), 1);
+        assert!(resolution.entries[0].to_string_lossy().ends_with("harmless/index.ts"));
+        assert!(resolution.skipped.iter().any(|note| note.contains("npm:mirror-mind") && note.contains("refused")));
     }
 
     #[test]
