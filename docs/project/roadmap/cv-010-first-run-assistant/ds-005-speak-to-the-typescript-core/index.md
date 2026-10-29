@@ -186,7 +186,7 @@ including any Navigator check, is met.
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
-| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a (runtime pin) and 2b (host and supervisor) are built; 2c–2f are owed, and bundling the runtime into the app moved to 2f. |
+| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a (runtime pin), 2b (host and supervisor) and 2c (home marker) are built. 2d–2f are owed. Bundling the runtime moved to 2f, and the setup screen for a 0.3 home moved to 2d. |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
@@ -1252,3 +1252,102 @@ it never reaches `/Users/alissonvale/mirror` or `~/.mirror-minds/alisson-vale`.
   release build, which 2f already changes.
 - **Until 2f,** a TS Dev build will resolve the runtime from the repository's `.mirror-host/runtime`.
   That resolution arrives in 2d, together with its first caller.
+
+## Phase 2 Slice 2c Built — The 0.3 Home and Its Marker (2026-10-29)
+
+### What exists
+
+- **The marker,** `<home>/.mirror-desktop/home.json`. It holds exactly
+  `{line: "0.3", homeId, createdAt}`, is 0600 in a 0700 directory, and is at most 4 KB.
+- **Two checks of it (condition b),** each before anything else happens:
+  - **In the host,** `assertMarkedHome` in `mirror-host/host.mjs` runs before every method except
+    `createHome`. It requires `dbPath` to be `<home>/memory.db`, absolute, with the home reached
+    without any symlink and carrying a valid marker. A failure is answered as `HomeNotMarkedError`
+    with the reason `unmarked` or `invalid_home`. This applies to the read-only report as well.
+  - **In Rust,** `src-tauri/src/mirror_home.rs`. `MarkedHome::open` accepts only an absolute,
+    canonical directory with a valid marker. `MirrorHost::request_for_home` checks the marker again
+    on disk before every request, and refuses if the home now carries another home's id. It sets
+    `dbPath` to the home's own database, whatever the caller passed. It refuses `createHome`, which
+    names no existing home.
+- **The 0.3 binding,** `runtime-home.v2.json`. It holds exactly `{schemaVersion: "2.0.0", homePath}`
+  and is 0600. `load_home_binding` refuses:
+  - a binding whose home lost its marker;
+  - any other shape;
+  - a binding file that is a symlink.
+- **The Python Mirror is switched off on `main`.** `PYTHON_MIRROR_RETIRED` in `runtime_channel.rs`
+  makes these refuse before anything else:
+  - `RuntimeChannelProfile::active()`, which every Python route goes through;
+  - `discover_existing_mirror`;
+  - `validate_runtime_binding` and `save_runtime_binding`.
+
+  The refusal reads "unbound", so the TS app opens on its setup screen and shows the reason. **The
+  0.3 build no longer reads the production Mirror, even in the discovery preview.** That closes the
+  gap phase 0's acceptance named. The Python code stays, unreachable, and leaves in 2d as each route
+  moves to the host.
+- **`scripts/dev_ts_home.mjs <absolute path> [--user <name>] [--bind]`** creates a home through the
+  laid-out host (that is, with the pinned core), marks it, and checks that it is `current`. It
+  refuses, before creating anything:
+  - anything under `~/.mirror-minds`, checked both on the path as given and on the real path;
+  - an existing path;
+  - a relative path;
+  - a missing parent;
+  - a parent reached through a symlink.
+
+  `--bind` writes the 0.3 binding into the TS Dev app data and never overwrites one.
+
+### Moved, and why
+
+**The setup screen that asks for a 0.3 home moves to 2d.** Saving a 0.3 binding now would carry the
+app past its setup screen and into routes that still call the Python profile, which this slice
+switches off. The binding becomes usable when 2d moves those routes to the host. Until then, the TS
+Dev build stays on its setup screen, and that screen states why.
+
+### Evidence
+
+- **By hand, on this machine:**
+  - `dev_ts_home.mjs` created a home in `/tmp`, marked it (`current`, core 0.37.0), and the home was
+    then deleted.
+  - Given `~/.mirror-minds/alisson-vale`, and then `~/.mirror-minds/nova-dev`, it refused both, and
+    neither was created.
+  - The production home's non-database files had the same hash before and after.
+  - Production stayed at migration 016.
+  - The TS Dev app data still holds only its three files, with no binding.
+- **The real chain.** The ignored Rust test now shows, against the materialized runtime, that the
+  real host refuses even the read-only report on an unmarked home. Once the home is marked, the
+  report, a Conversation and the tree go through `request_for_home`.
+- **Tests:**
+  - host: 1 new test, and 3 updated to mark their homes. A macOS `tmpdir()` passes through `/var`, a
+    symlink, and the check correctly refuses it;
+  - `src/tests/cv010DevTsHome.test.mjs`: 5 new tests;
+  - Rust: 7 in `mirror_home`, 3 for `request_for_home`, 1 for the Python switch-off, and 1 for the
+    refusal order in the source.
+
+  All of them were red first.
+- **Mutations:** eight caught at first, and two that escaped and are now caught.
+  - **In the host:**
+    - removing the check;
+    - accepting a symlink;
+    - accepting line `0.2`.
+  - **In Rust:**
+    - not re-checking the marker;
+    - switching the Python Mirror back on;
+    - discovery without the refusal.
+  - **Escaped, now caught:**
+    - **Dropping one of the script's two `~/.mirror-minds` checks** passed, because the other still
+      refuses. Dropping both is caught.
+    - **Dropping the canonical-path comparison in `MarkedHome::open`** passed, because no test reached
+      a home through a **symlinked parent**, the only case that comparison sees. A test was added,
+      and the mutation is caught.
+- **A 2b test that failed under load.** The oversized-response test gave its fake host 1.5 s to
+  write 9 MB. In this slice's larger suite it timed out in 3 of 3 runs: a probe showed `TimedOut`,
+  not a logic failure. Its deadline is now 30 s, because it tests the size bound, and 3 of 3 full
+  runs pass. One limit remains: the test does not distinguish an oversized line from a line that is
+  not JSON, since both are protocol errors.
+- **Gates:**
+  - vitest: 279 files, 2,331 tests;
+  - tsc: clean;
+  - build: passes;
+  - cargo `--locked`: 407 passed, 4 ignored, in 3 of 3 runs. The two warnings were already there;
+  - the real-host test passes;
+  - the pin verifies;
+  - the roadmap check reads READY.
