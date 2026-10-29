@@ -96,6 +96,14 @@ textarea {
   margin: 28px 0 20px;
 }
 
+/* CV-010.DS-005 slice 3a: the creation form's notes, in the card's muted text. */
+.runtime-onboarding-form .field-hint {
+  margin: 0;
+  color: #aebdc2;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 /* CV-010.DS-001: one row per requirement on the discovery screen. */
 .readiness-checklist {
   display: grid;

@@ -2071,24 +2071,53 @@ fn refresh_journey_registry(app: AppHandle) -> Result<String, String> {
     publish_refreshed_journey_registry(&app_data_dir, &payload)
 }
 
-/// CV-010.DS-005 slice 2d-1: bind this app to a 0.3 home. The marker is checked first, then the
-/// host must read the home as `current`, and only then is the binding saved.
+/// CV-010.DS-005 slice 2d-1: bind this app to a 0.3 home.
 #[tauri::command(async)]
 fn bind_mirror_home(app: AppHandle, home_path: String) -> Result<RuntimeChannelDiagnostic, String> {
     let _serialized = crate::native_command_serialization::acquire();
-    let channel = RuntimeChannel::active();
+    let app_data_root = validated_app_data_root(&app)?;
+    bind_marked_home(&app, &app_data_root, Path::new(&home_path))
+}
+
+/// CV-010.DS-005 slice 3a: create a 0.3 home for `user_name` and bind this app to it. The host
+/// creates it marked, in `folder` or in `~/Mirror`, which is made if it is missing; then it is
+/// bound exactly as a chosen home is.
+#[tauri::command(async)]
+fn create_mirror_home(app: AppHandle, user_name: String, folder: Option<String>) -> Result<RuntimeChannelDiagnostic, String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    let app_data_root = validated_app_data_root(&app)?;
+    let user_home = app.path().home_dir().map_err(|error| error.to_string())?;
+    let home_path = mirror_host_bridge::home_creation_target(&user_home, folder.as_deref().map(Path::new), &user_name)?;
+    if folder.is_none() {
+        let homes = user_home.join(mirror_host_bridge::DEFAULT_HOMES_FOLDER);
+        if fs::symlink_metadata(&homes).is_err() {
+            fs::create_dir(&homes).map_err(|error| format!("Could not create {}: {error}", homes.display()))?;
+        }
+    }
+    mirror_host_bridge::create_home(&app, &home_path, &user_name)
+        .map_err(|error| mirror_host_bridge::describe_home_creation(error, &home_path))?;
+    bind_marked_home(&app, &app_data_root, &home_path)
+}
+
+fn validated_app_data_root(app: &AppHandle) -> Result<PathBuf, String> {
     let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&app_data_root).map_err(|error| format!("Could not create application data root: {error}"))?;
-    channel.validate_app_identity(&app.config().identifier, &app_data_root)?;
-    let home = mirror_home::MarkedHome::open(Path::new(&home_path))?;
-    let report = mirror_host_bridge::request_for(&app, &home, "inspectMigrationState", json!({}))
+    RuntimeChannel::active().validate_app_identity(&app.config().identifier, &app_data_root)?;
+    Ok(app_data_root)
+}
+
+/// The marker is checked first, then the host must read the home as `current`, and only then is
+/// the binding saved.
+fn bind_marked_home(app: &AppHandle, app_data_root: &Path, home_path: &Path) -> Result<RuntimeChannelDiagnostic, String> {
+    let home = mirror_home::MarkedHome::open(home_path)?;
+    let report = mirror_host_bridge::request_for(app, &home, "inspectMigrationState", json!({}))
         .map_err(mirror_host_bridge::describe)?;
     let state = report.get("state").and_then(Value::as_str).unwrap_or("unknown");
     if state != "current" {
         return Err(format!("This Mirror home reads as {state}, not current. Mirror Desktop TS does not migrate a home yet."));
     }
-    mirror_home::persist_home_binding(&app_data_root, &home)?;
-    Ok(RuntimeChannelProfile::active()?.diagnostic(&app_data_root))
+    mirror_home::persist_home_binding(app_data_root, &home)?;
+    Ok(RuntimeChannelProfile::active()?.diagnostic(app_data_root))
 }
 
 #[tauri::command]
@@ -2244,6 +2273,8 @@ fn choose_runtime_directory(kind: String) -> Result<Option<String>, String> {
     // CV-010.DS-005 slice 2f-2: a Mirror home is the only folder the 0.3 line asks for.
     let title = match kind.as_str() {
         "mirrorHome" => "Choose Mirror home directory",
+        // CV-010.DS-005 slice 3a: the folder a new home is created in.
+        "homeFolder" => "Choose where to create your Mirror home",
         _ => return Err("Runtime directory kind is unsupported.".to_string()),
     };
     let Some(path) = rfd::FileDialog::new().set_title(title).pick_folder() else {
@@ -10024,6 +10055,7 @@ fn main() {
             compact_pi_session,
             inspect_runtime_channel,
             bind_mirror_home,
+            create_mirror_home,
             choose_runtime_directory,
             load_journey_projections,
             list_journey_documentation,
@@ -14672,12 +14704,32 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         for body in [&catalog, &registry] {
             assert!(!body.contains("\"uv\"") && !body.contains("\"python\""), "{body}");
         }
-        let bind = body_of(&source, "fn bind_mirror_home(");
+        let bind = body_of(&source, "fn bind_marked_home(");
         let open = bind.find("MarkedHome::open(").expect("bind opens a marked home");
         let persist = bind.find("persist_home_binding(").expect("bind persists the 0.3 binding");
         let current = bind.find("\"inspectMigrationState\"").expect("bind asks the host first");
         assert!(open < current && current < persist, "bind must check the marker, then the host, then persist");
         assert!(source.contains(".manage(mirror_host_bridge::MirrorHostState::default())"));
+    }
+
+    #[test]
+    fn a_created_home_is_made_by_the_host_then_bound_like_a_chosen_one() {
+        // CV-010.DS-005 slice 3a.
+        let source = production_source();
+        let chosen = body_of(&source, "fn bind_mirror_home(");
+        let created = body_of(&source, "fn create_mirror_home(");
+        for body in [&chosen, &created] {
+            assert!(body.contains("native_command_serialization::acquire()"), "{body}");
+            assert!(body.contains("validated_app_data_root(&app)"), "{body}");
+            assert!(!body.contains("persist_home_binding("), "a command saves a binding outside bind_marked_home");
+        }
+        assert!(chosen.contains("bind_marked_home("));
+        let target = created.find("home_creation_target(").expect("the target is validated");
+        let make = created.find("mirror_host_bridge::create_home(").expect("the host creates the home");
+        let bind = created.find("bind_marked_home(").expect("the created home is bound");
+        assert!(target < make && make < bind, "validate, create, then bind");
+        assert!(!created.contains("create_dir_all"), "only ~/Mirror itself may be made, never a chain of folders");
+        assert!(!created.contains("\"uv\"") && !created.contains("\"python\""));
     }
 
     #[test]

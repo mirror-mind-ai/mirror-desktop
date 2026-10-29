@@ -62,7 +62,7 @@ impl MirrorHostDeadlines {
         match method {
             "appendConversationMessages" => self.append,
             "migrateHome" => self.migrate,
-            "createHome" => self.create_home,
+            "createMarkedHome" => self.create_home,
             _ => self.default,
         }
     }
@@ -202,7 +202,7 @@ impl MirrorHost {
     }
 
     /// Send a request about `home`. The marker is checked again first, on disk, and `dbPath` is set
-    /// to the home's own database, whatever the caller put there. `createHome` is not a home
+    /// to the home's own database, whatever the caller put there. `createMarkedHome` is not a home
     /// request: it names no existing home.
     pub fn request_for_home(
         &mut self,
@@ -210,8 +210,8 @@ impl MirrorHost {
         method: &str,
         params: Value,
     ) -> Result<Value, MirrorHostError> {
-        if method == "createHome" {
-            return Err(MirrorHostError::Protocol("createHome names no existing home".into()));
+        if method == "createMarkedHome" {
+            return Err(MirrorHostError::Protocol("createMarkedHome names no existing home".into()));
         }
         let Value::Object(mut params) = params else {
             return Err(MirrorHostError::Protocol("params must be an object".into()));
@@ -684,7 +684,7 @@ done"#
         let home = marked_home(&directory);
         let mut host = MirrorHost::new(fake_host(&directory, READY));
         assert!(matches!(
-            host.request_for_home(&home, "createHome", serde_json::json!({})).unwrap_err(),
+            host.request_for_home(&home, "createMarkedHome", serde_json::json!({})).unwrap_err(),
             MirrorHostError::Protocol(_)
         ));
         assert!(matches!(
@@ -699,7 +699,7 @@ done"#
         let deadlines = MirrorHostDeadlines::standard();
         assert_eq!(deadlines.for_method("appendConversationMessages"), Duration::from_secs(30));
         assert_eq!(deadlines.for_method("migrateHome"), Duration::from_secs(300));
-        assert_eq!(deadlines.for_method("createHome"), Duration::from_secs(60));
+        assert_eq!(deadlines.for_method("createMarkedHome"), Duration::from_secs(60));
         assert_eq!(deadlines.for_method("readJourneyTree"), Duration::from_secs(15));
     }
 
@@ -712,10 +712,13 @@ done"#
         let parent = scratch("real");
         let mut host = MirrorHost::new(MirrorHostConfig::for_runtime(runtime));
         let created = host
-            .request("createHome", serde_json::json!({"request": {"homePath": parent.join("ana"), "userName": "ana"}}))
+            .request("createMarkedHome", serde_json::json!({"request": {"homePath": parent.join("ana"), "userName": "ana"}}))
             .unwrap();
         let db_path = created["dbPath"].clone();
-        // Unmarked, the real host refuses even the read-only report: condition (b), in the host.
+        // The host made it marked (slice 3a). Unmarked, the real host refuses even the read-only
+        // report: condition (b), in the host.
+        assert!(crate::mirror_home::MarkedHome::open(&parent.join("ana")).is_ok());
+        fs::remove_dir_all(parent.join("ana").join(".mirror-desktop")).unwrap();
         match host.request("inspectMigrationState", serde_json::json!({"dbPath": db_path})).unwrap_err() {
             MirrorHostError::Rejected { name, reason, .. } => assert_eq!((name.as_str(), reason.as_str()), ("HomeNotMarkedError", "unmarked")),
             other => panic!("{other:?}"),

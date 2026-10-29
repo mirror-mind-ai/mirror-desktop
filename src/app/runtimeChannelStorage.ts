@@ -63,12 +63,20 @@ export async function inspectRuntimeChannel(): Promise<RuntimeChannelDiagnostic>
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("inspect_runtime_channel"));
 }
 
-/** CV-010.DS-005 slice 2f-2: the only folder the 0.3 line asks for is a Mirror home. */
-export async function chooseRuntimeDirectory(kind: "mirrorHome"): Promise<string | undefined> {
+/**
+ * CV-010.DS-005 slice 2f-2: the 0.3 line asks for a Mirror home, and since slice 3a for the folder
+ * a new one is created in.
+ */
+export async function chooseRuntimeDirectory(kind: "mirrorHome" | "homeFolder"): Promise<string | undefined> {
   return (await invoke<string | null>("choose_runtime_directory", { kind })) ?? undefined;
 }
 
 /** CV-010.DS-005 slice 2d-1: bind this app to a Mirror home made for Mirror Desktop TS. */
 export async function bindMirrorHome(homePath: string): Promise<RuntimeChannelDiagnostic> {
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("bind_mirror_home", { homePath }));
+}
+
+/** CV-010.DS-005 slice 3a: create a 0.3 home for `userName` in `folder` (or `~/Mirror`) and bind it. */
+export async function createMirrorHome(userName: string, folder?: string): Promise<RuntimeChannelDiagnostic> {
+  return parseRuntimeChannelDiagnostic(await invoke<unknown>("create_mirror_home", { userName, folder: folder ?? null }));
 }

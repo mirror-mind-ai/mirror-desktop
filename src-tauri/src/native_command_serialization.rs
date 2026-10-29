@@ -138,7 +138,8 @@ mod tests {
         // CV-010.DS-005 slice 2d-1 added `bind_mirror_home`, serialised and off the main thread: 92 → 93.
         // CV-010.DS-005 slice 2f-2 removed the Python binding's candidate, discovery, validate and
         // save commands: 93 → 89.
-        assert_eq!(v.len(), 89, "the command census changed; update SOURCES or this count");
+        // CV-010.DS-005 slice 3a added `create_mirror_home`, serialised and off the main thread: 89 → 90.
+        assert_eq!(v.len(), 90, "the command census changed; update SOURCES or this count");
         v
     }
 

@@ -498,7 +498,7 @@ import {
 } from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
 import {
-  bindMirrorHome, chooseRuntimeDirectory, inspectRuntimeChannel,
+  bindMirrorHome, chooseRuntimeDirectory, createMirrorHome, inspectRuntimeChannel,
   type RuntimeChannelDiagnostic,
 } from "./runtimeChannelStorage";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
@@ -5373,6 +5373,32 @@ export function App({ model }: AppProps) {
     }
   }
 
+  /** CV-010.DS-005 slice 3a: create a 0.3 home, bind it, then load its Journeys. */
+  async function createAndBindMirrorHome(userName: string, folder?: string) {
+    setRuntimeChannelError(undefined);
+    setRuntimeBindingState("saving");
+    try {
+      setRuntimeChannel(await createMirrorHome(userName, folder));
+      setRuntimeOnboardingEditing(false);
+      await importJourneysAfterBinding();
+    } catch (error) {
+      setRuntimeChannelError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRuntimeBindingState("idle");
+    }
+  }
+
+  /** The folder a new home goes in; a refusal is shown, a cancelled choice changes nothing. */
+  async function chooseHomeFolder(): Promise<string | undefined> {
+    setRuntimeChannelError(undefined);
+    try {
+      return await chooseRuntimeDirectory("homeFolder");
+    } catch (error) {
+      setRuntimeChannelError(error instanceof Error ? error.message : String(error));
+      return undefined;
+    }
+  }
+
   /** CV-010.DS-005 slice 2d-1: choose a 0.3 home, bind it, then load its Journeys. */
   async function chooseAndBindMirrorHome() {
     setRuntimeChannelError(undefined);
@@ -5449,9 +5475,10 @@ export function App({ model }: AppProps) {
           <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
           {runtimeSetupNeedsConnection ? (
             <MirrorHomeSetup
-              development={developmentChannel}
               binding={runtimeBindingState !== "idle"}
               error={runtimeChannelError ?? (runtimeChannel?.status === "invalid" ? runtimeChannel.message : undefined)}
+              onCreate={(userName, folder) => void createAndBindMirrorHome(userName, folder)}
+              onChooseFolder={chooseHomeFolder}
               onChoose={() => void chooseAndBindMirrorHome()}
             />
           ) : !runtimeChannel ? (

@@ -11,6 +11,10 @@
 //! The host runs the bound 0.3 home only (`request_for_home` checks its marker on every request).
 //! Since slice 2f a packaged app carries its runtime in `Resources/mirror-host`; only the
 //! Development channel, run from the repository, falls back to `.mirror-host/runtime/<platform>`.
+//!
+//! Slice 3a: the app creates a home through the same supervisor. The folder is named with the
+//! person's user name, the kebab-case slug the core keys the identity on and the doorman reads
+//! back from the folder's name, inside `~/Mirror` unless the person chose another folder.
 
 use crate::mirror_home::{load_home_binding, MarkedHome};
 use crate::mirror_host::{MirrorHost, MirrorHostConfig, MirrorHostError};
@@ -185,6 +189,57 @@ pub(crate) fn active_home(app: &AppHandle) -> Result<MarkedHome, String> {
 
 /// Send `method` about `home` through the app's supervisor.
 pub(crate) fn request_for(app: &AppHandle, home: &MarkedHome, method: &str, params: Value) -> Result<Value, MirrorHostError> {
+    with_host(app, |host| host.request_for_home(home, method, params))
+}
+
+/// The default folder for a created home, inside the person's home folder.
+pub(crate) const DEFAULT_HOMES_FOLDER: &str = "Mirror";
+const USER_NAME_MAX: usize = 80;
+
+/// The core's rule for a user name: lowercase ASCII letters and digits in runs joined by single
+/// hyphens, at most 80 characters.
+pub(crate) fn is_user_name(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= USER_NAME_MAX
+        && value.split('-').all(|run| !run.is_empty() && run.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()))
+}
+
+/// Where a home for `user_name` is created: `<folder>/<user_name>`, `folder` being the one the
+/// person chose or `~/Mirror`.
+pub(crate) fn home_creation_target(user_home: &Path, folder: Option<&Path>, user_name: &str) -> Result<PathBuf, String> {
+    if !is_user_name(user_name) {
+        return Err("Your Mirror name must use lowercase letters, digits and single hyphens, up to 80 characters.".to_string());
+    }
+    let folder = match folder {
+        Some(folder) if folder.is_absolute() => folder.to_path_buf(),
+        Some(_) => return Err("Choose a folder for your Mirror home.".to_string()),
+        None => user_home.join(DEFAULT_HOMES_FOLDER),
+    };
+    Ok(folder.join(user_name))
+}
+
+/// Have the host create a marked home at `home_path`.
+pub(crate) fn create_home(app: &AppHandle, home_path: &Path, user_name: &str) -> Result<Value, MirrorHostError> {
+    let params = json!({"request": {"homePath": home_path, "userName": user_name}});
+    with_host(app, |host| host.request("createMarkedHome", params))
+}
+
+/// A refused home creation, in the words the setup screen shows.
+pub(crate) fn describe_home_creation(error: MirrorHostError, home_path: &Path) -> String {
+    let MirrorHostError::Rejected { reason, .. } = &error else { return describe(error) };
+    match reason.as_str() {
+        "home_exists" => format!("{} already exists. Choose another name or another folder.", home_path.display()),
+        "reserved_location" => "That folder belongs to the terminal Mirror's homes. Choose another folder.".to_string(),
+        "invalid_home_path" => "That folder can't hold a Mirror home: it must exist and not be a link. Choose another folder.".to_string(),
+        "invalid_user_name" => "Your Mirror name must use lowercase letters, digits and single hyphens, up to 80 characters.".to_string(),
+        "templates_unavailable" | "seed_failed" => {
+            "Mirror could not fill in your new home, so nothing was created. Try again; if it fails again, reinstall Mirror Desktop TS.".to_string()
+        }
+        _ => describe(error),
+    }
+}
+
+fn with_host<T>(app: &AppHandle, call: impl FnOnce(&mut MirrorHost) -> Result<T, MirrorHostError>) -> Result<T, MirrorHostError> {
     let state = app.state::<MirrorHostState>();
     let mut guard = state.0.lock().map_err(|_| MirrorHostError::Protocol("the Mirror host lock is poisoned".into()))?;
     if guard.is_none() {
@@ -201,7 +256,7 @@ pub(crate) fn request_for(app: &AppHandle, home: &MarkedHome, method: &str, para
         config.deadlines.append = crate::MIRROR_APPEND_TIMEOUT;
         *guard = Some(MirrorHost::new(config));
     }
-    guard.as_mut().expect("started above").request_for_home(home, method, params)
+    call(guard.as_mut().expect("started above"))
 }
 
 /// Send `method` about the bound home.
@@ -408,9 +463,7 @@ mod tests {
         std::fs::create_dir_all(&parent).unwrap();
         let parent = parent.canonicalize().unwrap();
         let mut host = MirrorHost::new(MirrorHostConfig::for_runtime(runtime));
-        host.request("createHome", json!({"request": {"homePath": parent.join("ana"), "userName": "ana"}})).unwrap();
-        std::fs::create_dir_all(parent.join("ana/.mirror-desktop")).unwrap();
-        std::fs::write(parent.join("ana/.mirror-desktop/home.json"), r#"{"line":"0.3","homeId":"home-bridge-0001","createdAt":"2026-10-29T00:00:00Z"}"#).unwrap();
+        host.request("createMarkedHome", json!({"request": {"homePath": parent.join("ana"), "userName": "ana"}})).unwrap();
         let home = MarkedHome::open(&parent.join("ana")).unwrap();
 
         let tree = host.request_for_home(&home, "readJourneyTree", json!({})).unwrap();
@@ -479,6 +532,33 @@ mod tests {
                    "conversationId": "conv-one-0001", "rebound": true, "previousJourneyId": "j1"})
         );
         assert!(rebind_response("j2", "conv-one-0001", &json!({"conversationId": "conv-one-0001", "journeyId": "j2"})).is_err());
+    }
+
+    #[test]
+    fn a_created_home_is_named_for_its_user_inside_mirror_unless_another_folder_was_chosen() {
+        let user_home = Path::new("/Users/ana");
+        assert_eq!(home_creation_target(user_home, None, "ana-souza").unwrap(), PathBuf::from("/Users/ana/Mirror/ana-souza"));
+        assert_eq!(
+            home_creation_target(user_home, Some(Path::new("/Volumes/Notes")), "ana").unwrap(),
+            PathBuf::from("/Volumes/Notes/ana")
+        );
+        assert!(home_creation_target(user_home, Some(Path::new("notes")), "ana").is_err());
+        for refused in ["", "Ana", "ana souza", "ana--souza", "-ana", "ana-", "ana/..", "..", "ana_souza", "josé", &"a".repeat(81)] {
+            assert!(home_creation_target(user_home, None, refused).is_err(), "{refused:?}");
+        }
+        assert!(is_user_name(&"a".repeat(80)) && is_user_name("ana-2") && is_user_name("7"));
+    }
+
+    #[test]
+    fn a_refused_home_creation_reads_as_a_sentence_naming_what_to_do() {
+        let rejected = |reason: &str| MirrorHostError::Rejected { name: "HomeCreationRefusedError".into(), reason: reason.into(), message: "m".into() };
+        let target = Path::new("/Users/ana/Mirror/ana");
+        assert!(describe_home_creation(rejected("home_exists"), target).starts_with("/Users/ana/Mirror/ana already exists."));
+        for reason in ["reserved_location", "invalid_home_path", "invalid_user_name", "templates_unavailable", "seed_failed"] {
+            let sentence = describe_home_creation(rejected(reason), target);
+            assert!(!sentence.contains(reason) && !sentence.contains("Rejected"), "{reason}: {sentence}");
+        }
+        assert!(describe_home_creation(MirrorHostError::Unavailable { failures: 3 }, target).contains("unavailable"));
     }
 
     #[test]

@@ -4,7 +4,7 @@ const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
 import {
-  bindMirrorHome, chooseRuntimeDirectory, inspectRuntimeChannel, parseRuntimeChannelDiagnostic,
+  bindMirrorHome, chooseRuntimeDirectory, createMirrorHome, inspectRuntimeChannel, parseRuntimeChannelDiagnostic,
 } from "../app/runtimeChannelStorage";
 
 const development = {
@@ -79,5 +79,17 @@ describe("runtime channel storage", () => {
     invoke.mockResolvedValueOnce(home);
     await expect(bindMirrorHome("/Users/example/Mirror Homes/ana")).resolves.toEqual(home);
     expect(invoke).toHaveBeenCalledWith("bind_mirror_home", { homePath: "/Users/example/Mirror Homes/ana" });
+  });
+
+  // CV-010.DS-005 slice 3a.
+  it("creates a 0.3 home through its own native command, in ~/Mirror unless a folder was chosen", async () => {
+    const { mirrorRoot: _root, mirrorUser: _user, ...home } = development;
+    invoke.mockResolvedValueOnce(home).mockResolvedValueOnce(home).mockResolvedValueOnce("/Volumes/Notes");
+    await expect(createMirrorHome("ana-souza")).resolves.toEqual(home);
+    expect(invoke).toHaveBeenNthCalledWith(1, "create_mirror_home", { userName: "ana-souza", folder: null });
+    await createMirrorHome("ana", "/Volumes/Notes");
+    expect(invoke).toHaveBeenNthCalledWith(2, "create_mirror_home", { userName: "ana", folder: "/Volumes/Notes" });
+    await expect(chooseRuntimeDirectory("homeFolder")).resolves.toBe("/Volumes/Notes");
+    expect(invoke).toHaveBeenNthCalledWith(3, "choose_runtime_directory", { kind: "homeFolder" });
   });
 });

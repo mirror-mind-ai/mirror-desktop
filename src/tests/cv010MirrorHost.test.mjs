@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { HOST_METHODS, HOST_PROTOCOL_VERSION, MAX_REQUEST_BYTES } from "../../mirror-host/host.mjs";
+import { assertMarkedHome, createMarkedHome, HOST_METHODS, HOST_PROTOCOL_VERSION, MAX_REQUEST_BYTES } from "../../mirror-host/host.mjs";
 import { layoutHost, readPin } from "../../scripts/mirror_host_pin.mjs";
 
 // CV-010.DS-005 phase 2, slice 2b: the host process. It imports the vendored core through
@@ -21,7 +21,7 @@ beforeAll(() => {
   layoutHost({ root, pin: readPin(root), outDir: hostDir });
 });
 
-/** Mark a created home as a 0.3 home, as `scripts/dev_ts_home.mjs` and phase 3 do. */
+/** Write a marker by hand, for the refusal cases; the host writes its own when it creates a home. */
 function mark(homePath, marker = { line: "0.3", homeId: "home-0000-test", createdAt: "2026-10-29T00:00:00Z" }) {
   mkdirSync(join(homePath, ".mirror-desktop"), { mode: 0o700 });
   writeFileSync(join(homePath, ".mirror-desktop", "home.json"), typeof marker === "string" ? marker : JSON.stringify(marker));
@@ -62,7 +62,7 @@ describe("the Mirror host", () => {
       methods: HOST_METHODS,
     });
     expect(HOST_METHODS).toEqual([
-      "inspectMigrationState", "migrateHome", "createHome", "ensureConversation",
+      "inspectMigrationState", "migrateHome", "createMarkedHome", "ensureConversation",
       "appendConversationMessages", "renameConversation", "rebindConversationJourney",
       "readJourneyTree", "listJourneyConversations", "inspectConversation",
     ]);
@@ -74,9 +74,8 @@ describe("the Mirror host", () => {
     const host = startHost();
     await host.next();
     const parent = realpathSync(mkdtempSync(join(tmpdir(), "mirror-host-home-")));
-    const created = await host.send({ id: 1, method: "createHome", params: { request: { homePath: join(parent, "ana"), userName: "ana" } } });
+    const created = await host.send({ id: 1, method: "createMarkedHome", params: { request: { homePath: join(parent, "ana"), userName: "ana" } } });
     expect(created).toMatchObject({ id: 1, ok: true, result: { homePath: join(parent, "ana") } });
-    mark(created.result.homePath);
     const dbPath = created.result.dbPath;
     expect(await host.send({ id: 2, method: "inspectMigrationState", params: { dbPath } })).toMatchObject({ id: 2, ok: true, result: { state: "current" } });
     const ensured = await host.send({ id: 3, method: "ensureConversation", params: { dbPath, request: { sessionId: "s1", journeyId: "j1", title: "Primeira", interface: "mirror-desktop-ts" } } });
@@ -110,10 +109,9 @@ describe("the Mirror host", () => {
       .toMatchObject({ id: 1, ok: false, error: { name: "DatabaseNotCurrentError", reason: "missing" } });
     expect(await host.send({ id: 2, method: "migrateHome", params: { dbPath: emptyDb, request: { expectedPending: [] } } }))
       .toMatchObject({ id: 2, ok: false, error: { name: "MigrateHomeRejectedError", reason: "not_migratable" } });
-    expect(await host.send({ id: 3, method: "createHome", params: { request: { homePath: parent, userName: "ana" } } }))
-      .toMatchObject({ id: 3, ok: false, error: { name: "CreateHomeRejectedError", reason: "home_exists" } });
-    const created = await host.send({ id: 4, method: "createHome", params: { request: { homePath: join(parent, "ana"), userName: "ana" } } });
-    mark(created.result.homePath);
+    expect(await host.send({ id: 3, method: "createMarkedHome", params: { request: { homePath: parent, userName: "ana" } } }))
+      .toMatchObject({ id: 3, ok: false, error: { name: "HomeCreationRefusedError", reason: "home_exists" } });
+    const created = await host.send({ id: 4, method: "createMarkedHome", params: { request: { homePath: join(parent, "ana"), userName: "ana" } } });
     expect(await host.send({ id: 5, method: "inspectConversation", params: { dbPath: created.result.dbPath, request: { conversationId: "conv-none-0001" } } }))
       .toMatchObject({ id: 5, ok: false, error: { name: "ConversationCallRejectedError", reason: "conversation_unavailable" } });
     expect(await host.send({ id: 6, method: "inspectMigrationState", params: { dbPath: emptyDb } })).toMatchObject({ id: 6, ok: true, result: { state: "missing" } });
@@ -142,8 +140,9 @@ describe("the Mirror host", () => {
     const host = startHost();
     await host.next();
     const parent = realpathSync(mkdtempSync(join(tmpdir(), "mirror-host-marker-")));
-    const created = await host.send({ id: 1, method: "createHome", params: { request: { homePath: join(parent, "ana"), userName: "ana" } } });
+    const created = await host.send({ id: 1, method: "createMarkedHome", params: { request: { homePath: join(parent, "ana"), userName: "ana" } } });
     const { homePath, dbPath } = created.result;
+    rmSync(join(homePath, ".mirror-desktop"), { recursive: true });
     const refused = (id, method, path = dbPath) => host.send({ id, method, params: { dbPath: path, request: {} } });
 
     // Unmarked: every method that names a home is refused, the read-only report included.
@@ -168,6 +167,56 @@ describe("the Mirror host", () => {
     expect(await refused(7, "inspectMigrationState")).toMatchObject({ id: 7, ok: true, result: { state: "current" } });
     host.child.stdin.end();
     expect(await host.exited).toBe(0);
+  });
+
+  it("creates a home marked before it appears, and refuses before creating anything (slice 3a)", async () => {
+    const host = startHost();
+    await host.next();
+    const parent = realpathSync(mkdtempSync(join(tmpdir(), "mirror-host-create-")));
+    const created = await host.send({ id: 1, method: "createMarkedHome", params: { request: { homePath: join(parent, "ana"), userName: "ana" } } });
+    expect(created).toMatchObject({ id: 1, ok: true, result: { homePath: join(parent, "ana"), dbPath: join(parent, "ana", "memory.db") } });
+    expect(created.result.homeId).toMatch(/^home-[0-9a-f-]{36}$/);
+    expect(() => assertMarkedHome(created.result.dbPath)).not.toThrow();
+    const marker = JSON.parse(readFileSync(join(parent, "ana", ".mirror-desktop", "home.json"), "utf8"));
+    expect(marker).toEqual({ line: "0.3", homeId: created.result.homeId, createdAt: expect.any(String) });
+    expect(statSync(join(parent, "ana", ".mirror-desktop", "home.json")).mode & 0o777).toBe(0o600);
+    expect(await host.send({ id: 2, method: "inspectMigrationState", params: { dbPath: created.result.dbPath } })).toMatchObject({ ok: true, result: { state: "current" } });
+
+    mkdirSync(join(parent, ".mirror-minds"));
+    mkdirSync(join(parent, "real"));
+    symlinkSync(join(parent, "real"), join(parent, "linked"));
+    const refusals = [
+      [join(parent, ".mirror-minds", "new"), "ana", "HomeCreationRefusedError", "reserved_location"],
+      ["relative/home", "ana", "HomeCreationRefusedError", "invalid_home_path"],
+      [`${join(parent, "real")}/../sneaky`, "ana", "HomeCreationRefusedError", "invalid_home_path"],
+      [`${join(parent, "zed")}/`, "zed", "HomeCreationRefusedError", "invalid_home_path"],
+      [join(parent, "missing", "home"), "ana", "HomeCreationRefusedError", "invalid_home_path"],
+      [join(parent, "linked", "home"), "ana", "HomeCreationRefusedError", "invalid_home_path"],
+      [join(parent, "ana"), "ana", "HomeCreationRefusedError", "home_exists"],
+      [join(parent, "bia"), "Bia Souza", "CreateHomeRejectedError", "invalid_user_name"],
+    ];
+    for (const [homePath, userName, name, reason] of refusals) {
+      expect(await host.send({ id: 3, method: "createMarkedHome", params: { request: { homePath, userName } } }))
+        .toMatchObject({ id: 3, ok: false, error: { name, reason } });
+    }
+    expect(readdirSync(parent).sort()).toEqual([".mirror-minds", "ana", "linked", "real"]);
+    expect(readdirSync(join(parent, ".mirror-minds"))).toEqual([]);
+    expect(readdirSync(join(parent, "real"))).toEqual([]);
+    host.child.stdin.end();
+    expect(await host.exited).toBe(0);
+  });
+
+  it("leaves nothing behind when the marker or the rename fails after the core created the home", () => {
+    const parent = realpathSync(mkdtempSync(join(tmpdir(), "mirror-host-staging-")));
+    // A core whose home already holds a file where the marker's folder goes: the marker fails.
+    const blocking = { createHome: ({ homePath }) => { mkdirSync(homePath); writeFileSync(join(homePath, ".mirror-desktop"), ""); return { homePath, seeded: {} }; } };
+    expect(() => createMarkedHome(blocking, { homePath: join(parent, "ana"), userName: "ana" })).toThrow();
+    expect(readdirSync(parent)).toEqual([]);
+    // Someone else's folder appears at the target while the home is made: theirs is kept, ours removed.
+    const racing = { createHome: ({ homePath }) => { mkdirSync(homePath); mkdirSync(join(parent, "bia")); writeFileSync(join(parent, "bia", "theirs"), "x"); return { homePath, seeded: {} }; } };
+    expect(() => createMarkedHome(racing, { homePath: join(parent, "bia"), userName: "bia" })).toThrow(/already exists/);
+    expect(readdirSync(parent)).toEqual(["bia"]);
+    expect(readdirSync(join(parent, "bia"))).toEqual(["theirs"]);
   });
 
   it("is laid out with its core and a receipt, never from the repository's node_modules", () => {

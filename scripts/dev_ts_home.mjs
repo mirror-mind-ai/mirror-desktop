@@ -4,9 +4,10 @@
 //   node scripts/dev_ts_home.mjs <absolute path> [--user <name>] [--bind]
 //
 // The home is created through the laid-out Mirror host (`scripts/mirror_host_pin.mjs materialize`),
-// so it is made by the pinned core, then marked as a 0.3 home: `.mirror-desktop/home.json`, 0600
-// in a 0700 directory, holding exactly `{line: "0.3", homeId, createdAt}`. The host and the
-// supervisor open no home without it (condition b of the 0.3 line).
+// so it is made by the pinned core, and marked by the host before it appears (slice 3a, the same
+// call the app makes): `.mirror-desktop/home.json`, 0600 in a 0700 directory, holding exactly
+// `{line: "0.3", homeId, createdAt}`. The host and the supervisor open no home without it
+// (condition b of the 0.3 line).
 //
 // It refuses, before creating anything:
 //   - a path under `~/.mirror-minds`, where the Python homes live, production among them;
@@ -17,13 +18,12 @@
 // Python binding file.
 
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { existsSync, linkSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { assertMarkedHome, HOME_LINE } from "../mirror-host/host.mjs";
+import { assertMarkedHome } from "../mirror-host/host.mjs";
 import { hostPlatform } from "./mirror_host_pin.mjs";
 
 export const HOME_BINDING_FILE_NAME = "runtime-home.v2.json";
@@ -80,18 +80,6 @@ function startHost(runtimeDir, nodeBin) {
   };
 }
 
-/** Write the 0.3 marker into an existing home; returns its homeId. */
-export function writeMarker(homePath) {
-  const homeId = `home-${randomUUID()}`;
-  mkdirSync(join(homePath, ".mirror-desktop"), { mode: 0o700 });
-  writeFileSync(
-    join(homePath, ".mirror-desktop", "home.json"),
-    `${JSON.stringify({ line: HOME_LINE, homeId, createdAt: new Date().toISOString() })}\n`,
-    { flag: "wx", mode: 0o600 },
-  );
-  return homeId;
-}
-
 export async function createMarkedHome({ homePath, userName, runtimeDir, nodeBin, home = homedir() }) {
   const problem = targetProblem(homePath, home);
   if (problem) throw new Error(problem);
@@ -99,8 +87,8 @@ export async function createMarkedHome({ homePath, userName, runtimeDir, nodeBin
   try {
     const handshake = await host.handshake;
     if (handshake.type !== "ready") throw new Error("the Mirror host did not complete its handshake");
-    const created = await host.call("createHome", { request: { homePath, userName } });
-    const homeId = writeMarker(created.homePath);
+    const created = await host.call("createMarkedHome", { request: { homePath, userName } });
+    const { homeId } = created;
     const report = await host.call("inspectMigrationState", { dbPath: created.dbPath });
     if (report.state !== "current") throw new Error(`the created home reads as ${report.state}`);
     return { homePath: created.homePath, dbPath: created.dbPath, homeId, state: report.state, coreVersion: handshake.coreVersion };

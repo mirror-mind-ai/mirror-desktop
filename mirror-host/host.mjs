@@ -16,10 +16,15 @@
 // request is answered with `id: null`.
 //
 // Condition (b) of the 0.3 line: the host opens only a marked 0.3 home. Every method that names a
-// database (all but `createHome`) is refused, before the core is called, unless `dbPath` is
+// database (all but `createMarkedHome`) is refused, before the core is called, unless `dbPath` is
 // `<home>/memory.db` for a home that is a real directory (no symlink anywhere in its path) holding
 // `.mirror-desktop/home.json` with exactly `{line: "0.3", homeId, createdAt}`. The production
 // Python home carries no marker, so it is never opened. The supervisor checks the same marker.
+//
+// The host also never makes an unmarked home (slice 3a). `createMarkedHome` has the core create the
+// home under a hidden name beside the target, writes the marker inside it, and renames it into
+// place, so a home appears marked or not at all. It refuses a target that exists, a parent reached
+// through a symlink, and any path with a `.mirror-minds` component, where the Python homes live.
 //
 // The host reads no environment variable, and stdout carries the protocol alone. `console.log` is
 // sent to stderr, and Node's ExperimentalWarning for `node:sqlite` is dropped. The host exits 0
@@ -28,9 +33,10 @@
 // This file lives beside the core's `node_modules` in a laid-out runtime
 // (`scripts/mirror_host_pin.mjs`), which is how `mirror-mind/desktop` resolves.
 
-import { lstatSync, readFileSync, realpathSync } from "node:fs";
+import { randomBytes, randomUUID } from "node:crypto";
+import { lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { basename, dirname, isAbsolute } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
@@ -43,7 +49,7 @@ const MAX_MESSAGE_CHARS = 1_000;
 const CALLS = {
   inspectMigrationState: (d, p) => d.inspectMigrationState(p.dbPath),
   migrateHome: (d, p) => d.migrateHome(p.dbPath, p.request),
-  createHome: (d, p) => d.createHome(p.request),
+  createMarkedHome: (d, p) => createMarkedHome(d, p.request),
   ensureConversation: (d, p) => d.ensureConversation(p.dbPath, p.request),
   appendConversationMessages: (d, p) => d.appendConversationMessages(p.dbPath, p.request),
   renameConversation: (d, p) => d.renameConversation(p.dbPath, p.request),
@@ -96,8 +102,71 @@ export function assertMarkedHome(dbPath) {
   if (!valid) throw new HomeNotMarkedError("unmarked", `${home} carries a marker that is not a 0.3 home's`);
 }
 
+/** Write the 0.3 marker into `homePath`, which has none; returns its homeId. */
+export function writeMarker(homePath) {
+  const homeId = `home-${randomUUID()}`;
+  mkdirSync(join(homePath, ".mirror-desktop"), { mode: 0o700 });
+  writeFileSync(
+    join(homePath, ".mirror-desktop", "home.json"),
+    `${JSON.stringify({ line: HOME_LINE, homeId, createdAt: new Date().toISOString() })}\n`,
+    { flag: "wx", mode: 0o600 },
+  );
+  return homeId;
+}
+
+class HomeCreationRefusedError extends Error {
+  constructor(reason, message) {
+    super(message);
+    this.reason = reason;
+  }
+}
+
+function occupied(path) {
+  try {
+    lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Create a seeded, marked 0.3 home at `request.homePath`, or nothing at all. */
+export function createMarkedHome(desktop, request) {
+  const homePath = request?.homePath;
+  if (typeof homePath !== "string" || !isAbsolute(homePath) || resolve(homePath) !== homePath) {
+    throw new HomeCreationRefusedError("invalid_home_path", "the home path must be absolute and normalized");
+  }
+  if (homePath.split(sep).includes(".mirror-minds")) {
+    throw new HomeCreationRefusedError("reserved_location", `${homePath} is under .mirror-minds, where the Python homes live`);
+  }
+  const parent = dirname(homePath);
+  let realParent;
+  try {
+    realParent = realpathSync(parent);
+  } catch {
+    throw new HomeCreationRefusedError("invalid_home_path", `the folder ${parent} does not exist`);
+  }
+  if (realParent !== parent) throw new HomeCreationRefusedError("invalid_home_path", `the folder ${parent} passes through a symlink`);
+  if (!statSync(parent).isDirectory()) throw new HomeCreationRefusedError("invalid_home_path", `${parent} is not a folder`);
+  if (occupied(homePath)) throw new HomeCreationRefusedError("home_exists", `${homePath} already exists`);
+
+  const staging = join(parent, `.${basename(homePath)}.marking-${randomBytes(6).toString("hex")}`);
+  try {
+    const created = desktop.createHome({ homePath: staging, userName: request.userName });
+    const homeId = writeMarker(created.homePath);
+    // The last check; the race left between it and the rename is the one the core's own accepts.
+    if (occupied(homePath)) throw new HomeCreationRefusedError("home_exists", `${homePath} already exists`);
+    renameSync(staging, homePath);
+    return { homePath, dbPath: join(homePath, "memory.db"), homeId, seeded: created.seeded };
+  } catch (error) {
+    rmSync(staging, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 const REFUSALS = [
   ["HomeNotMarkedError", (error) => error.reason, HomeNotMarkedError],
+  ["HomeCreationRefusedError", (error) => error.reason, HomeCreationRefusedError],
   ["DatabaseNotCurrentError", (error) => error.state],
   ["ConversationCallRejectedError", (error) => error.reason],
   ["CreateHomeRejectedError", (error) => error.reason],
@@ -132,7 +201,7 @@ export function answer(desktop, line) {
   }
   if (!isRecord(params)) return failure(id, "HostProtocolError", "malformed_request", "params is not an object");
   try {
-    if (method !== "createHome") assertMarkedHome(params.dbPath);
+    if (method !== "createMarkedHome") assertMarkedHome(params.dbPath);
     return { id, ok: true, result: CALLS[method](desktop, params) };
   } catch (error) {
     for (const [name, reasonOf, ownClass] of REFUSALS) {
