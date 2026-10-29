@@ -64,9 +64,13 @@ The current alpha key was generated for governed alpha rehearsal. It is not a no
 The deterministic route for the whole runbook is the deploy script:
 
 ```bash
-npm run release:deploy -- prepare --mirror-root <root> --mirror-home <home> --mirror-user <user>
+npm run release:deploy -- prepare
 npm run release:deploy -- publish --yes
 ```
+
+On the 0.3 line `prepare` takes no Mirror coordinates (CV-010.DS-005 slice 2f): its preflight
+checks the pinned Mirror host, and `alpha:build` stages that runtime into the app. ~~`prepare
+--mirror-root <root> --mirror-home <home> --mirror-user <user>`~~ was the 0.2 line's form.
 
 `prepare` runs preflight, the full test and build gates, the signed alpha build
 and the candidate inspection, then emits the confirmation payload — including

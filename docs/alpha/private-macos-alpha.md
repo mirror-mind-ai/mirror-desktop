@@ -45,25 +45,28 @@ The origin must be the canonical repository and the worktree must be clean. Do n
 
 ## 2. Run maintainer preflight
 
-Use only the maintainer's own local Mirror coordinates:
+On the 0.3 line (Mirror Desktop TS) the preflight takes no Mirror coordinates. It checks the pinned
+Mirror host the app will carry (CV-010.DS-005 slice 2f). Materialize that runtime once per pin:
 
 ```bash
-npm run alpha:preflight -- \
-  --mirror-root "$MIRROR_ALPHA_ROOT" \
-  --mirror-home "$MIRROR_ALPHA_HOME" \
-  --mirror-user "$MIRROR_ALPHA_USER"
+node scripts/mirror_host_pin.mjs materialize
+npm run alpha:preflight
 ```
 
-Preflight must finish with `READY`. It is a build-host gate, not tester onboarding. It reads bounded file metadata and Mirror Core's declared version; it does not open SQLite or read identity and conversation content.
+Preflight must finish with `READY`. It is a build-host gate, not tester onboarding. It verifies the
+pin (Node archive hashes, vendored core tarball hash, `yaml` integrity), checks the materialized
+runtime is the pinned one and carries the current `mirror-host/host.mjs`, starts that host with an
+empty environment, compares its handshake (Node, core version, Desktop API) with the pin, and
+confirms it refuses a home without the 0.3 marker. It opens no Mirror home and needs no `uv`.
 
-For bounded evidence, use silent npm mode so npm does not echo private arguments:
+~~Use only the maintainer's own local Mirror coordinates: `npm run alpha:preflight -- --mirror-root
+"$MIRROR_ALPHA_ROOT" --mirror-home "$MIRROR_ALPHA_HOME" --mirror-user "$MIRROR_ALPHA_USER"`.~~ The
+0.2 line's form, which checked a Python Mirror checkout; `--mirror-*` arguments are now refused.
+
+For bounded evidence:
 
 ```bash
-npm run --silent alpha:preflight -- --json \
-  --mirror-root "$MIRROR_ALPHA_ROOT" \
-  --mirror-home "$MIRROR_ALPHA_HOME" \
-  --mirror-user "$MIRROR_ALPHA_USER" \
-  > mirror-desktop-alpha-preflight.json
+npm run --silent alpha:preflight -- --json > mirror-desktop-alpha-preflight.json
 ```
 
 Inspect the JSON locally before retaining it. It must contain no absolute home path or Mirror user.

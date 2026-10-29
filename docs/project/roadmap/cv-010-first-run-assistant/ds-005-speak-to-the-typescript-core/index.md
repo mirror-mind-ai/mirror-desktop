@@ -186,7 +186,7 @@ including any Navigator check, is met.
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
-| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a–2e are built: every Mirror operation goes through the host, nothing spawns Python, and every Pi turn runs isolated in the 0.3 home. Owed: 2f (bundling, preflight, removal of the dead Python binding code). |
+| 2 · The embedded host | 🟡 Planned | Six slices (2a–2f), decisions answered. 2a–2e are built: every Mirror operation goes through the host, nothing spawns Python, and every Pi turn runs isolated in the 0.3 home. 2f-1 (bundling and preflight) is built. Owed: 2f-2, removal of the dead Python binding code. |
 | 3 · The first-run assistant on 0.3 | 🟡 Candidate | A full plan |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
@@ -229,9 +229,10 @@ deliver a 0.3 build to an app on the 0.2 line. No 0.3 feature is built and nothi
   - Today the User and Evaluation channels are `ai.mirrormind.desktop`, which is production's data
     folder, and Development is `ai.mirrormind.desktop.dev`.
   - A 0.3 build under either identifier would run on 0.2 data.
-- **The release preflight needs a Python Mirror.** `private_alpha_preflight.mjs` requires
+- ~~**The release preflight needs a Python Mirror.** `private_alpha_preflight.mjs` requires
   `src/memory` and a `pyproject.toml` under `--mirror-root`. A 0.3 release cannot pass it as it is.
-  This is recorded for phase 2, not changed here.
+  This is recorded for phase 2, not changed here.~~ Replaced in slice 2f-1: the preflight checks
+  the pinned host.
 
 ### Scope
 
@@ -964,8 +965,9 @@ it never reaches `/Users/alissonvale/mirror` or `~/.mirror-minds/alisson-vale`.
 - **The Node pin.** Core CI ran on Node v24.21.0 (macOS) and v24.22.1 (Linux), and the
   FTS5 shadow-table refusal held on both. This machine's v24.6.0 lets the write through. The pin is
   therefore at least v24.21.0, and slice 2a measures the exact candidate.
-- **The release preflight** (`scripts/private_alpha_preflight.mjs`, `validateRuntimeCoordinates`)
-  requires `pyproject.toml` under a Mirror root, so a 0.3 release cannot pass it today.
+- ~~**The release preflight** (`scripts/private_alpha_preflight.mjs`, `validateRuntimeCoordinates`)
+  requires `pyproject.toml` under a Mirror root, so a 0.3 release cannot pass it today.~~ Replaced
+  in slice 2f-1.
 
 ### Slices
 
@@ -1660,3 +1662,111 @@ Production afterwards: binary `303ede287de3…`, migration 016.
 
 This is the first end-to-end 0.3 turn: Pi answered in the 0.3 home, and the outbox delivered the
 turn to Mirror through the pinned host and core, with no Python anywhere on the path.
+
+## Phase 2 Slice 2f-1 Built — the Runtime Ships in the App, and the Preflight Checks It (2026-10-29)
+
+2f is split in two. **2f-1** makes a packaged 0.3 build self-contained and releasable. **2f-2**
+removes the Python binding and discovery code that no route reaches any more.
+
+### What a packaged build carries
+
+`node scripts/mirror_host_pin.mjs stage` copies, from the materialized runtime, only what the app
+needs into `.mirror-host/bundle/<platform>/` (gitignored):
+
+- `node/bin/node` and `node/LICENSE` (npm, corepack, Node's headers and docs stay behind);
+- `host.mjs` and `pin-receipt.json`;
+- `node_modules` (the core and `yaml`).
+
+It first runs `checkRuntime`, which refuses a runtime that:
+
+- is for another platform;
+- has another Node, core or `yaml` than the pin;
+- carries a `host.mjs` other than its receipt's;
+- or was materialized before the current `mirror-host/host.mjs` changed.
+
+It also refuses any symlink inside the runtime, and replaces the old stage all or nothing.
+
+Every packaged build (`tauri:build:dev`, `build-user`, `build-eval`, `install-eval`, and
+`alpha:build`) stages first. It then merges `bundleConfig(platform)` through one more `--config`,
+so the folder ships as `Contents/Resources/mirror-host/`. No `tauri*.conf.json` names it, so
+`cargo test` and `tauri dev` never copy 126 MB.
+
+### How the app finds it
+
+`runtime_dir` looks first in the app's resources. A bundled runtime must match its receipt:
+
+- this Mac's platform, otherwise "carries a Mirror host runtime for another Mac";
+- the `host.mjs` hash it records;
+- a `node` binary present.
+
+A damaged bundle is refused ("missing its Mirror host runtime. Reinstall the app."). It is never
+replaced by another runtime. Only the Development channel without a bundled runtime (`tauri dev`)
+falls back to the repository's `.mirror-host/runtime/<platform>`.
+
+### The preflight
+
+`private_alpha_preflight.mjs` no longer asks for `uv` or `--mirror-root/--mirror-home/--mirror-user`,
+and now refuses them. In their place, `checkMirrorHost`:
+
+1. verifies the pin;
+2. runs `checkRuntime` on the materialized runtime;
+3. starts its host with an empty environment, and compares the handshake's Node, core version and
+   Desktop API with the pin;
+4. asks it about a canonical temporary home with no marker, and requires `HomeNotMarkedError` /
+   `unmarked`.
+
+**Found while wiring it.** `release:deploy prepare` required the three `--mirror-*` arguments and
+passed them to the preflight. A 0.3 release would therefore have stopped at its first stage. It now
+calls the preflight bare and refuses those arguments. `docs/alpha/private-macos-alpha.md` and
+`docs/update/alpha-channel-governance.md` were updated, with the 0.2 forms struck through.
+
+### Evidence
+
+- **A real packaged build** (`npm run tauri:build:dev -- --bundles app`, 2 min 8 s):
+  - the app is 145 MB, of which `Resources/mirror-host` is 126 MB, and 48 MB as a `tar.gz` (the
+    updater artifact's form);
+  - the bundled host, started from inside the `.app` with `env -i`, gave the handshake Node
+    `v24.22.2`, core `0.37.0`, Desktop API 1, and refused an unmarked canonical home with
+    `HomeNotMarkedError` / `unmarked`;
+  - the built app, opened for 12 s on the TS Dev data (bound to `~/mirror-ts-homes/ana`), started
+    its host as its own child from `…/Mirror Desktop TS Dev.app/Contents/Resources/mirror-host/node/bin/node`,
+    and on quit left no process.
+- **The real preflight** reads `READY`, with "Mirror host: Node 24.22.2, core 0.37.0 (c7b4bf40),
+  Desktop API 1, refuses unmarked homes". `release_deploy.mjs plan` runs without coordinates.
+- **New tests:**
+  - 5 in `cv010HostPin.test.mjs`: stage contents, stale and foreign refusal, a current-host
+    mismatch, symlink refusal, and build wiring;
+  - 3 Rust tests, replacing the one that said "until 2f";
+  - `privateAlphaPreflight.test.ts` rewritten: 2 tests against the real runtime, which skip where
+    none is materialized, and injected negative controls.
+- **Twelve mutations, each caught in the end:**
+  - the whole `node/` folder staged;
+  - stage without checking;
+  - a symlink accepted;
+  - the current host not compared, which **escaped at first** and is caught by a new test;
+  - a build without the runtime;
+  - the preflight not checking the refusal, the Node, or the runtime;
+  - the bundle trusted without its receipt;
+  - a non-Development channel falling back to the repository;
+  - the host hash not compared;
+  - the repository preferred over the bundle.
+- **Gates:**
+  - vitest: 280 files, 2,341 tests;
+  - tsc: clean;
+  - build: passes;
+  - cargo `--locked`: 416 passed, 5 ignored, twice;
+  - the real-host tests pass;
+  - the roadmap reads READY;
+  - `mirror_host_pin.mjs verify` reads READY.
+- **Production:** binary `303ede287de3…`, migration 016.
+
+### Known gaps, for the release that first ships it
+
+- **Signing.** The app is unsigned, as every local build is until CV-009. The bundled `node` keeps
+  the Node.js Foundation's signature (team `HX7739G8FX`). When CV-009 signs and notarizes the app,
+  `node` must be re-signed under the app's identity, with hardened runtime and the JIT entitlements
+  V8 needs. This is not done or tested.
+- **One architecture per build.** A build carries its own machine's platform only. An Intel build
+  refuses on Apple silicon unless it runs under Rosetta, where the x64 `node` also runs. No
+  universal build exists, and the arm64 runtime has not been run on an arm64 Mac.
+- **Size.** The updater artifact grows by about 45 MB.
