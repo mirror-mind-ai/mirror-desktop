@@ -24,7 +24,9 @@
 // The host also never makes an unmarked home (slice 3a). `createMarkedHome` has the core create the
 // home under a hidden name beside the target, writes the marker inside it, and renames it into
 // place, so a home appears marked or not at all. It refuses a target that exists, a parent reached
-// through a symlink, and any path with a `.mirror-minds` component, where the Python homes live.
+// through a symlink, any path with a `.mirror-minds` component, where the Python homes live, and any
+// folder inside a git repository: a Mirror checkout is one, and macOS folds case, so `~/Mirror` can
+// be the production checkout `~/mirror`.
 //
 // The host reads no environment variable, and stdout carries the protocol alone. `console.log` is
 // sent to stderr, and Node's ExperimentalWarning for `node:sqlite` is dropped. The host exits 0
@@ -136,7 +138,7 @@ export function createMarkedHome(desktop, request) {
   if (typeof homePath !== "string" || !isAbsolute(homePath) || resolve(homePath) !== homePath) {
     throw new HomeCreationRefusedError("invalid_home_path", "the home path must be absolute and normalized");
   }
-  if (homePath.split(sep).includes(".mirror-minds")) {
+  if (homePath.split(sep).some((part) => part.toLowerCase() === ".mirror-minds")) {
     throw new HomeCreationRefusedError("reserved_location", `${homePath} is under .mirror-minds, where the Python homes live`);
   }
   const parent = dirname(homePath);
@@ -148,6 +150,12 @@ export function createMarkedHome(desktop, request) {
   }
   if (realParent !== parent) throw new HomeCreationRefusedError("invalid_home_path", `the folder ${parent} passes through a symlink`);
   if (!statSync(parent).isDirectory()) throw new HomeCreationRefusedError("invalid_home_path", `${parent} is not a folder`);
+  for (let folder = parent; ; folder = dirname(folder)) {
+    if (occupied(join(folder, ".git"))) {
+      throw new HomeCreationRefusedError("inside_repository", `${parent} is inside the repository ${folder}`);
+    }
+    if (dirname(folder) === folder) break;
+  }
   if (occupied(homePath)) throw new HomeCreationRefusedError("home_exists", `${homePath} already exists`);
 
   const staging = join(parent, `.${basename(homePath)}.marking-${randomBytes(6).toString("hex")}`);

@@ -230,6 +230,10 @@ pub(crate) fn describe_home_creation(error: MirrorHostError, home_path: &Path) -
     match reason.as_str() {
         "home_exists" => format!("{} already exists. Choose another name or another folder.", home_path.display()),
         "reserved_location" => "That folder belongs to the terminal Mirror's homes. Choose another folder.".to_string(),
+        "inside_repository" => format!(
+            "{} is inside a code repository, such as a Mirror installation. Choose another folder.",
+            home_path.parent().unwrap_or(home_path).display()
+        ),
         "invalid_home_path" => "That folder can't hold a Mirror home: it must exist and not be a link. Choose another folder.".to_string(),
         "invalid_user_name" => "Your Mirror name must use lowercase letters, digits and single hyphens, up to 80 characters.".to_string(),
         "templates_unavailable" | "seed_failed" => {
@@ -554,7 +558,7 @@ mod tests {
         let rejected = |reason: &str| MirrorHostError::Rejected { name: "HomeCreationRefusedError".into(), reason: reason.into(), message: "m".into() };
         let target = Path::new("/Users/ana/Mirror/ana");
         assert!(describe_home_creation(rejected("home_exists"), target).starts_with("/Users/ana/Mirror/ana already exists."));
-        for reason in ["reserved_location", "invalid_home_path", "invalid_user_name", "templates_unavailable", "seed_failed"] {
+        for reason in ["reserved_location", "inside_repository", "invalid_home_path", "invalid_user_name", "templates_unavailable", "seed_failed"] {
             let sentence = describe_home_creation(rejected(reason), target);
             assert!(!sentence.contains(reason) && !sentence.contains("Rejected"), "{reason}: {sentence}");
         }

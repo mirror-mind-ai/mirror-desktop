@@ -184,9 +184,15 @@ describe("the Mirror host", () => {
 
     mkdirSync(join(parent, ".mirror-minds"));
     mkdirSync(join(parent, "real"));
+    // A checkout, as `~/mirror` is: neither it nor a folder under it may hold a home.
+    mkdirSync(join(parent, "checkout", ".git"), { recursive: true });
+    mkdirSync(join(parent, "checkout", "docs"));
     symlinkSync(join(parent, "real"), join(parent, "linked"));
     const refusals = [
       [join(parent, ".mirror-minds", "new"), "ana", "HomeCreationRefusedError", "reserved_location"],
+      [join(parent, ".Mirror-Minds", "new"), "ana", "HomeCreationRefusedError", "reserved_location"],
+      [join(parent, "checkout", "ana"), "ana", "HomeCreationRefusedError", "inside_repository"],
+      [join(parent, "checkout", "docs", "ana"), "ana", "HomeCreationRefusedError", "inside_repository"],
       ["relative/home", "ana", "HomeCreationRefusedError", "invalid_home_path"],
       [`${join(parent, "real")}/../sneaky`, "ana", "HomeCreationRefusedError", "invalid_home_path"],
       [`${join(parent, "zed")}/`, "zed", "HomeCreationRefusedError", "invalid_home_path"],
@@ -199,7 +205,9 @@ describe("the Mirror host", () => {
       expect(await host.send({ id: 3, method: "createMarkedHome", params: { request: { homePath, userName } } }))
         .toMatchObject({ id: 3, ok: false, error: { name, reason } });
     }
-    expect(readdirSync(parent).sort()).toEqual([".mirror-minds", "ana", "linked", "real"]);
+    expect(readdirSync(parent).sort()).toEqual([".mirror-minds", "ana", "checkout", "linked", "real"]);
+    expect(readdirSync(join(parent, "checkout")).sort()).toEqual([".git", "docs"]);
+    expect(readdirSync(join(parent, "checkout", "docs"))).toEqual([]);
     expect(readdirSync(join(parent, ".mirror-minds"))).toEqual([]);
     expect(readdirSync(join(parent, "real"))).toEqual([]);
     host.child.stdin.end();
