@@ -2647,3 +2647,20 @@ marker is in place) and bring the output back through the shared folder.
   `sqlite3 -readonly` cannot then create the `-shm`. Reproduced on a database Node closed. The
   script now reads such a file as immutable (nothing is pending without a `-wal`); its test fails on
   the old script. The fixed script replaced the shared copy; the database part is to be rerun.
+
+### The `report` rerun with the fixed script (2026-10-30, 14:33)
+
+- **FORBIDDEN: 0**, as before (expected 47, app chrome 14, other 172).
+- **The new home `carlos-antonio`:** one session in Mirror Mode; provider calls `reception 1`,
+  `embedding 1` (a full delivery, then a delta, as on ana); 4 messages, the last at
+  2026-10-30T16:55:41Z.
+- **Acceptance 5, read again after the run:** production binary `303ede287de3…`, production home at
+  016, the 0.2 Dev data 141 files with the newest still 2026-10-27T17:45, no `~/.config/mirror`.
+
+**Where acceptance stands.** 1 (launch to an answered turn through Finder, no terminal), 2 (the turn
+carried Mirror's context, recorded in the home) and 3 (nothing written in the forbidden places) are
+evidenced on the `mirror` account; 5 on the Navigator's. 4 (each failure leaves a nameable,
+resumable state) is evidenced only for the empty model catalog, which it found and which was fixed;
+a cancelled sign-in, a wrong key and an interrupted install were not reported from that account
+(each is covered by tests and, for the key, by the Navigator's own check of 3c). The phase moves to
+Done on the Navigator's word.
