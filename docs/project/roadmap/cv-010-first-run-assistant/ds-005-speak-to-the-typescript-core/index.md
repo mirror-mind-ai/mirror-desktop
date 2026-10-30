@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built, awaiting the Navigator's check. 3c–3d to do. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built and checked by the Navigator. 3c–3d to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2284,3 +2284,18 @@ The app's sentence was right; it pointed at a log the installer never got to wri
 
 Gates: vitest 283 files / 2,354 tests; cargo 399 passed; real Pi install passes.
 
+## Navigator Check of 3b: Passed (2026-10-30)
+
+The Navigator rebuilt the TS Dev app after `8568985` and reported that everything worked. Read
+afterwards, read-only:
+
+- `install.log`: 121 packages, 24,407,102 bytes downloaded, none reused, installed at
+  `pi/pi-1.4.0-d36b5fc72875` in about 12 s (11:55:27–11:55:39Z). Its install receipt names the
+  pinned package, version and lockfile hash. Only `install.log` and that folder remain in `pi/`.
+- ana's database went from 6 to 8 messages, the latest at 11:56:06Z, 26 s after the install: a turn
+  ran with the app's own Pi and the Navigator's existing Pi sign-ins, and was recorded. No append
+  failure file in her state folder.
+- Production unchanged: binary `303ede287de3…`, migration 016.
+
+The optional checks (reinstall after deleting `pi/`, network off during the install) were not
+reported, so they are not evidenced.
