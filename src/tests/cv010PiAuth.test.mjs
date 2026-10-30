@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { deviceId, login, providerStatus } from "../../mirror-host/pi-auth.mjs";
+import { deviceId, disconnect, login, providerStatus } from "../../mirror-host/pi-auth.mjs";
 
 // CV-010.DS-005 slice 3c-1: the sign-in helper speaks for Pi's own SDK. Readiness comes from a
 // read-only view of Pi's credentials; a sign-in's prompts go out and answers come in as JSON lines,
@@ -14,7 +14,7 @@ function scratch() {
 }
 
 /** A Pi SDK stand-in: two providers, a store, and a login that asks what each provider asks. */
-function fakePi({ stored = {}, onLogin } = {}) {
+function fakePi({ stored = {}, environment = {}, onLogin } = {}) {
   const store = { ...stored };
   const providers = [
     { id: "anthropic", name: "Anthropic", auth: { apiKey: { login: () => {} }, oauth: { name: "Anthropic (Claude Pro/Max)" } } },
@@ -30,7 +30,14 @@ function fakePi({ stored = {}, onLogin } = {}) {
         getProviders: () => providers,
         getProvider: (id) => providers.find((provider) => provider.id === id),
         async checkAuth(id) {
-          return store[id] ? { type: store[id].type, source: "stored credential", key: store[id].key } : undefined;
+          if (store[id]) return { type: store[id].type, source: "stored credential", key: store[id].key };
+          return environment[id] ? { type: "api_key", source: environment[id] } : undefined;
+        },
+        async listCredentials() {
+          return Object.entries(store).map(([providerId, credential]) => ({ providerId, type: credential.type }));
+        },
+        async logout(id) {
+          delete store[id];
         },
         async login(id, type, interaction, options) {
           const credential = await onLogin({ id, type, interaction, options });
@@ -67,9 +74,9 @@ describe("provider status", () => {
     const { pi, created } = fakePi({ stored: { deepseek: { type: "api_key", key: "sk-SECRET" } } });
     const status = await providerStatus(pi);
     expect(status.providers).toEqual([
-      { id: "anthropic", name: "Anthropic", apiKey: true, oauth: true, oauthName: "Anthropic (Claude Pro/Max)", ready: null },
-      { id: "deepseek", name: "DeepSeek", apiKey: true, oauth: false, ready: { type: "api_key", source: "stored credential" } },
-      { id: "ambient", name: "Ambient", apiKey: false, oauth: false, ready: null },
+      { id: "anthropic", name: "Anthropic", apiKey: true, oauth: true, oauthName: "Anthropic (Claude Pro/Max)", stored: false, ready: null },
+      { id: "deepseek", name: "DeepSeek", apiKey: true, oauth: false, stored: true, ready: { type: "api_key", source: "stored credential" } },
+      { id: "ambient", name: "Ambient", apiKey: false, oauth: false, stored: false, ready: null },
     ]);
     expect(created[0].credentials).toBeInstanceOf(pi.ReadOnlyAuthStorage);
     expect(created[0].refreshOnCreate).toBe(false);
@@ -158,6 +165,25 @@ describe("signing in", () => {
   });
 });
 
+describe("disconnecting", () => {
+  it("removes only the sign-in Pi stored, and says the readiness left", async () => {
+    const { pi, store } = fakePi({
+      stored: { deepseek: { type: "api_key", key: "sk-SECRET" }, anthropic: { type: "oauth" } },
+      environment: { anthropic: "ANTHROPIC_API_KEY" },
+    });
+    await expect(disconnect({ pi, providerId: "deepseek" })).resolves.toBeNull();
+    expect(Object.keys(store)).toEqual(["anthropic"]);
+    await expect(disconnect({ pi, providerId: "anthropic" })).resolves.toEqual({ type: "api_key", source: "ANTHROPIC_API_KEY" });
+    expect(store).toEqual({});
+  });
+
+  it("refuses a provider Pi does not know or holds no sign-in for", async () => {
+    const { pi } = fakePi({ environment: { ambient: "AMBIENT_KEY" } });
+    await expect(disconnect({ pi, providerId: "nowhere" })).rejects.toMatchObject({ reason: "unknown_provider" });
+    await expect(disconnect({ pi, providerId: "ambient" })).rejects.toMatchObject({ reason: "not_stored" });
+  });
+});
+
 describe("the installation's device id", () => {
   it("is made once, owner-only, and kept; a damaged one is replaced", () => {
     const file = join(scratch(), "pi-device-id");
@@ -167,6 +193,52 @@ describe("the installation's device id", () => {
     expect(deviceId(file)).toBe(first);
     writeFileSync(file, "not a uuid");
     expect(deviceId(file)).not.toBe("not a uuid");
+  });
+});
+
+/** A Pi package folder whose SDK keeps sign-ins in `$HOME/store.json` and reads `FAKE_READY` from the environment. */
+function fakePackage() {
+  const dir = join(scratch(), "pi");
+  mkdirSync(join(dir, "dist", "core"), { recursive: true });
+  writeFileSync(join(dir, "dist", "core", "auth-storage.js"), "export class ReadOnlyAuthStorage {}\n");
+  writeFileSync(join(dir, "dist", "index.js"), `
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+const file = process.env.HOME + "/store.json";
+const read = () => (existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {});
+const providers = [{ id: "deepseek", name: "DeepSeek", auth: { apiKey: { login() {} } } }];
+export const ModelRuntime = { async create() { return {
+  getProviders: () => providers,
+  getProvider: (id) => providers.find((provider) => provider.id === id),
+  async listCredentials() { return Object.keys(read()).map((providerId) => ({ providerId, type: "api_key" })); },
+  async logout(id) { const store = read(); delete store[id]; writeFileSync(file, JSON.stringify(store)); },
+  async checkAuth(id) {
+    if (read()[id]) return { type: "api_key", source: "stored credential" };
+    return process.env.FAKE_READY ? { type: "api_key", source: process.env.FAKE_READY } : undefined;
+  },
+}; } };
+`);
+  return dir;
+}
+
+describe("disconnecting as the app runs it", () => {
+  it("says the readiness the environment leaves, and refuses a second time", () => {
+    const pi = fakePackage();
+    const home = scratch();
+    writeFileSync(join(home, "store.json"), JSON.stringify({ deepseek: { type: "api_key", key: "sk-SECRET" } }));
+    const run = () => {
+      try {
+        return { status: 0, out: execFileSync(process.execPath, [join(import.meta.dirname, "..", "..", "mirror-host", "pi-auth.mjs"), "logout", "--pi", pi, "--provider", "deepseek"], { encoding: "utf8", env: { HOME: home, FAKE_READY: "DEEPSEEK_API_KEY" } }) };
+      } catch (error) {
+        return { status: error.status, out: error.stdout };
+      }
+    };
+    const first = run();
+    expect(first.status).toBe(0);
+    expect(JSON.parse(first.out.trim())).toEqual({ event: "disconnected", provider: "deepseek", ready: { type: "api_key", source: "DEEPSEEK_API_KEY" } });
+    expect(readFileSync(join(home, "store.json"), "utf8")).toBe("{}");
+    const second = run();
+    expect(second.status).toBe(1);
+    expect(JSON.parse(second.out.trim())).toMatchObject({ event: "failed", reason: "not_stored" });
   });
 });
 

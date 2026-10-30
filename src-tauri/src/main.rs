@@ -8,6 +8,7 @@ mod model_intents;
 mod native_command_serialization;
 mod native_panic_trace;
 mod pi_global_extensions;
+mod openrouter_key;
 mod pi_auth;
 mod pi_install;
 mod pi_process_registry;
@@ -10085,6 +10086,12 @@ fn main() {
             pi_auth::start_pi_login,
             pi_auth::answer_pi_login,
             pi_auth::cancel_pi_login,
+            pi_auth::disconnect_pi_provider,
+            openrouter_key::openrouter_key_status,
+            openrouter_key::save_openrouter_key,
+            openrouter_key::test_openrouter_key,
+            openrouter_key::remove_openrouter_key,
+            openrouter_key::decline_openrouter_key,
             choose_runtime_directory,
             load_journey_projections,
             list_journey_documentation,

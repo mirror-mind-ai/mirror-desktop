@@ -13,6 +13,8 @@ export type PiProviderStatus = {
   apiKey: boolean;
   oauth: boolean;
   oauthName?: string;
+  /** Pi holds a sign-in for it, which Disconnect removes; readiness from the environment is not stored. */
+  stored: boolean;
   ready: PiReadiness | null;
 };
 
@@ -33,6 +35,8 @@ export type PiLoginPrompt =
 /** A sign-in in progress, as the screen shows it. */
 export type PiLoginView = {
   session: number;
+  /** Where it was started: a sign-in from Settings never brings the setup screen back. */
+  origin: "setup" | "settings";
   provider: string;
   providerName: string;
   authUrl?: string;
@@ -74,6 +78,11 @@ export async function inspectPiProviders(): Promise<PiProviderStatus[]> {
 
 export async function startPiLogin(provider: string, loginType: "oauth" | "api_key"): Promise<number> {
   return invoke<number>("start_pi_login", { provider, loginType });
+}
+
+/** Slice 3c-2: remove the sign-in Pi stored; resolves with the readiness left (the environment's). */
+export async function disconnectPiProvider(provider: string): Promise<PiReadiness | null> {
+  return invoke<PiReadiness | null>("disconnect_pi_provider", { provider });
 }
 
 export async function answerPiLogin(session: number, promptId: string, value: string): Promise<void> {

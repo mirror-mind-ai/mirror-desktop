@@ -2348,6 +2348,7 @@ dependencies = [
  "reqwest",
  "rfd",
  "rustls",
+ "security-framework",
  "semver",
  "serde",
  "serde_json",

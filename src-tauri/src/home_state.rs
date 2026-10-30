@@ -157,11 +157,12 @@ mod tests {
     /// Every reader of the app data folder is either this module or classified as app state.
     #[test]
     fn the_app_data_folder_is_read_only_for_app_state() {
-        const APP_STATE: [&str; 18] = [
+        const APP_STATE: [&str; 19] = [
             "validated_app_data_root", "inspect_runtime_channel", "flush_window_geometry", "retire_legacy_parity_state",
             "main", "load_agent_settings", "save_agent_settings", "import_user_avatar", "load_user_avatar",
             "remove_user_avatar", "load_model_intents", "save_model_intents", "app_data_root",
             "load_whats_new_state", "save_whats_new_state", "active_home", "install_pi", "pi_auth_context",
+            "openrouter_context",
         ];
         // Composed, so this file's own text does not hold what it counts.
         let needle = concat!(".app_data", "_dir()");

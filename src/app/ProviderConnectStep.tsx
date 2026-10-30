@@ -56,6 +56,37 @@ function PromptField({ prompt, onAnswer }: { prompt: PiLoginPrompt; onAnswer: (i
   );
 }
 
+/** A sign-in in progress: the page Pi asked to open, its prompts, and Cancel. Setup and Settings share it. */
+export function PiLoginPanel({ login, heading, onAnswer, onCancel, onOpenAgain }: {
+  login: PiLoginView;
+  heading: "h1" | "h3";
+  onAnswer: (promptId: string, value: string) => void;
+  onCancel: () => void;
+  onOpenAgain: (url: string) => void;
+}) {
+  const Heading = heading;
+  return (
+    <>
+      <Heading>Connecting {login.providerName}</Heading>
+      {login.authUrl ? (
+        <>
+          <p>{login.instructions ?? "Finish signing in in your browser."}</p>
+          <p className="provider-note">Your browser opened {new URL(login.authUrl).host}.</p>
+        </>
+      ) : null}
+      {login.deviceCode ? (
+        <p>Open {login.deviceCode.verificationUri} and enter the code <strong>{login.deviceCode.userCode}</strong>.</p>
+      ) : null}
+      {login.notes.length > 0 ? <p className="provider-note">{login.notes.at(-1)}</p> : null}
+      {login.prompts.map((prompt) => <PromptField key={prompt.id} prompt={prompt} onAnswer={onAnswer} />)}
+      <div className="provider-actions">
+        {login.authUrl ? <button className="secondary-button" type="button" onClick={() => onOpenAgain(login.authUrl as string)}>Open the sign-in page again</button> : null}
+        <button className="secondary-button" type="button" onClick={onCancel}>Cancel</button>
+      </div>
+    </>
+  );
+}
+
 export function ProviderConnectStep({ providers, login, message, onSignIn, onAnswer, onCancel, onOpenAgain, onContinue, initialChoice }: ProviderConnectStepProps) {
   const ordered = orderedProviders(providers);
   const [choice, setChoice] = useState(initialChoice ?? ordered.find((provider) => !provider.ready)?.id ?? ordered[0]?.id ?? "");
@@ -66,22 +97,7 @@ export function ProviderConnectStep({ providers, login, message, onSignIn, onAns
     return (
       <>
         <p className="eyebrow">Mirror Desktop TS</p>
-        <h1>Connecting {login.providerName}</h1>
-        {login.authUrl ? (
-          <>
-            <p>{login.instructions ?? "Finish signing in in your browser."}</p>
-            <p className="provider-note">Your browser opened {new URL(login.authUrl).host}.</p>
-          </>
-        ) : null}
-        {login.deviceCode ? (
-          <p>Open {login.deviceCode.verificationUri} and enter the code <strong>{login.deviceCode.userCode}</strong>.</p>
-        ) : null}
-        {login.notes.length > 0 ? <p className="provider-note">{login.notes.at(-1)}</p> : null}
-        {login.prompts.map((prompt) => <PromptField key={prompt.id} prompt={prompt} onAnswer={onAnswer} />)}
-        <div className="provider-actions">
-          {login.authUrl ? <button className="secondary-button" type="button" onClick={() => onOpenAgain(login.authUrl as string)}>Open the sign-in page again</button> : null}
-          <button className="secondary-button" type="button" onClick={onCancel}>Cancel</button>
-        </div>
+        <PiLoginPanel login={login} heading="h1" onAnswer={onAnswer} onCancel={onCancel} onOpenAgain={onOpenAgain} />
       </>
     );
   }

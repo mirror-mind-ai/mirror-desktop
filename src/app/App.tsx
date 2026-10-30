@@ -121,8 +121,14 @@ import { InterruptedNativeAttemptNotice } from "./InterruptedNativeAttemptNotice
 import { MirrorHomeSetup } from "./MirrorHomeSetup";
 import { PiInstallStep, type PiInstallView } from "./PiInstallStep";
 import { ProviderConnectStep } from "./ProviderConnectStep";
+import { ModelProvidersPanel } from "./ModelProvidersPanel";
+import { OpenRouterKeyPanel } from "./OpenRouterKeyPanel";
 import {
-  answerPiLogin, applyPiLoginEvent, cancelPiLogin, inspectPiProviders, listenPiLogin, openSignInPage, startPiLogin, withoutPrompt,
+  declineOpenRouterKey, loadOpenRouterKeyStatus, removeOpenRouterKey, saveOpenRouterKey, testOpenRouterKey,
+  type OpenRouterKeyStatus,
+} from "./openRouterKey";
+import {
+  answerPiLogin, applyPiLoginEvent, cancelPiLogin, disconnectPiProvider, inspectPiProviders, listenPiLogin, openSignInPage, startPiLogin, withoutPrompt,
   type PiLoginView, type PiProviderStatus,
 } from "./piProviders";
 import { PendingFileAttachments } from "./PendingFileAttachments";
@@ -948,6 +954,16 @@ export function App({ model }: AppProps) {
   const [piProviders, setPiProviders] = useState<PiProviderStatus[]>([]);
   const [piProvidersState, setPiProvidersState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [piProvidersMessage, setPiProvidersMessage] = useState<string>();
+  // Slice 3c-2: once read, the providers stay shown while Pi is asked again; only the first read gates setup.
+  const [piProvidersLoadedOnce, setPiProvidersLoadedOnce] = useState(false);
+  const [piDisconnecting, setPiDisconnecting] = useState<string>();
+  // Slice 3c-2: the OpenRouter key for Mirror's context (decision 4); its status only, never the key.
+  const [openRouterKey, setOpenRouterKey] = useState<OpenRouterKeyStatus>();
+  const [openRouterState, setOpenRouterState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [openRouterMessage, setOpenRouterMessage] = useState<string>();
+  const [openRouterBusy, setOpenRouterBusy] = useState(false);
+  // "Not now" holds for this launch even if the Keychain could not record it.
+  const [openRouterSkipped, setOpenRouterSkipped] = useState(false);
   const [piLogin, setPiLogin] = useState<PiLoginView>();
   const [providerStepOpen, setProviderStepOpen] = useState(false);
   // The listener is registered once; it reads the sign-in in progress through this.
@@ -1800,6 +1816,7 @@ export function App({ model }: AppProps) {
         if (cancelled) return;
         setPiProviders(providers);
         setPiProvidersState("ready");
+        setPiProvidersLoadedOnce(true);
       })
       .catch((error) => {
         if (cancelled) return;
@@ -1808,6 +1825,24 @@ export function App({ model }: AppProps) {
       });
     return () => { cancelled = true; };
   }, [runtimeChannel, piProvidersState]);
+
+  useEffect(() => {
+    if (runtimeChannel?.status !== "validated" || runtimeChannel.piInstalled !== true || openRouterState !== "idle") return;
+    let cancelled = false;
+    setOpenRouterState("loading");
+    void loadOpenRouterKeyStatus()
+      .then((status) => {
+        if (cancelled) return;
+        setOpenRouterKey(status);
+        setOpenRouterState("ready");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setOpenRouterMessage(error instanceof Error ? error.message : String(error));
+        setOpenRouterState("error");
+      });
+    return () => { cancelled = true; };
+  }, [runtimeChannel, openRouterState]);
 
   // A sign-in's events: prompts and pages update the view; its outcome reads the providers again.
   useEffect(() => {
@@ -2282,6 +2317,12 @@ export function App({ model }: AppProps) {
   useEffect(() => {
     if (settingsOpen && settingsTab === "voice") void loadVoiceCatalog();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsOpen, settingsTab]);
+
+  // Slice 3c-2: Connections asks Pi again each time it opens, since Pi in a terminal may have changed them.
+  useEffect(() => {
+    if (!settingsOpen || settingsTab !== "connections") return;
+    setPiProvidersState((current) => (current === "ready" || current === "error" ? "idle" : current));
   }, [settingsOpen, settingsTab]);
 
   useEffect(() => {
@@ -5506,13 +5547,16 @@ export function App({ model }: AppProps) {
   const runtimeSetupNeedsPi = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === false;
   // Slice 3c-1: with Pi installed, a provider must be connected before the model is chosen.
   const runtimeSetupNeedsProvider = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === true
-    && (providerStepOpen || piLogin !== undefined || piProvidersState !== "ready" || !piProviders.some((provider) => provider.ready));
+    && (providerStepOpen || piLogin?.origin === "setup" || !piProvidersLoadedOnce || !piProviders.some((provider) => provider.ready));
+  // Slice 3c-2: then the OpenRouter key for Mirror's context, until one is kept or the person goes on without it.
+  const runtimeSetupNeedsOpenRouter = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === true && !runtimeSetupNeedsProvider
+    && !openRouterSkipped && (!openRouterKey || (!openRouterKey.configured && !openRouterKey.declined));
 
-  async function signInToProvider(provider: PiProviderStatus, loginType: "oauth" | "api_key") {
+  async function signInToProvider(provider: PiProviderStatus, loginType: "oauth" | "api_key", origin: "setup" | "settings") {
     setPiProvidersMessage(undefined);
     try {
       const session = await startPiLogin(provider.id, loginType);
-      setPiLogin((current) => current ?? { session, provider: provider.id, providerName: provider.name, prompts: [], notes: [] });
+      setPiLogin((current) => current ?? { session, origin, provider: provider.id, providerName: provider.name, prompts: [], notes: [] });
     } catch (error) {
       setPiProvidersMessage(error instanceof Error ? error.message : String(error));
     }
@@ -5525,6 +5569,43 @@ export function App({ model }: AppProps) {
     void answerPiLogin(session, promptId, value).catch((error) => setPiProvidersMessage(error instanceof Error ? error.message : String(error)));
   }
 
+  async function disconnectProvider(provider: PiProviderStatus) {
+    setPiProvidersMessage(undefined);
+    setPiDisconnecting(provider.id);
+    try {
+      const left = await disconnectPiProvider(provider.id);
+      setPiProvidersMessage(left
+        ? `Pi forgot its sign-in for ${provider.name}, which is still connected through your environment.`
+        : `Disconnected ${provider.name}.`);
+      setPiModelCatalogState("idle");
+    } catch (error) {
+      setPiProvidersMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setPiDisconnecting(undefined);
+      setPiProvidersState("idle");
+    }
+  }
+
+  async function changeOpenRouterKey(change: () => Promise<OpenRouterKeyStatus>, said: (status: OpenRouterKeyStatus) => string | undefined) {
+    setOpenRouterBusy(true);
+    setOpenRouterMessage(undefined);
+    try {
+      const status = await change();
+      setOpenRouterKey(status);
+      setOpenRouterState("ready");
+      setOpenRouterMessage(said(status));
+    } catch (error) {
+      setOpenRouterMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setOpenRouterBusy(false);
+    }
+  }
+
+  function declineOpenRouter() {
+    setOpenRouterSkipped(true);
+    void changeOpenRouterKey(declineOpenRouterKey, () => undefined);
+  }
+
   function continueWithProviders() {
     setProviderStepOpen(false);
     setPiProvidersMessage(undefined);
@@ -5535,6 +5616,7 @@ export function App({ model }: AppProps) {
     || runtimeSetupNeedsConnection
     || runtimeSetupNeedsPi
     || runtimeSetupNeedsProvider
+    || runtimeSetupNeedsOpenRouter
     || agentProfileConfigured !== true
     || runtimeOnboardingState !== "ready"
     || flattenJourneyRegistry(loadedJourneyRegistry).length === 0;
@@ -5579,7 +5661,7 @@ export function App({ model }: AppProps) {
       >
         <section
           className="runtime-onboarding-card"
-          aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : runtimeSetupNeedsPi ? "Install Pi" : runtimeSetupNeedsProvider ? "Connect a model provider" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
+          aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : runtimeSetupNeedsPi ? "Install Pi" : runtimeSetupNeedsProvider ? "Connect a model provider" : runtimeSetupNeedsOpenRouter ? "Mirror's context" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
         >
           <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
           {runtimeSetupNeedsConnection ? (
@@ -5616,13 +5698,28 @@ export function App({ model }: AppProps) {
                 providers={piProviders}
                 login={piLogin}
                 message={piProvidersMessage}
-                onSignIn={(provider, loginType) => void signInToProvider(provider, loginType)}
+                onSignIn={(provider, loginType) => void signInToProvider(provider, loginType, "setup")}
                 onAnswer={answerProviderPrompt}
                 onCancel={() => { if (piLogin) void cancelPiLogin(piLogin.session); }}
                 onOpenAgain={(url) => void openSignInPage(url)}
                 onContinue={continueWithProviders}
               />
             )
+          ) : runtimeSetupNeedsOpenRouter ? (
+            <>
+              <p className="eyebrow">Mirror Desktop TS</p>
+              <OpenRouterKeyPanel
+                variant="setup"
+                status={openRouterKey}
+                message={openRouterMessage}
+                busy={openRouterBusy}
+                onSave={(key) => void changeOpenRouterKey(() => saveOpenRouterKey(key), () => undefined)}
+                onTest={() => undefined}
+                onRemove={() => undefined}
+                onDecline={declineOpenRouter}
+                onReload={() => { setOpenRouterMessage(undefined); setOpenRouterState("idle"); }}
+              />
+            </>
           ) : runtimeOnboardingState === "error" || runtimeOnboardingState === "empty" ? (
             <>
               <p className="eyebrow">Mirror Desktop TS</p>
@@ -7461,6 +7558,42 @@ export function App({ model }: AppProps) {
                   onChange={(next) => { void persistModelIntents(next); }}
                 />
                 {agentSettingsMessage ? <p className={agentSettingsState === "error" ? "settings-error" : "provider-note"} role={agentSettingsState === "error" ? "alert" : "status"}>{agentSettingsMessage}</p> : null}
+              </div>
+            ) : null}
+
+            {settingsTab === "connections" ? (
+              <div
+                className="settings-tab-panel"
+                id="settings-panel-connections"
+                role="tabpanel"
+                aria-labelledby="settings-tab-connections"
+              >
+                <ModelProvidersPanel
+                  providers={piProviders}
+                  state={piProvidersState}
+                  login={piLogin?.origin === "settings" ? piLogin : undefined}
+                  message={piProvidersMessage}
+                  busy={piDisconnecting ?? (piLogin ? piLogin.provider : undefined)}
+                  onSignIn={(provider, loginType) => void signInToProvider(provider, loginType, "settings")}
+                  onAnswer={answerProviderPrompt}
+                  onCancel={() => { if (piLogin) void cancelPiLogin(piLogin.session); }}
+                  onOpenAgain={(url) => void openSignInPage(url)}
+                  onDisconnect={(provider) => void disconnectProvider(provider)}
+                  onReload={() => { setPiProvidersMessage(undefined); setPiProvidersState("idle"); }}
+                />
+                <section className="settings-section provider-card" aria-label="Mirror's context · OpenRouter">
+                  <OpenRouterKeyPanel
+                    variant="settings"
+                    status={openRouterKey}
+                    message={openRouterMessage}
+                    busy={openRouterBusy}
+                    onSave={(key) => void changeOpenRouterKey(() => saveOpenRouterKey(key), () => "OpenRouter accepted the key; it is kept in the Keychain.")}
+                    onTest={() => void changeOpenRouterKey(testOpenRouterKey, () => undefined)}
+                    onRemove={() => void changeOpenRouterKey(removeOpenRouterKey, () => "The key was removed from the Keychain.")}
+                    onDecline={() => undefined}
+                    onReload={() => { setOpenRouterMessage(undefined); setOpenRouterState("idle"); }}
+                  />
+                </section>
               </div>
             ) : null}
 

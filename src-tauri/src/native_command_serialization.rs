@@ -44,6 +44,7 @@ mod tests {
         include_str!("model_intents.rs"),
         include_str!("pi_install.rs"),
         include_str!("pi_auth.rs"),
+        include_str!("openrouter_key.rs"),
     ];
 
     /// Commands that stay on the main thread. Each is either a native dialog, hands off to another
@@ -144,7 +145,9 @@ mod tests {
         // CV-010.DS-005 slice 3b added `install_pi`, async, its long work on a blocking thread: 90 → 91.
         // CV-010.DS-005 slice 3c-1 added the four sign-in commands, async, Pi's work off the
         // command thread and the sign-in serialised by its own slot: 91 → 95.
-        assert_eq!(v.len(), 95, "the command census changed; update SOURCES or this count");
+        // CV-010.DS-005 slice 3c-2 added `disconnect_pi_provider` and the five OpenRouter key commands,
+        // async, the Keychain and the key check on their own: 95 → 101.
+        assert_eq!(v.len(), 101, "the command census changed; update SOURCES or this count");
         v
     }
 

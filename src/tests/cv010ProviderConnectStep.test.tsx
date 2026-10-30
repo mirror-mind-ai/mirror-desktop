@@ -9,12 +9,12 @@ import authSource from "../../src-tauri/src/pi_auth.rs?raw";
 // sign-in before the model is chosen, and a connected provider is never asked for again.
 
 const providers: PiProviderStatus[] = [
-  { id: "deepseek", name: "DeepSeek", apiKey: true, oauth: false, ready: null },
-  { id: "anthropic", name: "Anthropic", apiKey: true, oauth: true, oauthName: "Anthropic (Claude Pro/Max)", ready: null },
-  { id: "openai-codex", name: "OpenAI Codex", apiKey: false, oauth: true, ready: { type: "oauth", source: "stored credential" } },
+  { id: "deepseek", name: "DeepSeek", apiKey: true, oauth: false, stored: false, ready: null },
+  { id: "anthropic", name: "Anthropic", apiKey: true, oauth: true, oauthName: "Anthropic (Claude Pro/Max)", stored: false, ready: null },
+  { id: "openai-codex", name: "OpenAI Codex", apiKey: false, oauth: true, stored: true, ready: { type: "oauth", source: "stored credential" } },
 ];
 const handlers = () => ({ onSignIn: vi.fn(), onAnswer: vi.fn(), onCancel: vi.fn(), onOpenAgain: vi.fn(), onContinue: vi.fn() });
-const login = (extra: Partial<PiLoginView> = {}): PiLoginView => ({ session: 3, provider: "anthropic", providerName: "Anthropic", prompts: [], notes: [], ...extra });
+const login = (extra: Partial<PiLoginView> = {}): PiLoginView => ({ session: 3, origin: "setup", provider: "anthropic", providerName: "Anthropic", prompts: [], notes: [], ...extra });
 
 describe("choosing a provider", () => {
   it("lists connected providers first, then by name, each with its state", () => {
@@ -79,7 +79,7 @@ describe("a sign-in's events", () => {
 describe("the setup sequence", () => {
   it("connects a provider after Pi and before Journeys and the model, and offers another one later", () => {
     expect(appSource).toContain("const runtimeSetupNeedsProvider = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === true");
-    expect(appSource).toContain("(providerStepOpen || piLogin !== undefined || piProvidersState !== \"ready\" || !piProviders.some((provider) => provider.ready));");
+    expect(appSource).toContain("(providerStepOpen || piLogin?.origin === \"setup\" || !piProvidersLoadedOnce || !piProviders.some((provider) => provider.ready));");
     expect(appSource).toMatch(/\|\| runtimeSetupNeedsPi\n\s+\|\| runtimeSetupNeedsProvider/);
     const pi = appSource.indexOf("<PiInstallStep");
     const provider = appSource.indexOf("<ProviderConnectStep");

@@ -8,10 +8,10 @@ import { readFileSync } from "node:fs";
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
 describe("Settings tabs", () => {
-  it("renders six owned, accessible tabs with roving focus", () => {
+  it("renders seven owned, accessible tabs with roving focus", () => {
     const html = renderToStaticMarkup(<SettingsTabList selected="appearance" onSelect={() => undefined} />);
     expect(html).toContain('role="tablist"');
-    expect(html.match(/role="tab"/g)).toHaveLength(6);
+    expect(html.match(/role="tab"/g)).toHaveLength(7);
     expect(html).toContain("Voice");
     expect(html).toContain("User Profile");
     expect(html).toContain('aria-controls="settings-panel-appearance"');
@@ -26,6 +26,8 @@ describe("Settings tabs", () => {
     expect(nextSettingsTab("updates", "ArrowRight")).toBe("appearance");
     expect(nextSettingsTab("appearance", "ArrowRight")).toBe("user-profile");
     expect(nextSettingsTab("user-profile", "ArrowRight")).toBe("agent");
+    expect(nextSettingsTab("agent", "ArrowRight")).toBe("connections");
+    expect(nextSettingsTab("connections", "ArrowRight")).toBe("runtime");
     expect(nextSettingsTab("runtime", "Home")).toBe("appearance");
     expect(nextSettingsTab("appearance", "End")).toBe("updates");
     expect(nextSettingsTab("agent", "Enter")).toBe("agent");
@@ -35,6 +37,7 @@ describe("Settings tabs", () => {
     expect(appSource).toContain('settingsTab === "appearance"');
     expect(appSource).toContain('settingsTab === "user-profile"');
     expect(appSource).toContain('settingsTab === "agent"');
+    expect(appSource).toContain('settingsTab === "connections"');
     expect(appSource).toContain('settingsTab === "runtime"');
     expect(appSource).toContain('settingsTab === "voice"');
     expect(appSource).toContain('settingsTab === "updates"');
@@ -42,6 +45,7 @@ describe("Settings tabs", () => {
     expect(appSource).toContain('id="settings-panel-voice"');
     expect(appSource).toContain('id="settings-panel-user-profile"');
     expect(appSource).toContain('id="settings-panel-agent"');
+    expect(appSource).toContain('id="settings-panel-connections"');
     expect(appSource).toContain('id="settings-panel-runtime"');
     expect(appSource).toContain('id="settings-panel-updates"');
   });

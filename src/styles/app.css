@@ -9591,3 +9591,36 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 .pi-install-progress p {
   margin: 0;
 }
+
+/* CV-010.DS-005 slice 3c-2: Settings' connected model providers. */
+.model-provider-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.model-provider-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.model-provider-name {
+  font-weight: 600;
+}
+
+.model-provider-state {
+  flex: 1;
+  opacity: 0.75;
+}
+
+.model-provider-confirm {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

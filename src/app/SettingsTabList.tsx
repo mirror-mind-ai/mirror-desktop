@@ -4,6 +4,8 @@ export const settingsTabs = [
   { id: "appearance", label: "Appearance" },
   { id: "user-profile", label: "User Profile" },
   { id: "agent", label: "Agent" },
+  // CV-010.DS-005 slice 3c-2: model providers and the OpenRouter key for Mirror's context.
+  { id: "connections", label: "Connections" },
   { id: "runtime", label: "Runtime" },
   // CR151: renamed at the Navigator's request after the completion-sound settings moved here. The
   // `id` is deliberately unchanged, so panel ids, `aria-controls` and the keyboard navigation order

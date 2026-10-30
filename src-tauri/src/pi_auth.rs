@@ -44,6 +44,8 @@ pub(crate) struct PiProviderStatus {
     pub oauth: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub oauth_name: Option<String>,
+    /// Pi holds a sign-in for it, which a disconnect removes; readiness from the environment is not stored.
+    pub stored: bool,
     pub ready: Option<PiReadiness>,
 }
 
@@ -79,6 +81,7 @@ pub(crate) fn parse_status(line: &str) -> Result<Vec<PiProviderStatus>, String> 
                 api_key: entry.get("apiKey").and_then(Value::as_bool).unwrap_or(false),
                 oauth: entry.get("oauth").and_then(Value::as_bool).unwrap_or(false),
                 oauth_name: text(entry, "oauthName", 120),
+                stored: entry.get("stored").and_then(Value::as_bool).unwrap_or(false),
                 ready: entry.get("ready").and_then(readiness_from),
             })
         })
@@ -120,14 +123,15 @@ pub(crate) fn helper_command(pi: &AppPi, script: &Path, home: &Path, cwd: &Path,
     command
 }
 
-/// Run `status` within its deadline.
-pub(crate) fn run_status(mut command: Command) -> Result<Vec<PiProviderStatus>, String> {
+/// A one-shot helper command's outcome line, within its deadline: `Err(None)` if it ran out of time
+/// or could not start, `Err(Some(reason))` for a `failed` line.
+fn run_once(mut command: Command) -> Result<String, Option<String>> {
     let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|error| format!("Could not ask Pi about providers: {error}"))?;
+        .map_err(|_| None)?;
     let mut stdout = child.stdout.take().expect("piped");
     let reader = std::thread::spawn(move || {
         let mut text = String::new();
@@ -142,16 +146,47 @@ pub(crate) fn run_status(mut command: Command) -> Result<Vec<PiProviderStatus>, 
             _ => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err("Pi did not report its providers in time. Try again.".to_string());
+                return Err(None);
             }
         }
     }
     let output = reader.join().unwrap_or_default();
-    let line = output.lines().find(|line| line.contains("\"event\"")).unwrap_or("");
-    if serde_json::from_str::<Value>(line).ok().and_then(|value| value.get("event").cloned()) == Some(json!("failed")) {
-        return Err("Pi could not report its providers. Try again; if it fails again, reinstall Pi from the setup screen.".to_string());
+    let line = output.lines().find(|line| line.contains("\"event\"")).unwrap_or("").to_string();
+    let value = serde_json::from_str::<Value>(&line).ok();
+    if value.as_ref().and_then(|value| value.get("event")) == Some(&json!("failed")) {
+        let reason = value.as_ref().and_then(|value| text(value, "reason", 40)).unwrap_or_default();
+        return Err(Some(reason));
     }
-    parse_status(line)
+    Ok(line)
+}
+
+/// Run `status` within its deadline.
+pub(crate) fn run_status(command: Command) -> Result<Vec<PiProviderStatus>, String> {
+    match run_once(command) {
+        Ok(line) => parse_status(&line),
+        Err(None) => Err("Pi did not report its providers in time. Try again.".to_string()),
+        Err(Some(_)) => Err("Pi could not report its providers. Try again; if it fails again, reinstall Pi from the setup screen.".to_string()),
+    }
+}
+
+/// Run `logout` within its deadline; the provider's readiness afterwards.
+pub(crate) fn run_disconnect(command: Command, provider: &str) -> Result<Option<PiReadiness>, String> {
+    let line = run_once(command).map_err(|reason| describe_disconnect_failure(reason.as_deref()))?;
+    let value: Value = serde_json::from_str(line.trim()).map_err(|_| describe_disconnect_failure(Some("")))?;
+    if value.get("event") != Some(&json!("disconnected")) || value.get("provider").and_then(Value::as_str) != Some(provider) {
+        return Err(describe_disconnect_failure(Some("")));
+    }
+    Ok(value.get("ready").and_then(readiness_from))
+}
+
+pub(crate) fn describe_disconnect_failure(reason: Option<&str>) -> String {
+    match reason {
+        None => "Pi did not answer in time. Try again.".to_string(),
+        Some("not_stored") => "Pi holds no sign-in for this provider; it is connected through your environment, outside Mirror Desktop.".to_string(),
+        Some("unknown_provider") => "This version of Pi does not know that provider.".to_string(),
+        Some("pi_unavailable" | "usage") => "Pi is not installed correctly. Reinstall it from the setup screen.".to_string(),
+        Some(_) => "Pi could not disconnect this provider. Try again.".to_string(),
+    }
 }
 
 /// One event of a running sign-in, as the screen receives it.
@@ -346,6 +381,10 @@ pub(crate) fn cancel_login(session: u64) -> Result<(), String> {
     Ok(())
 }
 
+fn login_in_progress() -> bool {
+    LOGIN.lock().map(|guard| guard.is_some()).unwrap_or(true)
+}
+
 fn pi_auth_context(app: &AppHandle) -> Result<(AppPi, PathBuf, PathBuf, PathBuf), String> {
     let app_data_root = app.path().app_data_dir().map_err(|error| format!("Could not resolve app data directory: {error}"))?;
     let runtime_dir = crate::mirror_host_bridge::current_runtime_dir()?;
@@ -388,6 +427,23 @@ pub(crate) async fn start_pi_login(app: AppHandle, provider: String, login_type:
             let _ = crate::open_url(url);
         },
     )
+}
+
+/// Slice 3c-2: remove the sign-in Pi stored for `provider`, never while a sign-in is running.
+#[tauri::command]
+pub(crate) async fn disconnect_pi_provider(app: AppHandle, provider: String) -> Result<Option<PiReadiness>, String> {
+    if !is_provider_id(&provider) {
+        return Err(describe_disconnect_failure(Some("unknown_provider")));
+    }
+    if login_in_progress() {
+        return Err("Finish or cancel the sign-in in progress first.".to_string());
+    }
+    let (pi, script, home, app_data_root) = pi_auth_context(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        run_disconnect(helper_command(&pi, &script, &home, &app_data_root, &["logout", "--provider", &provider]), &provider)
+    })
+    .await
+    .map_err(|error| format!("Disconnecting stopped: {error}"))?
 }
 
 #[tauri::command]
@@ -463,9 +519,16 @@ mod tests {
         }
         reasons.sort();
         reasons.dedup();
-        assert!(reasons.len() >= 6, "{reasons:?}");
-        for reason in reasons {
-            assert_ne!(describe_login_failure(&reason, None), generic, "{reason}");
+        assert!(reasons.len() >= 8, "{reasons:?}");
+        // A disconnect's own refusals; `logout_failed` is Pi's failure, said as the general sentence.
+        let disconnect_only = ["logout_failed", "not_stored"];
+        for reason in reasons.iter().filter(|reason| !disconnect_only.contains(&reason.as_str())) {
+            assert_ne!(describe_login_failure(reason, None), generic, "{reason}");
+        }
+        let general = describe_disconnect_failure(Some("logout_failed"));
+        for reason in ["not_stored", "unknown_provider", "pi_unavailable", "usage"] {
+            assert!(reasons.iter().any(|known| known == reason), "{reason}");
+            assert_ne!(describe_disconnect_failure(Some(reason)), general, "{reason}");
         }
     }
 
@@ -562,8 +625,42 @@ case "$line" in *'"id":"p1"'*'"value":"typed"'*) echo '{"event":"done","provider
         let after = run_status(helper_command(&pi, &script, &home, &app_data, &["status"])).unwrap();
         let ready: Vec<_> = after.iter().filter(|provider| provider.ready.is_some()).map(|provider| provider.id.as_str()).collect();
         assert_eq!(ready, ["deepseek"]);
+        assert!(after.iter().any(|provider| provider.id == "deepseek" && provider.stored));
         assert!(home.join(".pi/agent/auth.json").is_file(), "Pi keeps it, in its own place");
+
+        let logout = helper_command(&pi, &script, &home, &app_data, &["logout", "--provider", "deepseek"]);
+        assert_eq!(run_disconnect(logout, "deepseek"), Ok(None));
+        let gone = run_status(helper_command(&pi, &script, &home, &app_data, &["status"])).unwrap();
+        assert!(gone.iter().all(|provider| provider.ready.is_none() && !provider.stored), "{gone:?}");
+        let again = helper_command(&pi, &script, &home, &app_data, &["logout", "--provider", "deepseek"]);
+        assert_eq!(run_disconnect(again, "deepseek"), Err(describe_disconnect_failure(Some("not_stored"))));
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn a_disconnect_says_the_readiness_left_or_why_it_could_not() {
+        let line = |text: &str| helper_playing("disconnect", &format!("printf '%s\\n' '{text}'\n"));
+        assert_eq!(run_disconnect(line(r#"{"event":"disconnected","provider":"deepseek","ready":null}"#), "deepseek"), Ok(None));
+        assert_eq!(
+            run_disconnect(line(r#"{"event":"disconnected","provider":"anthropic","ready":{"type":"api_key","source":"ANTHROPIC_API_KEY"}}"#), "anthropic"),
+            Ok(Some(PiReadiness { kind: "api_key".into(), source: Some("ANTHROPIC_API_KEY".into()) }))
+        );
+        assert!(run_disconnect(line(r#"{"event":"disconnected","provider":"other","ready":null}"#), "deepseek").is_err(), "another provider's outcome");
+        assert_eq!(
+            run_disconnect(line(r#"{"event":"failed","reason":"not_stored","message":"x"}"#), "deepseek"),
+            Err(describe_disconnect_failure(Some("not_stored")))
+        );
+        assert!(describe_disconnect_failure(Some("not_stored")).contains("environment"));
+        assert_ne!(describe_disconnect_failure(None), describe_disconnect_failure(Some("logout_failed")));
+    }
+
+    #[test]
+    fn status_says_which_sign_ins_pi_holds() {
+        let providers = parse_status(r#"{"event":"status","providers":[
+            {"id":"deepseek","name":"DeepSeek","apiKey":true,"oauth":false,"stored":true,"ready":{"type":"api_key"}},
+            {"id":"anthropic","name":"Anthropic","apiKey":true,"oauth":true,"stored":false,"ready":{"type":"api_key","source":"ANTHROPIC_API_KEY"}}
+        ]}"#).unwrap();
+        assert_eq!(providers.iter().map(|provider| provider.stored).collect::<Vec<_>>(), [true, false]);
     }
 
     #[test]

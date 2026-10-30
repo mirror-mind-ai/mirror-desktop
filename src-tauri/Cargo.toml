@@ -33,6 +33,8 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSImage", "NSRunningApplication"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSString"] }
+# CV-010.DS-005 slice 3c-2: the OpenRouter key in the Keychain; already in the tree through rustls.
+security-framework = { version = "3.7", default-features = false }
 
 [features]
 default = ["custom-protocol"]

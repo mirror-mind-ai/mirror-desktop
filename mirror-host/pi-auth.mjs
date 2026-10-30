@@ -2,6 +2,7 @@
 //
 //   node pi-auth.mjs status --pi <package dir>
 //   node pi-auth.mjs login --pi <package dir> --provider <id> --type oauth|api_key --device-id-file <path>
+//   node pi-auth.mjs logout --pi <package dir> --provider <id>
 //
 // Run by the app with the Node it carries, against the Pi it installed (`--pi` is that package's
 // folder). Pi keeps the credentials, in its own `~/.pi/agent/auth.json`; this script never prints
@@ -9,13 +10,17 @@
 //
 // `status` prints one JSON line: every provider Pi knows, how it can be signed in to, and whether it
 // is ready. Readiness is Pi's own check over a read-only view of its credentials, the one
-// `pi auth check --no-refresh` uses, so nothing is refreshed or written.
+// `pi auth check --no-refresh` uses, so nothing is refreshed or written. `stored` says whether Pi
+// holds a sign-in for it; a provider ready only through the environment is not stored.
 //
 // `login` runs Pi's own login and speaks JSON lines. Out, on stdout: `select`, `prompt` (text,
 // secret or manual_code) and `prompt_closed` with an id, `auth_url`, `device_code`, `info`,
 // `progress`, then `done` with the provider's readiness or `failed` with a reason. In, on stdin:
 // `{"answer":{"id":…,"value":…}}` or `{"cancel":true}`. A secret answer is handed to Pi and never
 // written anywhere by this script. Pi does not open a browser; the app opens `auth_url`.
+//
+// `logout` (slice 3c-2) removes the sign-in Pi stored for a provider, with Pi's own logout, and says
+// `disconnected` with the provider's readiness afterwards: still ready if the environment provides it.
 
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -61,12 +66,34 @@ function readiness(check) {
 
 export async function providerStatus(pi) {
   const runtime = await pi.ModelRuntime.create({ credentials: new pi.ReadOnlyAuthStorage(), modelsPath: null, refreshOnCreate: false });
+  const stored = await storedProviders(runtime);
   const providers = [];
   for (const provider of runtime.getProviders()) {
     const check = await runtime.checkAuth(provider.id, { signal: AbortSignal.timeout(STATUS_CHECK_TIMEOUT_MS) }).catch(() => undefined);
-    providers.push({ ...describeProvider(provider), ready: readiness(check) });
+    providers.push({ ...describeProvider(provider), stored: stored.has(provider.id), ready: readiness(check) });
   }
   return { providers };
+}
+
+/** The providers Pi holds a sign-in for. */
+async function storedProviders(runtime) {
+  const credentials = await runtime.listCredentials().catch(() => []);
+  return new Set(credentials.map((credential) => credential.providerId));
+}
+
+/** Remove the sign-in Pi stored for `providerId`; resolves with its readiness afterwards. */
+export async function disconnect({ pi, providerId }) {
+  const runtime = await pi.ModelRuntime.create({ modelsPath: null, refreshOnCreate: false });
+  const provider = runtime.getProvider(providerId);
+  if (!provider) throw new PiAuthError("unknown_provider", `Pi has no provider ${providerId}`);
+  if (!(await storedProviders(runtime)).has(providerId)) throw new PiAuthError("not_stored", `Pi holds no sign-in for ${provider.name}`);
+  try {
+    await runtime.logout(providerId);
+  } catch (error) {
+    throw new PiAuthError("logout_failed", error instanceof Error ? error.message : String(error));
+  }
+  const check = await runtime.checkAuth(providerId).catch(() => undefined);
+  return readiness(check);
 }
 
 /** The app installation's stable id, made on first use; OpenAI's sign-in asks for one. */
@@ -174,7 +201,7 @@ async function main(argv) {
   const [command] = argv;
   const packageDir = argument(argv, "--pi");
   try {
-    if (!packageDir) throw new PiAuthError("usage", "usage: pi-auth.mjs status|login --pi <package dir>");
+    if (!packageDir) throw new PiAuthError("usage", "usage: pi-auth.mjs status|login|logout --pi <package dir>");
     const pi = await loadPi(packageDir);
     if (command === "status") {
       say({ event: "status", ...(await providerStatus(pi)) });
@@ -187,7 +214,13 @@ async function main(argv) {
       say({ event: "done", provider: providerId, ready });
       return 0;
     }
-    throw new PiAuthError("usage", "usage: pi-auth.mjs status|login --pi <package dir>");
+    if (command === "logout") {
+      const providerId = argument(argv, "--provider");
+      if (!providerId) throw new PiAuthError("usage", "logout needs --provider");
+      say({ event: "disconnected", provider: providerId, ready: await disconnect({ pi, providerId }) });
+      return 0;
+    }
+    throw new PiAuthError("usage", "usage: pi-auth.mjs status|login|logout --pi <package dir>");
   } catch (error) {
     say({ event: "failed", reason: error.reason ?? "failed", message: error.message });
     return 1;

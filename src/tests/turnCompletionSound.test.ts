@@ -316,7 +316,8 @@ describe("CR151: a finished turn announces itself", () => {
       // tab was not.
       expect(tabSource).toContain('{ id: "voice", label: "Sound & Voice" }');
       expect(tabSource).not.toContain('{ id: "voice", label: "Voice" }');
-      expect(tabSource.match(/\{ id: "/g) ?? []).toHaveLength(6);
+      // CV-010.DS-005 slice 3c-2 later added Connections, a tab of its own: six became seven.
+      expect(tabSource.match(/\{ id: "/g) ?? []).toHaveLength(7);
     });
 
     it("offers the three tones as one radiogroup with the chosen one marked", () => {
