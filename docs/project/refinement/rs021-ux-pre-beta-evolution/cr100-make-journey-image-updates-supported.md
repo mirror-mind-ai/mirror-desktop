@@ -9,6 +9,9 @@
 **Containment:** [CR130](cr130-stop-offering-a-journey-edit-that-cannot-succeed.md) — Desktop-side, captured
 **Revisit trigger:** ~~a Mirror core release whose `journey mutate` accepts a metadata update operation~~ **— already satisfied in source, not in any release. See Premise corrected again, 2026-10-07.**
 **Register:** recorded in [RS022 — Mirror Core Debts](../rs022-mirror-core-debts/index.md)
+**0.3 line (2026-10-30):** Core CV24.DS8 `updateJourney` edits name, description and status, and
+CV-010.DS-005 slice 4b wires it into Edit Journey. The 0.2 line is unchanged; this CR's status is
+the Navigator's to decide after the 4b check.
 
 ## Friction
 

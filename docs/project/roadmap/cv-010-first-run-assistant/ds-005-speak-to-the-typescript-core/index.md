@@ -188,7 +188,7 @@ including any Navigator check, is met.
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
-| 4 · Stable | 🟡 Planned | Decisions accepted 2026-10-30. 4a (learn from the app's Conversations; Core CV24.DS7) built and checked by the Navigator; then 4b, 4c, 4d |
+| 4 · Stable | 🟡 Planned | Decisions accepted 2026-10-30. 4a (learn; CV24.DS7) checked by the Navigator; 4b (Journeys in the app; CV24.DS8) built, awaiting the Navigator check; then 4c, 4d |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
@@ -2897,3 +2897,74 @@ funcionado"). Read from ana's database read-only:
   this check and is recorded for the Navigator.
 
 4a is done. Next: 4b, create a Journey in the app.
+
+## Slice 4b Built — Journeys Are Administered in the App (2026-10-30)
+
+The Navigator widened 4b before it started: the Journey edit the Core never had (CR100, contained by
+CR130 on 0.2) joins the Core package, since it extends the Core without changing it ("vai"). The
+phase-4 exclusion "Journey edit, archive and paths" is lifted for edit and paths; archive stays out.
+
+### Core — CV24.DS8 (`mirror-ts`, branch `desktop/library-seam-1a`)
+
+- Spec `cb66618c`, code `8d7fd1a4`, `36ec8cf3` (the retired-surfaces sweep refused the Python verb's
+  name in comments; it passed locally only because the files were not yet committed). Doc:
+  `docs/project/roadmap/cv24-embeddable-core-for-mirror-desktop/cv24-ds8-administer-journeys-as-calls/index.md`.
+- `addJourney`, `setJourneyProjectPath`, `moveJourney`, `deleteJourney` port Python 0.31.14's Journey
+  administration, so the requests Desktop 0.2 sent keep their meaning: slug, name (≤160) and
+  description (20–4,000) bounds, the template content byte for byte, `display_name`, sibling
+  positions renumbered in the set joined and the set left, the migration-017 column, and the
+  empty-leaf delete. A project path must be absolute (no `~`: the calls read no environment).
+- `updateJourney` (new) edits name, the Description section's body and status (`active`, `paused`,
+  `completed`, `planned`, Python's set), keeps `display_name` in step where one is kept, and refuses
+  `journey_changed` when the row's `updated_at` is not the one the app read. This replaces 0.2's
+  whole-tree `sourceVersion`, which refused any change anywhere (CR110).
+- Existing Core code: six names in `lib/desktop.js` and the entry's name-list test. 19 new tests;
+  33 mutations caught (four first escapes were test gaps, one a redundant symlink check, now
+  removed); the suite 3,626 tests with only the known Node 24.6.0 FTS5 failure.
+- Not done: renaming a slug (it keys Conversations, memories, tasks: a migration), icon and color in
+  the Core, the receipt ledger.
+
+### Desktop
+
+- **Pin:** Core `36ec8cf3` (tarball `vendor/mirror-host/mirror-mind-0.37.0-36ec8cf3.tgz`, sha
+  `15b199bb3411…`, packed twice with the same hash), Node v24.22.2 unchanged.
+- **`host.mjs`:** the five calls; `JourneyCallRejectedError` answers with its message, so
+  `journey_not_empty:<classes>` keeps 0.2's code shape.
+- **`mutate_journey_registry`** no longer answers "not carried". It keeps the request envelope and
+  0.2's guards (local Journey history blocks a delete; deleting the active Journey needs a
+  replacement, which must be in the answered tree), maps each operation to its call with exactly its
+  fields (`journey_call`), names every refusal in a sentence (`describe_journey_refusal`), and
+  publishes the answered tree as the registry. `journey_changed` reads as CR110's stale message, so
+  the form reloads the tree in place.
+- **The request** drops `expectedSourceVersion`; it is built only from Mirror's tree, never a
+  fixture. Registry items carry `updatedAt`.
+- **Edit Journey:** name, description and a status select are editable; the slug is read-only, with
+  why. Only changed fields are sent (`identityEditIntent`), the identity before the path; a status
+  written by hand is kept unless another is chosen; a Save that changed nothing writes nothing.
+- **Tests changed, and why.** `journeyEditContainment.test.ts` pinned CR130's containment (no
+  `update_journey`, read-only fields); its rule stands, offer only what Mirror accepts, and Mirror
+  now accepts the edit, so it pins the edit instead and keeps the path guards. In
+  `journeyMutation.test.ts` and `staleCreateIntentRebase.test.ts`, the 0.2 `sourceVersion`
+  expectations and the "not carried" guards became the 0.3 request and the bridge's stale sentence.
+  `cv010MirrorHost.test.mjs` gained the five methods.
+- Gates: cargo 430 passed / 10 ignored; real-host 4 pass, including a new one through the real core
+  (create, edit, a stale edit, path set, refused and cleared, move, a refused and an accepted
+  delete); vitest 290 files / 2,408 tests; 21 Desktop mutations caught.
+
+### Known gaps
+
+- A description with several paragraphs is shown collapsed to one, as the tree reads it; saving an
+  edited one stores what the box holds.
+- An edit that changes both identity and path is two calls; if the second is refused, the first
+  stays saved and the form says why the path was not.
+
+### Navigator check
+
+1. Open the new **Mirror Desktop TS Dev** on ana.
+2. **Create:** Journeys menu › Create Journey…, a name, a description of 20 characters or more, Confirm.
+   It appears last in the sidebar.
+3. **Edit:** on it, Edit Journey…, change the name, the description and the status, Save changes. The
+   sidebar shows the new name.
+4. **Move and delete:** move it under Personal Growth, then delete it (it has no Conversations yet).
+
+I will then read ana's database read-only: the Journey rows, their content and metadata.
