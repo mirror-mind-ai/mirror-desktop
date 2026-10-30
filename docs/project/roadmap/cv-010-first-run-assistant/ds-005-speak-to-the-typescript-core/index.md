@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built and checked by the Navigator; 3c split into 3c-1 (model provider) and 3c-2 (Settings' Connections: providers with Disconnect, and the OpenRouter key), both built and checked by the Navigator. 3d (Mirror's context) built, awaiting the Navigator's check. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built and checked by the Navigator; 3c split into 3c-1 (model provider) and 3c-2 (Settings' Connections: providers with Disconnect, and the OpenRouter key), both built and checked by the Navigator. 3d (Mirror's context) built and checked by the Navigator. Acceptance on the clean `mirror` account to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2527,15 +2527,19 @@ it passed on the next run and is not touched by this slice.
   oversized answer, or a folder that is a link: the turn goes on without context, with a warning
   that begins "This turn went without Mirror's context:".
 
-### Decided while building (for the Navigator to confirm)
+### Decided while building ~~(for the Navigator to confirm)~~ — confirmed by the Navigator, 2026-10-30
 
 1. **Mirror Mode from a Conversation's first turn.** The alternative, the terminal's rule, would
    give a 0.3 turn no context at all.
 2. **No operating instructions (`AGENTS.md`).** They tell the model to run skills and `mirror`
    commands that 0.3 does not have. The persona signature rule rides in the delivered line
    ("answer as the mirror; sign ◇ persona").
-3. **A warning on every turn without a key.** It is what decision 4's "said plainly" asks; if it is
-   noisy after **Not now**, it can be said once per Conversation instead.
+3. ~~**A warning on every turn without a key.**~~ Revised at the Navigator's word: without a key,
+   "Mirror's context is off in this Conversation" is said on the Conversation's first turn of the
+   launch, with where to add one (`16b0215`). A failure is not a choice and is still said every turn.
+
+The Navigator accepted 1 as the default (a "Conversation without Mirror" option can come later if
+missed) and 2 until phase 4 decides which modes return, with instructions written for Desktop.
 
 ### Gates and controls
 
@@ -2557,3 +2561,21 @@ core). The measurement above was rerun with the final extension.
 
 I will then read ana's database: the session marked in Mirror Mode, a full delivery then a delta, and
 the reception call in `llm_calls`.
+
+## Navigator Check of Slice 3d: Passed (2026-10-30)
+
+The Navigator kept the OpenRouter key (Test: worked) and asked, in a new Conversation of
+`personal-growth` on ana, "Me fale um pouco sobre quem sou eu", then a second question. Read from
+ana's database and the Pi session, without reading the key:
+
+- **First turn, full.** A `mirror-context` entry of 14,987 characters opening "full — answer as the
+  mirror; sign ◇ therapist"; one `reception` call (`google/gemini-2.5-flash-lite`); the session in
+  Mirror Mode with persona `therapist` and Journey `personal-growth`. The answer was signed
+  "◇ terapeuta" (the model translated the persona's name; noted, harmless).
+- **Second turn, delta.** A 158-character block, "delta (persona: therapist · journey:
+  personal-growth)"; one `embedding` call; no reception call.
+- The answer said it knew little, which is true: ana's home holds no memories and no attachments.
+- Messages 8 → 12; no context file left behind; no append failure.
+
+Phase 3's remaining step is its acceptance on the clean `mirror` macOS account (acceptance 1–4), and
+acceptance 5 on the Navigator's own.
