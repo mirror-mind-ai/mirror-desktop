@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built and checked by the Navigator; 3c split into 3c-1 (model provider) and 3c-2 (Settings' Connections: providers with Disconnect, and the OpenRouter key), both built and awaiting the Navigator's check. 3d to do. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built and checked by the Navigator; 3c split into 3c-1 (model provider) and 3c-2 (Settings' Connections: providers with Disconnect, and the OpenRouter key), both built and checked by the Navigator. 3d (Mirror's context) built, awaiting the Navigator's check. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2464,8 +2464,96 @@ Navigator's account, and its tests read source and render markup, which cannot r
    (kept); Test; Remove and confirm. Optionally keep it again at the end.
 5. Send a turn.
 
+## Navigator Check of Slice 3c: Passed (2026-10-30)
+
+After the stuck provider check was fixed, the Navigator reported: "Funcionou." Read afterwards,
+without reading any credential:
+
+- Setup went past the provider step; the OpenRouter step was answered with **Not now**
+  (`openrouter-key.v1.json` = `{"declined": true}`); no Keychain item is kept.
+- Pi's sign-ins are the two from before (Anthropic and OpenAI Codex, both stored), which is what
+  connecting a third provider and disconnecting it leaves.
+- Not evidenced: a sign-in or a disconnect as such, the key's Test and Remove, and a turn (ana's
+  database still ends at 11:56:06Z).
+
 ## Slice 3d Built — Mirror's Context Before the Model (2026-10-30)
+
+Code commit `339250f`, on the Navigator's "Vai."
 
 The Core pin moved to `46208a8a` (`desktop/library-seam-1a`, CV24.DS6), vendored as
 `vendor/mirror-host/mirror-mind-0.37.0-46208a8a.tgz` (`npm pack` gave the same hash twice); Node stays
-v24.22.2.
+v24.22.2. Core's CI is green on that commit (run 41067793098). The run before it, on `10481500`,
+failed one lock timing test (`a live holder that never releases …`) in the interpreter-shadow job;
+it passed on the next run and is not touched by this slice.
+
+### Measured first
+
+- **The doorman was a command only** (`mirror doorman`). Its providers read the key from the `env`
+  they are given, else `process.env`, which the bins fill from `~/.config/mirror/env`.
+- **A host has no skill to start Mirror Mode.** The doorman gives an ordinary turn nothing until the
+  `mm-mirror` skill has put the session in Mirror Mode; 0.3 loads no skills, so no turn would ever
+  get context.
+- **The prompt is enveloped.** A mediated turn's prompt is `[Mirror Desktop Journey authority] …
+  User request: <text>`; routing and memory search must read only the text.
+- **Pi 1.4.0's RPC has no command that adds a hidden message**; an extension's `before_agent_start`
+  can return one. With a local OpenAI-compatible server registered by a test extension, the block
+  reached the model as a user message after the person's, and the session kept it as a
+  `custom_message` entry (`display: false`). That entry has no `message.role`, so Desktop's
+  transcript and the turn's projection (what is appended to Mirror) skip it; a test pins this on the
+  measured entries.
+- **Provider bounds.** The command retries twice with backoff (reception 10 s, embedding 15 s), so on a
+  hanging network a turn would wait over a minute. Counted: a full turn makes one reception call
+  (one embedding too with attachments), a delta one embedding.
+
+### Built
+
+- **Core CV24.DS6** (`deliverMirrorContext`, `forgetMirrorContext`, on `mirror-mind/desktop`). The
+  key is an argument and nothing is read from the environment (a test sets one and proves it is not
+  used); a Conversation is in Mirror Mode from its first turn, with the Journey the host names; a
+  delivering turn without a key is refused before anything is written; one attempt per provider
+  call, 10 s each; the write is `mirror doorman`'s, behind the pre-write snapshot in the home's own
+  `backups/`. 12 tests, 15 mutations caught.
+- **Host.** `deliverMirrorContext` and `forgetMirrorContext` methods; the host now awaits the core's
+  calls (one at a time, in order); a refusal never carries the key back (`withoutKey`). The
+  supervisor's deadline for a turn's context is 30 s.
+- **The turn.** Before a mediated turn starts Pi, `mirror_context::prepare_turn` reads the key from
+  the Keychain and asks the host with the typed text. A block is written to
+  `homes/<homeId>/mirror-context/turn-<random>.md` (folder 0700, file 0600, never the key). Pi starts
+  with `--extension <runtime>/mirror-context.mjs` (checked against the runtime's receipt) and
+  `MIRROR_DESKTOP_CONTEXT_FILE`. The extension hands the block over on the person's run, removes the
+  file, and leaves `<file>.compacted` if Pi compacts during the turn. When the turn ends a guard
+  removes both and, after a compaction, tells the host. A manual compaction tells the host too.
+- **Never in place of the turn.** No key, a Keychain or host refusal, the deadline, an unreadable or
+  oversized answer, or a folder that is a link: the turn goes on without context, with a warning
+  that begins "This turn went without Mirror's context:".
+
+### Decided while building (for the Navigator to confirm)
+
+1. **Mirror Mode from a Conversation's first turn.** The alternative, the terminal's rule, would
+   give a 0.3 turn no context at all.
+2. **No operating instructions (`AGENTS.md`).** They tell the model to run skills and `mirror`
+   commands that 0.3 does not have. The persona signature rule rides in the delivered line
+   ("answer as the mirror; sign ◇ persona").
+3. **A warning on every turn without a key.** It is what decision 4's "said plainly" asks; if it is
+   noisy after **Not now**, it can be said once per Conversation instead.
+
+### Gates and controls
+
+vitest 288 files / 2,397 tests; cargo 421 passed / 8 ignored; real-host 2 pass; pin `verify` and
+`check` READY; Core 3,596 tests with only the known Node 24.6.0 FTS5 failure; the dev app builds with
+the extension and the new Core. Desktop mutations: 26, all caught; two escaped at first (an
+equivalent "once" flag, removed; the key reaching the core, now tested through `answer` with a fake
+core). The measurement above was rerun with the final extension.
+
+### Navigator check
+
+1. Open the **Mirror Desktop TS Dev** app on ana. In **Settings › Connections › Mirror's context ·
+   OpenRouter**, paste your key (**Check and keep**).
+2. In a Journey, start a new Conversation and ask something personal. The answer should come from
+   the mirror (your identity, the Journey), signed with a persona when one fits.
+3. Ask a second question in the same Conversation.
+4. Optionally, **Remove** the key and send a turn: it answers, with the warning "This turn went
+   without Mirror's context: no OpenRouter key is kept."
+
+I will then read ana's database: the session marked in Mirror Mode, a full delivery then a delta, and
+the reception call in `llm_calls`.
