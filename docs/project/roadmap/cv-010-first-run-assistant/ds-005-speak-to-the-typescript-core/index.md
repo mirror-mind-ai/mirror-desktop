@@ -2373,10 +2373,10 @@ a cancel needs to kill it.
 
 ### Navigator check
 
-1. `npm run tauri:build:dev -- --bundles app`, open the TS Dev app on ana. Your Pi sign-ins are in
-   `~/.pi/agent`, so it goes straight on; open **Connect another provider** from Settings' model
-   choice, or from the setup step if it shows.
-2. Sign in to a provider you have with a subscription: the browser opens, finish there, and the app
-   says "Connected to …".
-3. Optionally, start an API-key sign-in and Cancel.
-4. Send a turn.
+~~1. … open **Connect another provider** from Settings' model choice …~~ (Corrected the same day:
+that button is on the setup screen only. On the Navigator's account Pi already has sign-ins and a
+model is chosen, so setup never shows the step.)
+
+The step can be reached on the clean `mirror` macOS account, which is also where the phase's
+acceptance runs, or through a Settings entry for model providers, proposed to be built with 3c-2's
+Settings section.
