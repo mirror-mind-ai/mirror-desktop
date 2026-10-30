@@ -169,11 +169,14 @@ pub(crate) fn rebind_response(journey_id: &str, conversation_id: &str, result: &
               "previousJourneyId": result.get("previousJourneyId").cloned().unwrap_or(Value::Null)}))
 }
 
+/// The interface Desktop's Conversations carry; learning (slice 4a) asks for these alone.
+pub(crate) const CONVERSATION_INTERFACE: &str = "nautilus_harness";
+
 /// `provision_mirror_conversation.py`, answered by `ensureConversation`: the Mirror Conversation
 /// bound to a Pi session. The interface stays `nautilus_harness`, as the script wrote it.
 pub(crate) fn ensure_conversation(app: &AppHandle, session_id: &str, journey_id: &str, title: &str) -> Result<String, String> {
     let result = request(app, "ensureConversation", json!({"request": {
-        "sessionId": session_id, "journeyId": journey_id, "title": title, "interface": "nautilus_harness",
+        "sessionId": session_id, "journeyId": journey_id, "title": title, "interface": CONVERSATION_INTERFACE,
     }}))
     .map_err(|error| format!("Mirror conversation provisioning did not complete. {error}"))?;
     if result.get("journeyId").and_then(Value::as_str) != Some(journey_id) {
@@ -260,8 +263,16 @@ pub(crate) fn describe_home_creation(error: MirrorHostError, home_path: &Path) -
 }
 
 fn with_host<T>(app: &AppHandle, call: impl FnOnce(&mut MirrorHost) -> Result<T, MirrorHostError>) -> Result<T, MirrorHostError> {
-    let state = app.state::<MirrorHostState>();
-    let mut guard = state.0.lock().map_err(|_| MirrorHostError::Protocol("the Mirror host lock is poisoned".into()))?;
+    with_supervisor(&app.state::<MirrorHostState>().0, call)
+}
+
+/// Run `call` on the supervisor kept in `slot`, starting one on first use. The turns' host and
+/// the learning host (slice 4a) are two slots, so learning never holds a turn's host.
+pub(crate) fn with_supervisor<T>(
+    slot: &Mutex<Option<MirrorHost>>,
+    call: impl FnOnce(&mut MirrorHost) -> Result<T, MirrorHostError>,
+) -> Result<T, MirrorHostError> {
+    let mut guard = slot.lock().map_err(|_| MirrorHostError::Protocol("the Mirror host lock is poisoned".into()))?;
     if guard.is_none() {
         let directory = current_runtime_dir().map_err(MirrorHostError::SpawnFailed)?;
         let mut config = MirrorHostConfig::for_runtime(directory);

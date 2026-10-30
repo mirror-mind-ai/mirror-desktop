@@ -62,6 +62,8 @@ const CALLS = {
   // Slice 3d: Mirror's context for a turn. The key comes with each call and goes to the core alone.
   deliverMirrorContext: (d, p) => d.deliverMirrorContext(p.dbPath, p.request, { apiKey: p.apiKey }),
   forgetMirrorContext: (d, p) => d.forgetMirrorContext(p.dbPath, p.request),
+  // Phase 4, slice 4a: learn from idle Conversations. Run by a second host, so a turn never waits.
+  learnFromConversations: (d, p) => d.learnFromConversations(p.dbPath, p.request, { apiKey: p.apiKey }),
 };
 export const HOST_METHODS = Object.keys(CALLS);
 
@@ -183,6 +185,7 @@ const REFUSALS = [
   ["CreateHomeRejectedError", (error) => error.reason],
   ["MigrateHomeRejectedError", (error) => error.reason],
   ["MirrorContextRejectedError", (error) => error.reason],
+  ["LearningRejectedError", (error) => error.reason],
 ];
 
 function failure(id, name, reason, message) {
@@ -224,7 +227,9 @@ export async function answer(desktop, line) {
     return { id, ok: true, result: await CALLS[method](desktop, params) };
   } catch (error) {
     for (const [name, reasonOf, ownClass] of REFUSALS) {
-      if (error instanceof (ownClass ?? desktop[name])) return failure(id, name, reasonOf(error), withoutKey(error.message, params));
+      // A core without one of these names answers "internal" for it instead of crashing the host.
+      const refusal = ownClass ?? desktop[name];
+      if (typeof refusal === "function" && error instanceof refusal) return failure(id, name, reasonOf(error), withoutKey(error.message, params));
     }
     return failure(id, "Error", "internal", withoutKey(error instanceof Error ? error.message : error, params));
   }

@@ -48,6 +48,8 @@ pub(crate) struct MirrorHostDeadlines {
     pub create_home: Duration,
     /// Slice 3d: a turn's context. Core bounds its provider calls to about 20 s in all.
     pub context: Duration,
+    /// Phase 4, slice 4a: one learning run, up to ten pieces of two provider calls each.
+    pub learn: Duration,
 }
 
 impl MirrorHostDeadlines {
@@ -58,6 +60,7 @@ impl MirrorHostDeadlines {
             migrate: Duration::from_secs(300),
             create_home: Duration::from_secs(60),
             context: Duration::from_secs(30),
+            learn: Duration::from_secs(600),
         }
     }
 
@@ -67,6 +70,7 @@ impl MirrorHostDeadlines {
             "migrateHome" => self.migrate,
             "createMarkedHome" => self.create_home,
             "deliverMirrorContext" => self.context,
+            "learnFromConversations" => self.learn,
             _ => self.default,
         }
     }
@@ -473,6 +477,7 @@ done"#
                 migrate: Duration::from_millis(1_500),
                 create_home: Duration::from_millis(1_500),
                 context: Duration::from_millis(1_500),
+                learn: Duration::from_millis(1_500),
             },
             max_consecutive_failures: 3,
             backoff: vec![Duration::from_millis(50), Duration::from_millis(100)],
@@ -707,6 +712,7 @@ done"#
         assert_eq!(deadlines.for_method("createMarkedHome"), Duration::from_secs(60));
         assert_eq!(deadlines.for_method("deliverMirrorContext"), Duration::from_secs(30));
         assert_eq!(deadlines.for_method("forgetMirrorContext"), Duration::from_secs(15));
+        assert_eq!(deadlines.for_method("learnFromConversations"), Duration::from_secs(600));
         assert_eq!(deadlines.for_method("readJourneyTree"), Duration::from_secs(15));
     }
 

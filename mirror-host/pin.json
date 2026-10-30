@@ -19,9 +19,9 @@
     "version": "0.37.0",
     "repository": "https://github.com/mirror-mind-ai/mirror",
     "branch": "desktop/library-seam-1a",
-    "commit": "46208a8a68943bc1f9e5a2ffb9182f937960c1b2",
-    "tarball": "vendor/mirror-host/mirror-mind-0.37.0-46208a8a.tgz",
-    "sha256": "bd526eba5ed7f0862dc123bb9ea796f5b3ca9cfb603e89007743ed117a10b76b",
+    "commit": "b2b8d14a43b8362e75985c7d862546d85d5eb5e4",
+    "tarball": "vendor/mirror-host/mirror-mind-0.37.0-b2b8d14a.tgz",
+    "sha256": "518446d2639572925d9baa120ade12af80de890c132cf3f86576702c76b245c1",
     "desktopApiVersion": 1,
     "dependencies": {
       "yaml": {

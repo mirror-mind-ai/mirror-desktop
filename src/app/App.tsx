@@ -127,6 +127,7 @@ import {
   declineOpenRouterKey, loadOpenRouterKeyStatus, removeOpenRouterKey, saveOpenRouterKey, testOpenRouterKey,
   type OpenRouterKeyStatus,
 } from "./openRouterKey";
+import { describeLearning, loadMirrorLearningStatus, type MirrorLearningRun } from "./mirrorLearning";
 import {
   answerPiLogin, applyPiLoginEvent, cancelPiLogin, disconnectPiProvider, inspectPiProviders, listenPiLogin, openSignInPage, startPiLogin, withoutPrompt,
   type PiLoginView, type PiProviderStatus,
@@ -959,6 +960,13 @@ export function App({ model }: AppProps) {
   const [piDisconnecting, setPiDisconnecting] = useState<string>();
   // Slice 3c-2: the OpenRouter key for Mirror's context (decision 4); its status only, never the key.
   const [openRouterKey, setOpenRouterKey] = useState<OpenRouterKeyStatus>();
+  // Slice 4a: the last learning run, read each time Connections is shown. No cleanup: the read
+  // changes no dependency of this effect, so nothing re-runs it (the 3c defect's lesson).
+  const [mirrorLearning, setMirrorLearning] = useState<MirrorLearningRun | null>(null);
+  useEffect(() => {
+    if (settingsTab !== "connections") return;
+    void loadMirrorLearningStatus().then(setMirrorLearning).catch(() => setMirrorLearning(null));
+  }, [settingsTab]);
   const [openRouterState, setOpenRouterState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [openRouterMessage, setOpenRouterMessage] = useState<string>();
   const [openRouterBusy, setOpenRouterBusy] = useState(false);
@@ -7591,6 +7599,7 @@ export function App({ model }: AppProps) {
                     onDecline={() => undefined}
                     onReload={() => { setOpenRouterMessage(undefined); setOpenRouterState("idle"); }}
                   />
+                  <p className="provider-note" aria-label="What Mirror learned">{describeLearning(mirrorLearning)}</p>
                 </section>
               </div>
             ) : null}

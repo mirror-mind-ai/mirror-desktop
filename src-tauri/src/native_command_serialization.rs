@@ -45,6 +45,7 @@ mod tests {
         include_str!("pi_install.rs"),
         include_str!("pi_auth.rs"),
         include_str!("openrouter_key.rs"),
+        include_str!("mirror_learning.rs"),
     ];
 
     /// Commands that stay on the main thread. Each is either a native dialog, hands off to another
@@ -147,7 +148,8 @@ mod tests {
         // command thread and the sign-in serialised by its own slot: 91 → 95.
         // CV-010.DS-005 slice 3c-2 added `disconnect_pi_provider` and the five OpenRouter key commands,
         // async, the Keychain and the key check on their own: 95 → 101.
-        assert_eq!(v.len(), 101, "the command census changed; update SOURCES or this count");
+        // CV-010.DS-005 slice 4a added `mirror_learning_status`, async, an in-memory read: 101 → 102.
+        assert_eq!(v.len(), 102, "the command census changed; update SOURCES or this count");
         v
     }
 

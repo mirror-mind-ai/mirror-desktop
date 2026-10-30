@@ -65,7 +65,7 @@ describe("the Mirror host", () => {
       "inspectMigrationState", "migrateHome", "createMarkedHome", "ensureConversation",
       "appendConversationMessages", "renameConversation", "rebindConversationJourney",
       "readJourneyTree", "listJourneyConversations", "inspectConversation",
-      "deliverMirrorContext", "forgetMirrorContext",
+      "deliverMirrorContext", "forgetMirrorContext", "learnFromConversations",
     ]);
     host.child.stdin.end();
     expect(await host.exited).toBe(0);
@@ -138,6 +138,40 @@ describe("the Mirror host", () => {
     expect(await answer(core, line(3, "deliverMirrorContext", { dbPath: "/tmp/unmarked/memory.db", request, apiKey: "k" })))
       .toMatchObject({ ok: false, error: { name: "HomeNotMarkedError" } });
     expect(calls).toHaveLength(2);
+  });
+
+  it("hands learning its key, and names a refusal without the key", async () => {
+    // Slice 4a: the second host's one method. The key goes to the core alone.
+    const home = join(realpathSync(mkdtempSync(join(tmpdir(), "mirror-host-learn-"))), "ana");
+    mkdirSync(home);
+    mark(home);
+    class LearningRejectedError extends Error {
+      constructor(reason) { super(`${reason} for sk-or-learn`); this.reason = reason; }
+    }
+    const calls = [];
+    const report = { pieces: 1, memories: 2, tasks: 0, failed: 0, skipped: 0, waiting: 0 };
+    let refuse = false;
+    const core = {
+      LearningRejectedError,
+      learnFromConversations: async (...args) => {
+        calls.push(args);
+        if (refuse) throw new LearningRejectedError("no_key");
+        return report;
+      },
+    };
+    const request = { interface: "nautilus_harness", limit: 10 };
+    const params = { dbPath: join(home, "memory.db"), request, apiKey: "sk-or-learn" };
+    expect(await answer(core, JSON.stringify({ id: 1, method: "learnFromConversations", params })))
+      .toEqual({ id: 1, ok: true, result: report });
+    expect(calls[0]).toEqual([join(home, "memory.db"), request, { apiKey: "sk-or-learn" }]);
+    refuse = true;
+    expect(await answer(core, JSON.stringify({ id: 2, method: "learnFromConversations", params })))
+      .toEqual({ id: 2, ok: false, error: { name: "LearningRejectedError", reason: "no_key", message: "no_key for [key]" } });
+ 
+    // A core that lacks a refusal's class still gets an answer, never a crashed host.
+    const bare = { learnFromConversations: async () => { throw new Error("broken with sk-or-learn"); } };
+    expect(await answer(bare, JSON.stringify({ id: 3, method: "learnFromConversations", params })))
+      .toEqual({ id: 3, ok: false, error: { name: "Error", reason: "internal", message: "broken with [key]" } });
   });
 
   it("never sends back the key it was given, whatever a refusal said", () => {

@@ -392,6 +392,11 @@ impl<A: RegistryAuthority, C, P> PiProcessRegistry<A, C, P> {
         })
     }
 
+    /// No run is reserved or running: slice 4a learns only then.
+    pub fn is_idle(&self) -> bool {
+        self.entries.is_empty()
+    }
+
     pub fn production() -> Self {
         Self::new(PRODUCTION_PI_PROCESS_LIMIT).expect("production Pi process limit must be valid")
     }

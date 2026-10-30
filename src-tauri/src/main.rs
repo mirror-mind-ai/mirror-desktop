@@ -9,6 +9,7 @@ mod native_command_serialization;
 mod native_panic_trace;
 mod pi_global_extensions;
 mod mirror_context;
+mod mirror_learning;
 mod openrouter_key;
 mod pi_auth;
 mod pi_install;
@@ -1776,6 +1777,11 @@ fn open_mirror_conversation_in_terminal(
     // CV-010.DS-005 decision 3 of phase 2: terminal recall ran the Python core in a shell.
     let _ = (app, journey_id, conversation_id, message_limit);
     Err(mirror_host_bridge::not_carried("Terminal recall"))
+}
+
+/// No Pi turn is reserved or running; an unreadable registry counts as busy.
+fn pi_turns_idle(app: &AppHandle) -> bool {
+    app.state::<PiProcessState>().registry.lock().map(|registry| registry.is_idle()).unwrap_or(false)
 }
 
 fn provision_mirror_conversation(app: &AppHandle, session_file: &str, journey_id: &str, title: &str) -> Result<String, String> {
@@ -10065,6 +10071,8 @@ fn main() {
             install_panic_trace_hook(native_panic_trace_path(&app_data_root), || {
                 Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
             });
+            // CV-010.DS-005 slice 4a: learn from idle Conversations while no turn runs.
+            mirror_learning::start(app.handle().clone(), pi_turns_idle);
             Ok(())
         })
         .manage(PiProcessState::default())
@@ -10074,6 +10082,7 @@ fn main() {
         .manage(JourneyProjectionPersistenceState::default())
         .manage(MirrorAppendOutboxState::default())
         .manage(mirror_host_bridge::MirrorHostState::default())
+        .manage(mirror_learning::MirrorLearningState::default())
         .manage(WindowGeometryState::default())
         .invoke_handler(tauri::generate_handler![
             save_dedicated_journey_conversation,
@@ -10132,6 +10141,7 @@ fn main() {
             openrouter_key::test_openrouter_key,
             openrouter_key::remove_openrouter_key,
             openrouter_key::decline_openrouter_key,
+            mirror_learning::mirror_learning_status,
             choose_runtime_directory,
             load_journey_projections,
             list_journey_documentation,
