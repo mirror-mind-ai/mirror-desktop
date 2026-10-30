@@ -31,6 +31,20 @@ const WITHOUT: &str = "This turn went without Mirror's context:";
 pub(crate) struct TurnContext {
     pub file: Option<PathBuf>,
     pub note: Option<String>,
+    /// The note is the person's own choice (no key kept), said once per Conversation.
+    pub chosen: bool,
+}
+
+/// Conversations already told that no key is kept, for this launch of the app.
+static TOLD_NO_KEY: std::sync::Mutex<Option<std::collections::HashSet<String>>> = std::sync::Mutex::new(None);
+
+/// Whether a turn's note is shown: a failure always, the person's own choice once per session.
+pub(crate) fn note_to_show(context: &TurnContext, session_id: &str, told: &mut std::collections::HashSet<String>) -> Option<String> {
+    let note = context.note.clone()?;
+    if context.chosen && !told.insert(session_id.to_string()) {
+        return None;
+    }
+    Some(note)
 }
 
 /// The host's answer, as the turn needs it.
@@ -76,7 +90,7 @@ pub(crate) fn prepare_in(
     key: Result<Option<String>, String>,
     ask: impl FnOnce(&str) -> Result<Value, String>,
 ) -> TurnContext {
-    let without = |why: String| TurnContext { file: None, note: Some(format!("{WITHOUT} {why}")) };
+    let without = |why: String| TurnContext { file: None, note: Some(format!("{WITHOUT} {why}")), chosen: false };
     let dir = match dir.and_then(|dir| {
         std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
         set_owner_only_dir(&dir).map(|()| dir)
@@ -90,25 +104,28 @@ pub(crate) fn prepare_in(
         Ok(_) => {
             return TurnContext {
                 file: Some(file),
-                note: Some(format!("{WITHOUT} no OpenRouter key is kept. Add one in Settings › Connections.")),
+                note: Some("Mirror's context is off in this Conversation: no OpenRouter key is kept. Add one in Settings › Connections.".to_string()),
+                chosen: true,
             }
         }
-        Err(error) => return TurnContext { file: Some(file), note: Some(format!("{WITHOUT} {error}")) },
+        Err(error) => return TurnContext { file: Some(file), note: Some(format!("{WITHOUT} {error}")), chosen: false },
     };
     let delivery = ask(&key).and_then(|result| parse_delivery(&result));
     match delivery {
-        Ok(Delivery::Nothing) => TurnContext { file: Some(file), note: None },
-        Ok(Delivery::Block(block)) if block.len() > MAX_BLOCK_BYTES => {
-            TurnContext { file: Some(file), note: Some(format!("{WITHOUT} the block exceeded {MAX_BLOCK_BYTES} bytes.")) }
-        }
+        Ok(Delivery::Nothing) => TurnContext { file: Some(file), note: None, chosen: false },
+        Ok(Delivery::Block(block)) if block.len() > MAX_BLOCK_BYTES => TurnContext {
+            file: Some(file),
+            note: Some(format!("{WITHOUT} the block exceeded {MAX_BLOCK_BYTES} bytes.")),
+            chosen: false,
+        },
         Ok(Delivery::Block(block)) => match write_owner_only(&file, &block) {
-            Ok(()) => TurnContext { file: Some(file), note: None },
+            Ok(()) => TurnContext { file: Some(file), note: None, chosen: false },
             Err(error) => {
                 let _ = std::fs::remove_file(&file);
-                TurnContext { file: Some(file), note: Some(format!("{WITHOUT} it could not be written ({error}).")) }
+                TurnContext { file: Some(file), note: Some(format!("{WITHOUT} it could not be written ({error}).")), chosen: false }
             }
         },
-        Err(error) => TurnContext { file: Some(file), note: Some(format!("{WITHOUT} {error}")) },
+        Err(error) => TurnContext { file: Some(file), note: Some(format!("{WITHOUT} {error}")), chosen: false },
     }
 }
 
@@ -182,7 +199,12 @@ pub(crate) fn prepare_turn(app: &AppHandle, session_id: &str, prompt: &str, jour
         )
     });
     let guard = TurnContextGuard { app: app.clone(), session_id: session_id.to_string(), file: context.file.clone() };
-    (context, guard)
+    // Decision 3 of slice 3d: no key is the person's choice, said once per Conversation.
+    let note = match TOLD_NO_KEY.lock() {
+        Ok(mut told) => note_to_show(&context, session_id, told.get_or_insert_with(Default::default)),
+        Err(_) => context.note.clone(),
+    };
+    (TurnContext { note, ..context }, guard)
 }
 
 /// Tell the host the session's transcript was compacted.
@@ -235,6 +257,22 @@ mod tests {
         }
         let context = prepare_in(Ok(scratch("keychain")), Err("the Keychain said no".into()), |_| panic!("the host was asked"));
         assert_eq!(context.note.as_deref(), Some("This turn went without Mirror's context: the Keychain said no"));
+    }
+
+    #[test]
+    fn no_key_is_said_once_per_conversation_and_a_failure_every_time() {
+        let mut told = std::collections::HashSet::new();
+        let no_key = prepare_in(Ok(scratch("once")), Ok(None), |_| panic!("asked"));
+        assert!(no_key.chosen);
+        assert!(note_to_show(&no_key, "s1", &mut told).unwrap().contains("Settings › Connections"));
+        assert_eq!(note_to_show(&no_key, "s1", &mut told), None);
+        assert!(note_to_show(&no_key, "s2", &mut told).is_some(), "another Conversation is told");
+        let failed = prepare_in(Ok(scratch("every")), Ok(Some("k".into())), |_| Err("refused".into()));
+        assert!(!failed.chosen);
+        assert!(note_to_show(&failed, "s1", &mut told).is_some());
+        assert!(note_to_show(&failed, "s1", &mut told).is_some());
+        let keychain = prepare_in(Ok(scratch("keychain2")), Err("locked".into()), |_| panic!("asked"));
+        assert!(!keychain.chosen, "a Keychain failure is not a choice");
     }
 
     #[test]

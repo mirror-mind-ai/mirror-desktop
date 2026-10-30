@@ -101,6 +101,8 @@ describe("the turn that carries it", () => {
 
   it("checks the extension against the runtime's receipt and keeps the key out of the file", () => {
     expect(contextSource).toContain('receipt.pointer("/mirrorContext/sha256")');
+    // Decision 3: no key is said once per Conversation; failures every time.
+    expect(contextSource).toContain("note_to_show(&context, session_id, told.get_or_insert_with(Default::default))");
     expect(contextSource).toContain('json!({"request": {"sessionId": session_id, "prompt": prompt, "journeyId": journey_id}, "apiKey": key})');
   });
 });
