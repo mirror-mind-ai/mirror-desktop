@@ -2612,3 +2612,26 @@ in ordinary use and is not part of the baseline.
    app while Pi installs and open it again.
 5. In Terminal: `/Users/Shared/mirror-acceptance/phase3_account_check.sh report`, and bring back its
    output.
+
+## Phase 3 Acceptance — First Run on the `mirror` Account (2026-10-30)
+
+The Navigator ran the assistant on the clean `mirror` account and reached an answered turn
+("Funcionou"). One defect showed on the way, and the check script's `report` was not yet run, so
+acceptance 1–4 are not yet evidenced by it.
+
+- **Defect: "Pi model catalog header is invalid"** on Choose your model, cleared by Try again. The app
+  reads the catalog as soon as a home is bound, before any provider is connected; Pi 1.4.0's
+  `--list-models` then prints "No models available. Use /login …" with exit 0 (measured under a
+  scratch HOME), which the parser refused as a header. And a sign-in that ends lets setup move on by
+  itself, without Continue, so nothing read the catalog again. It never showed on the Navigator's
+  account, whose Pi always had providers. Fixed in `08af7fa`: that prose is an empty catalog, and a
+  finished sign-in reads the models again; both tests fail on the old code. The app in
+  `/Users/Shared/mirror-acceptance` was rebuilt from it (14:07).
+- **Acceptance 5 holds** (read 2026-10-30, after the run): production binary `303ede287de3…`,
+  production home at 016, the 0.2 Dev data 141 files with the newest still 2026-10-27T17:45, no
+  `~/.config/mirror`.
+- **A key in the shared folder.** The exchange file `shared_data.txt` the Navigator wrote there begins
+  with what looks like an OpenRouter key and is readable by every account. It was read only masked.
+
+**Left for acceptance:** run `phase3_account_check.sh report` on the `mirror` account (its `start`
+marker is in place) and bring the output back through the shared folder.
