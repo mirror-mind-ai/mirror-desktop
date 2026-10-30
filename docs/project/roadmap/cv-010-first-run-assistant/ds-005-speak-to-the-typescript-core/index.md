@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built and checked by the Navigator; 3c split into 3c-1 (model provider) and 3c-2 (Settings' Connections: providers with Disconnect, and the OpenRouter key), both built and checked by the Navigator. 3d (Mirror's context) built and checked by the Navigator. Acceptance on the clean `mirror` account to do. |
+| 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2664,3 +2664,15 @@ resumable state) is evidenced only for the empty model catalog, which it found a
 a cancelled sign-in, a wrong key and an interrupted install were not reported from that account
 (each is covered by tests and, for the key, by the Navigator's own check of 3c). The phase moves to
 Done on the Navigator's word.
+
+## Phase 3 Done (2026-10-30)
+
+On the Navigator's "vai", phase 3 is ✅ Done. Acceptance 1, 2, 3 and 5 are evidenced; acceptance 4
+is evidenced on the clean account only for the empty model catalog (found there and fixed in
+`08af7fa`). A cancelled sign-in, a wrong OpenRouter key and an interrupted Pi install are covered by
+tests, the key also by the Navigator's check of 3c, and not by a run on the `mirror` account. This gap
+is accepted, not closed.
+
+Not carried by phase 3 and still owed before a first 0.3 release: signing the carried `node` and Pi's
+native modules (CV-009), single-architecture builds (arm64 never run), the `/mirror-desktop/ts/`
+server path, and Core CV24 merged and released (phase 1 stays 🟠 until then).
