@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built and checked by the Navigator; 3c split into 3c-1 (model provider, built, awaiting the Navigator's check) and 3c-2 (OpenRouter key). 3d to do. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built and checked by the Navigator; 3c split into 3c-1 (model provider) and 3c-2 (Settings' Connections: providers with Disconnect, and the OpenRouter key), both built and awaiting the Navigator's check. 3d to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2380,3 +2380,77 @@ model is chosen, so setup never shows the step.)
 The step can be reached on the clean `mirror` macOS account, which is also where the phase's
 acceptance runs, or through a Settings entry for model providers, proposed to be built with 3c-2's
 Settings section.
+
+## Slice 3c-2 Built — Settings' Connections and the OpenRouter Key (2026-10-30)
+
+Commit `e8d4a23`, on the Navigator's "Vai. Desconectar também." The Navigator accepted a Settings home
+for model providers (so 3c-1 can be checked on an account that is past setup) and asked for
+Disconnect.
+
+### Measured first (Pi 1.4.0, scratch HOME)
+
+- `ModelRuntime.logout(id)` deletes only the stored credential (`auth.json` became `{}`); logging
+  out of a provider with nothing stored succeeds silently. A key from the environment
+  (`DEEPSEEK_API_KEY`) still reports ready afterwards and is not in `listCredentials()`.
+- OpenRouter's `GET /api/v1/key` answers 401 to a made-up key (and to no key).
+- `security-framework` 3.7.0 was already in the lockfile through rustls; it is now a direct
+  dependency (one lockfile line).
+
+### Built
+
+- **Disconnect.** The helper's `status` says `stored` per provider (from `listCredentials`), and a
+  new `logout` runs Pi's own logout and says `disconnected` with the readiness left; `not_stored` is
+  refused. `disconnect_pi_provider` runs it within the status deadline and is refused while a
+  sign-in runs.
+- **Settings › Connections** (a seventh tab, after Agent). **Model providers**: the connected ones,
+  "Connected · signed in / API key" or "Connected · from your environment"; Disconnect only for a
+  stored sign-in, after a confirmation that says Pi in a terminal forgets it too and warns when it is
+  the last provider; and "Connect another provider" with the same sign-in panel as setup (now a
+  shared `PiLoginPanel`). The tab asks Pi again each time it opens. A sign-in started here is marked
+  as Settings', so it never brings the setup screen back; once read, the providers stay shown while
+  Pi is asked again. Disconnecting the last provider does bring setup's provider step back, as the
+  warning says.
+- **Mirror's context · OpenRouter** (decision 4). The key is a Keychain generic password, service =
+  the app's bundle identifier (each channel its own), account `openrouter`. A typed key is trimmed,
+  must be one line of at most 512 characters, and is checked with OpenRouter before it is kept: 2xx
+  keeps it, 401/403 is "did not accept", anything else is "could not be reached"; neither keeps
+  anything. Whether a key is kept is answered from the item's attributes, without reading it. No
+  command returns the key; `kept_key` is for slice 3d's host calls. `openrouter-key.v1.json` (app
+  state) holds only the last check and the choice to go on without a key; Remove clears it. Settings
+  offers Test, Replace and Remove (with a confirmation saying turns go on without Mirror's
+  context); setup asks for it after the provider and before the model, with **Not now**, which holds
+  for the launch even if it could not be recorded.
+- Census 95 → 101; `openrouter_context` is classified as app state (19).
+
+### Not yet
+
+- The key is kept, tested and managed, but nothing uses it until slice 3d hands it to the host.
+- The dev app is unsigned. After a rebuild, macOS may ask once whether it may read the Keychain
+  item (on Test); answering Always Allow is expected. Signing is CV-009's.
+
+### Also fixed (`5b960df`)
+
+The launcher's user-build refusal for a missing signing key came after it copied the runtime for
+bundling (about 3 s since slice 2f), so its test timed out at 5 s under load. The key is checked
+first now (about 0.1 s).
+
+### Gates and controls
+
+vitest 286 files / 2,383 tests; cargo 413 passed / 8 ignored; real-host 2 pass; `real_pi_auth` now
+also disconnects and sees the second disconnect refused (27 s); `real_keychain` writes, reads and
+removes a throwaway item and leaves none; pin `verify` and `check` READY; the dev app builds. Mutations:
+24; five escaped at first (the readiness left after a disconnect, the declined flag and the state
+reset kept in the file, the confirmation before Disconnect, Not now outside setup) and each got a
+test, plus one mutation that proved nothing was replaced by a stronger one; all 24 caught.
+
+### Navigator check (3c-1 and 3c-2)
+
+1. `npm run tauri:build:dev -- --bundles app` and open the TS Dev app on ana. If the OpenRouter step
+   shows, keep it for step 4 or choose Not now.
+2. **Settings › Connections › Model providers**: your connected providers are listed. Connect one you
+   do not have yet with "Sign in": the browser opens, finish there; the app says "Connected to …".
+3. Disconnect that provider and confirm: it leaves the list, and `pi` in a terminal no longer has it.
+   Optionally start an API-key sign-in and Cancel.
+4. **Mirror's context · OpenRouter**: paste a wrong key (refused, nothing kept), then your key
+   (kept); Test; Remove and confirm. Optionally keep it again at the end.
+5. Send a turn.
