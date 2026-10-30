@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -67,6 +67,23 @@ describe("the phase 3 account check", () => {
       expect(report.status, rel).toBe(1);
       expect(report.out).toContain("FORBIDDEN: 1");
     }
+  });
+
+  it("reads a home the core closed, whose -wal and -shm are gone, in a folder with a space", () => {
+    const { home, run } = account();
+    run("start");
+    const db = join(home, "Mirror Homes", "carlos-antonio", "memory.db");
+    mkdirSync(join(db, ".."), { recursive: true });
+    // As the core leaves it: WAL mode, closed, no -wal and no -shm (found in the phase 3 acceptance).
+    execFileSync(process.execPath, ["-e",
+      'const { DatabaseSync } = require("node:sqlite"); const db = new DatabaseSync(process.argv[1]);' +
+      'db.exec("PRAGMA journal_mode=WAL; CREATE TABLE runtime_sessions (session_id TEXT, mirror_active INTEGER);' +
+      ' CREATE TABLE llm_calls (role TEXT); CREATE TABLE messages (created_at TEXT); INSERT INTO messages VALUES (\'t\')"); db.close();', db],
+      { stdio: "ignore" });
+    expect(existsSync(`${db}-shm`)).toBe(false);
+    const report = run("report");
+    expect(report.out).not.toContain("unable to open");
+    expect(report.out).toContain("messages: 1, last t");
   });
 
   it("refuses a report without a start", () => {

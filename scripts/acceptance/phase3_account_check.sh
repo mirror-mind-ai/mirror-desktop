@@ -72,7 +72,12 @@ report() {
   for db in "$HOME/Mirror Homes"/*/memory.db; do
     [ -f "$db" ] || continue
     echo "--- $db ---"
-    /usr/bin/sqlite3 -readonly "$db" \
+    # The core closes the database in WAL mode and removes its -wal and -shm; a read-only open then
+    # cannot create the -shm and fails ("unable to open database file"). With no -wal there is
+    # nothing uncommitted, so the file is read as immutable.
+    local source="$db"
+    if [ ! -e "$db-wal" ]; then source="file:$(printf '%s' "$db" | sed 's/%/%25/g; s/ /%20/g; s/?/%3f/g; s/#/%23/g')?immutable=1"; fi
+    /usr/bin/sqlite3 -readonly "$source" \
       "SELECT 'sessions in Mirror Mode: ' || count(*) FROM runtime_sessions WHERE mirror_active = 1 AND session_id NOT LIKE '\_\_%' ESCAPE '\';" \
       "SELECT 'provider calls: ' || ifnull(group_concat(role || ' ' || n, ', '), 'none') FROM (SELECT role, count(*) n FROM llm_calls GROUP BY role);" \
       "SELECT 'messages: ' || count(*) || ', last ' || ifnull(max(created_at), '-') FROM messages;" 2>&1

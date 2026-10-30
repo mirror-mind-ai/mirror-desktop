@@ -2635,3 +2635,15 @@ acceptance 1–4 are not yet evidenced by it.
 
 **Left for acceptance:** run `phase3_account_check.sh report` on the `mirror` account (its `start`
 marker is in place) and bring the output back through the shared folder.
+
+### The `report` on the `mirror` account (2026-10-30, 14:21)
+
+- **FORBIDDEN: 0.** Expected: 47 files (`~/.pi/agent`: `auth.json`, `models-store.json`,
+  `settings.json`; the app's data folder; the home `~/Mirror Homes/carlos-antonio`, 25 files). App
+  chrome: 14. Other: 173, read: macOS's own (caches, Safari and TextEdit containers, accessibility),
+  the shell's history and a TextEdit document the Navigator saved.
+- **The database read failed** ("unable to open database file (14)"), a defect of the script, not of
+  the home: the core closes the database in WAL mode and removes `-wal` and `-shm`, and
+  `sqlite3 -readonly` cannot then create the `-shm`. Reproduced on a database Node closed. The
+  script now reads such a file as immutable (nothing is pending without a `-wal`); its test fails on
+  the old script. The fixed script replaced the shared copy; the database part is to be rerun.
