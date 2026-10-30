@@ -2579,3 +2579,36 @@ ana's database and the Pi session, without reading the key:
 
 Phase 3's remaining step is its acceptance on the clean `mirror` macOS account (acceptance 1–4), and
 acceptance 5 on the Navigator's own.
+
+## Phase 3 Acceptance — Prepared (2026-10-30)
+
+**The build.** The Development-channel app built from `16b0215` (13:03), with the runtime pinned to
+Core `46208a8a` and the context extension `36a380a0…`, copied with `ditto` to
+`/Users/Shared/mirror-acceptance/Mirror Desktop TS Dev.app` (145 MB, readable by every account). It
+is unsigned (CV-009); copied locally it carries no quarantine, so Finder opens it.
+
+**The check script.** `scripts/acceptance/phase3_account_check.sh`, copied beside the app. Run in the
+account under test: `start` before the first launch, `report` after the first answered turn. It
+sorts every file written under `$HOME` since `start` into expected (`~/Mirror Homes`, the app's data
+folder, `~/.pi/agent`), app chrome (macOS's files for this app, the login Keychain), FORBIDDEN
+(`~/.config/mirror`, `~/.mirror-minds`, `~/mirror` or `~/Mirror`) and other, listed for a person to
+read; then reads the new home's database read-only (sessions in Mirror Mode, provider calls,
+messages). It exits 1 on anything FORBIDDEN. Test `cv010Phase3AccountCheck`; 5 mutations caught.
+
+**Baseline of the Navigator's account (acceptance 5), 2026-10-30T16:12Z.** Production binary
+`303ede287de3…`; production home at `016_builder_workbench_display_codes`; the 0.2 Dev data
+(`ai.mirrormind.desktop.dev`) 141 files, newest 2026-10-27T17:45. The production app's data changes
+in ordinary use and is not part of the baseline.
+
+**The run, on the `mirror` account.**
+
+1. In Terminal: `/Users/Shared/mirror-acceptance/phase3_account_check.sh start`.
+2. In Finder, open `/Users/Shared/mirror-acceptance`, right-click the app › Open. From here, no
+   Terminal.
+3. Follow the assistant to a first answered turn: name and create the home, install Pi, connect a
+   provider, keep the OpenRouter key, choose the model, then ask a question in a Journey and a second
+   one in the same Conversation.
+4. Acceptance 4, as far as is practical: cancel one sign-in; paste a wrong OpenRouter key; quit the
+   app while Pi installs and open it again.
+5. In Terminal: `/Users/Shared/mirror-acceptance/phase3_account_check.sh report`, and bring back its
+   output.
