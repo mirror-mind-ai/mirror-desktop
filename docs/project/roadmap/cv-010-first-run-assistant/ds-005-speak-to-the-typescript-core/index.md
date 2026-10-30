@@ -188,7 +188,7 @@ including any Navigator check, is met.
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
-| 4 · Stable | 🟡 Candidate | A full plan |
+| 4 · Stable | 🟡 Planned | Planned 2026-10-30: four slices (4a end and learn, 4b create a Journey, 4c the first 0.3 release, 4d the daily-use period) and five decisions awaiting the Navigator |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
@@ -2676,3 +2676,99 @@ is accepted, not closed.
 Not carried by phase 3 and still owed before a first 0.3 release: signing the carried `node` and Pi's
 native modules (CV-009), single-architecture builds (arm64 never run), the `/mirror-desktop/ts/`
 server path, and Core CV24 merged and released (phase 1 stays 🟠 until then).
+
+## Phase 4 Plan — Stable (2026-10-30)
+
+**Outcome.** The Navigator uses Mirror Desktop TS every day, installed from its own channel, on a
+home of its own; the mirror learns from those Conversations as the terminal's does; and the
+Refinement Suspension ends.
+
+### Measured before planning
+
+- **0.3 never ends a Conversation, so the mirror never learns.** Terminal extraction runs only on an
+  *ended* Conversation with a Journey and at least 4 messages (`extractionDriver.ts`). The terminal
+  ends one at session end, on a switch, or as an orphan idle for 30 minutes at the next session
+  start (`STALE_ORPHAN_THRESHOLD_MINUTES`), and drains at most 10 per start (AI-05). None of the
+  host calls (CV24.DS1–DS6) writes `ended_at`. On ana: 2 Conversations, 0 ended, 0 memories. Daily use
+  today would fill a home with Conversations and never a memory. Whether an append to an ended
+  Conversation reopens it is not yet measured.
+- **Journeys cannot be created in 0.3.** A created home is seeded with the template Journeys (ana has
+  one). Core has `createJourney` (`journeyWrite.ts`) but `mirror-mind/desktop` does not export it.
+- **The Navigator's identity exists only in production.** Production's database holds 28 personas and
+  81 Journeys; the YAML in `~/.mirror-minds/alisson-vale/identity` is stale (12 personas, 3 Journeys,
+  newest May–July). The line's decision puts reading production last, as the migration.
+- **Publication is possible without Apple.** Production's own 0.2 app has no usable signature
+  (`codesign`/`spctl`: rejected) and is updated through the Tauri updater, whose signing key Desktop
+  holds. The 0.3 line's route exists (`release_line.mjs`, `ai.mirrormind.desktop.ts`,
+  `tauri.ts-update.conf.json`), but `https://updates.mirrormind.sh/mirror-desktop/ts/` answers 404.
+  The carried runtime is darwin-x64; on Apple Silicon it would run under Rosetta, never measured.
+- **Core is on a branch.** The pin is a tarball of `desktop/library-seam-1a` (`46208a8a`), not a Core
+  release; phase 1 stays 🟠 until it is merged and released.
+
+### Slices
+
+**4a · A Conversation ends, and the mirror learns from it.**
+
+- **Core, CV24.DS7** on the same branch: the close and the drain as calls with the key as an argument
+  and no environment read — end idle Conversations (the terminal's 30 minutes, skipping one a host
+  names as open), run extraction and the metadata tail, drain at most 10 per call, record a failure
+  and quarantine a poison Conversation as the terminal does. Exported from `mirror-mind/desktop`.
+- **Desktop:** the host runs it at launch and on an interval while the app is idle, never during a
+  turn, with its own deadline; without a key it does nothing and says so once, as 3d does. A turn in
+  an ended Conversation is measured first: reopened, or carried into a new one.
+- Settings shows the last run (ended, extracted, failed), with no memory content.
+
+**4b · Create a Journey in the app.**
+
+- **Core:** `createJourney` exported as a host call (refusals for a taken slug, a bad parent).
+- **Desktop:** "New Journey" (name, description, optional parent) in the sidebar; the tree reloads;
+  the doorman routes to it from its next turn. Edit, archive and paths stay "not available".
+
+**4c · The first 0.3 release, on its own channel.**
+
+- At the Navigator's word, each separately: Core `desktop/library-seam-1a` merged into Core `main` and
+  released (phase 1 → ✅); the pin moved to the released tarball; the server path `/mirror-desktop/ts/`
+  created; `v0.3.0-alpha.1` published through the line's route, x64, unsigned as 0.2 is.
+- The guard is checked on the published manifests: no `alpha` manifest names a 0.3 version.
+- A second release, so the Navigator receives one update through the updater.
+
+**4d · The daily-use period.** The Navigator installs the published app, creates a home of its own
+(decision 2) and uses it daily. Each defect found is fixed and released before the period counts as
+passed.
+
+### Acceptance
+
+1. A Conversation idle past the threshold is ended and extracted: memories appear in the home, a
+   failure is recorded and retried later, and no turn ever waits on it.
+2. A Journey created in the app appears in the sidebar and receives the doorman's routing.
+3. 0.3 is installed from `/mirror-desktop/ts/` and updates itself once; production's `alpha` manifests
+   never offer it.
+4. The daily-use period (decision 4) passes with no lost turn and no stuck state left unfixed.
+5. Production unchanged throughout (binary, migration 016, the 0.2 app's data).
+
+Then phase 4 is ✅ Done, and **the Refinement Suspension ends**: CR work resumes from the queue
+(CR159, CR163 first, then the captured ones).
+
+### Exclusions
+
+- Builder, Explorer and Soul modes; the skills; operating instructions (`AGENTS.md`) — decision 3.
+- Journey edit, archive and paths; the Canvas and altitude read models; terminal recall.
+- Signing and notarization (CV-009); an arm64 or universal build.
+- Any read of the production database (phase 5).
+
+### Decisions for the Navigator
+
+1. **When a Conversation ends.** Recommendation: as on the terminal, idle 30 minutes, checked at
+   launch and while idle, no End button. Alternative: an explicit End as well.
+2. **The identity of the Navigator's daily home.** Recommendation: a new home from the assistant,
+   template identity, built up in use — it keeps the line's decision (production read last) and makes
+   the daily use the product's own first run. Alternatives: seed it from the stale YAML (12 personas);
+   or copy identity only from production's database read-only, which amends the line's decision and
+   is a first piece of phase 5.
+3. **Modes in phase 4.** Recommendation: none return; Desktop stays Mirror Mode only, and modes come
+   back as CRs after the suspension ends.
+4. **The length of the daily-use period.** Recommendation: 7 consecutive days.
+5. **Publishing unsigned, x64 only**, as 0.2 is. Recommendation: yes; CV-009 and arm64 stay owed
+   before a public 0.3.
+
+**Order:** 4a, 4b, 4c, then 4d. Each slice is built and checked by the Navigator before the next.
