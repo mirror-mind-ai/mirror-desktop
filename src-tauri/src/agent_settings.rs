@@ -345,7 +345,15 @@ fn valid_journey_id(value: &str) -> bool {
         && !value.ends_with('-')
 }
 
+/// What Pi 1.4.0's `--list-models` prints, exit 0, when no provider is connected.
+const PI_NO_MODELS: &str = "No models available.";
+
 fn parse_pi_model_catalog(payload: &str) -> Result<Vec<PiModelCatalogEntry>, String> {
+    // CV-010.DS-005 phase 3 acceptance: on a clean account the catalog is read before a provider
+    // is connected, and Pi says so in prose. That is an empty catalog, not a broken one.
+    if payload.trim_start().starts_with(PI_NO_MODELS) {
+        return Ok(Vec::new());
+    }
     let mut lines = payload.lines();
     let header = lines
         .next()
@@ -583,6 +591,10 @@ mod tests {
             }]
         );
         assert!(parse_pi_model_catalog("bad header\n").is_err());
+        // Pi 1.4.0, measured with no provider connected (exit 0).
+        let none = "No models available. Use /login to log into a provider via OAuth or API key. See:\n  /x/docs/providers.md\n";
+        assert_eq!(parse_pi_model_catalog(none).unwrap(), Vec::new());
+        assert!(parse_pi_model_catalog("Models are not available today\n").is_err());
     }
 
     #[test]

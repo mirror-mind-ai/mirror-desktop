@@ -1852,6 +1852,9 @@ export function App({ model }: AppProps) {
           : event.message);
         setPiLogin(undefined);
         setPiProvidersState("idle");
+        // A sign-in that ends lets setup move on by itself, without Continue: the models it made
+        // available are read again here (found in the phase 3 acceptance).
+        setPiModelCatalogState("idle");
         return;
       }
       setPiLogin((current) => (current ? applyPiLoginEvent(current, event) : current));

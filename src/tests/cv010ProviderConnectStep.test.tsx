@@ -96,6 +96,8 @@ describe("the setup sequence", () => {
     expect(outcome).toContain("if (current?.session !== event.session) return;");
     expect(outcome).toContain('setPiProvidersState("idle");');
     expect(outcome).toContain("setPiLogin(undefined);");
+    // Phase 3 acceptance: setup moves on by itself after a sign-in, so the models are read again here.
+    expect(outcome).toContain('setPiModelCatalogState("idle");');
     expect(authSource).toContain('PI_LOGIN_EVENT: &str = "pi-login-event";');
   });
 });
