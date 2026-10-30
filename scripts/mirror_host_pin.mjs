@@ -38,6 +38,7 @@ export const PLATFORMS = ["darwin-arm64", "darwin-x64"];
 export const PIN_PATH = "mirror-host/pin.json";
 export const HOST_SCRIPT_PATH = "mirror-host/host.mjs";
 export const PI_INSTALLER_PATH = "mirror-host/pi-install.mjs";
+export const PI_AUTH_PATH = "mirror-host/pi-auth.mjs";
 export const PI_REGISTRY = "https://registry.npmjs.org/";
 
 export function readPin(root) {
@@ -152,6 +153,7 @@ export function layoutHost({ root, pin, outDir, node = null }) {
   extractPackage(join(root, pin.core.dependencies.yaml.tarball), join(outDir, "node_modules", "yaml"));
   copyFileSync(join(root, HOST_SCRIPT_PATH), join(outDir, "host.mjs"));
   copyFileSync(join(root, PI_INSTALLER_PATH), join(outDir, "pi-install.mjs"));
+  copyFileSync(join(root, PI_AUTH_PATH), join(outDir, "pi-auth.mjs"));
   mkdirSync(join(outDir, "pi"));
   copyFileSync(join(root, pin.pi.lockfile), join(outDir, "pi", "package-lock.json"));
   writeFileSync(join(outDir, "pin-receipt.json"), `${JSON.stringify({
@@ -162,6 +164,7 @@ export function layoutHost({ root, pin, outDir, node = null }) {
     host: { sha256: sha256File(join(root, HOST_SCRIPT_PATH)) },
     pi: { package: pin.pi.package, version: pin.pi.version, lockfileSha256: pin.pi.lockfileSha256 },
     piInstaller: { sha256: sha256File(join(root, PI_INSTALLER_PATH)) },
+    piAuth: { sha256: sha256File(join(root, PI_AUTH_PATH)) },
   }, null, 2)}\n`);
 }
 
@@ -245,6 +248,11 @@ export function checkRuntime({ root, pin, platform, dir }) {
   if (receipt.piInstaller?.sha256 !== sha256File(join(root, PI_INSTALLER_PATH))) {
     problems.push(`the runtime's Pi installer is not the current ${PI_INSTALLER_PATH}; rematerialize with --replace`);
   }
+  if (receipt.piAuth?.sha256 !== sha256File(join(root, PI_AUTH_PATH))) {
+    problems.push(`the runtime's Pi sign-in helper is not the current ${PI_AUTH_PATH}; rematerialize with --replace`);
+  }
+  const auth = join(dir, "pi-auth.mjs");
+  if (!existsSync(auth) || sha256File(auth) !== receipt.piAuth?.sha256) problems.push("the runtime's pi-auth.mjs is not the one its receipt records");
   const lockCopy = join(dir, "pi", "package-lock.json");
   if (!existsSync(lockCopy) || sha256File(lockCopy) !== receipt.pi?.lockfileSha256) problems.push("the runtime's Pi lockfile is not the one its receipt records");
   const installer = join(dir, "pi-install.mjs");
@@ -260,7 +268,7 @@ export function checkRuntime({ root, pin, platform, dir }) {
 }
 
 /** What the app carries from a runtime: npm, corepack and Node's headers stay behind. */
-export const BUNDLE_ENTRIES = ["host.mjs", "pin-receipt.json", "node/bin/node", "node/LICENSE", "node_modules", "pi-install.mjs", "pi"];
+export const BUNDLE_ENTRIES = ["host.mjs", "pin-receipt.json", "node/bin/node", "node/LICENSE", "node_modules", "pi-install.mjs", "pi-auth.mjs", "pi"];
 
 /**
  * Copy `BUNDLE_ENTRIES` of the runtime at `runtimeDir` into `outDir`, replacing it, all or

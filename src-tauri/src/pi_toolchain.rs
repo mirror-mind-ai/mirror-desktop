@@ -30,6 +30,8 @@ pub(crate) struct PinnedPi {
 pub(crate) struct AppPi {
     pub pi_bin: PathBuf,
     pub node_bin: PathBuf,
+    /// The package folder; slice 3c-1's sign-in helper loads Pi's SDK from it.
+    pub package_dir: PathBuf,
 }
 
 fn is_lowercase_hex(value: &str, length: usize) -> bool {
@@ -99,7 +101,8 @@ pub(crate) fn resolve_app_pi(app_data_root: &Path, runtime_dir: &Path) -> Result
         return Err(PI_NOT_INSTALLED.to_string());
     }
     let node_bin = node_bin.canonicalize().map_err(|_| crate::mirror_host_bridge::RUNTIME_MISSING.to_string())?;
-    Ok(AppPi { pi_bin, node_bin })
+    let package_dir = package_dir.canonicalize().map_err(|_| PI_NOT_INSTALLED.to_string())?;
+    Ok(AppPi { pi_bin, node_bin, package_dir })
 }
 
 #[cfg(test)]
@@ -150,6 +153,7 @@ pub(crate) mod tests {
         let pi = resolve_app_pi(&app_data, &runtime).unwrap();
         assert_eq!(pi.pi_bin, app_data.join("pi/pi-1.4.0-d36b5fc72875/node_modules").join(PACKAGE).join("dist/bundle/cli.js"));
         assert_eq!(pi.node_bin, runtime.join("node/bin/node"));
+        assert_eq!(pi.package_dir, app_data.join("pi/pi-1.4.0-d36b5fc72875/node_modules").join(PACKAGE));
         assert_eq!(
             pinned_pi(&runtime).unwrap(),
             PinnedPi { package: PACKAGE.into(), version: "1.4.0".into(), lockfile_sha256: LOCK.into() }

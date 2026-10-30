@@ -43,6 +43,7 @@ mod tests {
         include_str!("agent_settings.rs"),
         include_str!("model_intents.rs"),
         include_str!("pi_install.rs"),
+        include_str!("pi_auth.rs"),
     ];
 
     /// Commands that stay on the main thread. Each is either a native dialog, hands off to another
@@ -141,7 +142,9 @@ mod tests {
         // save commands: 93 → 89.
         // CV-010.DS-005 slice 3a added `create_mirror_home`, serialised and off the main thread: 89 → 90.
         // CV-010.DS-005 slice 3b added `install_pi`, async, its long work on a blocking thread: 90 → 91.
-        assert_eq!(v.len(), 91, "the command census changed; update SOURCES or this count");
+        // CV-010.DS-005 slice 3c-1 added the four sign-in commands, async, Pi's work off the
+        // command thread and the sign-in serialised by its own slot: 91 → 95.
+        assert_eq!(v.len(), 95, "the command census changed; update SOURCES or this count");
         v
     }
 

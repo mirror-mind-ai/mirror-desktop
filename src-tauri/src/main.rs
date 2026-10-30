@@ -8,6 +8,7 @@ mod model_intents;
 mod native_command_serialization;
 mod native_panic_trace;
 mod pi_global_extensions;
+mod pi_auth;
 mod pi_install;
 mod pi_process_registry;
 mod pi_rpc;
@@ -9766,7 +9767,7 @@ fn sanitize_session_id(session_id: &str) -> Result<String, String> {
     }
 }
 
-fn open_url(url: &str) -> Result<(), String> {
+pub(crate) fn open_url(url: &str) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let mut command = {
         let mut command = Command::new("open");
@@ -10080,6 +10081,10 @@ fn main() {
             bind_mirror_home,
             create_mirror_home,
             pi_install::install_pi,
+            pi_auth::inspect_pi_providers,
+            pi_auth::start_pi_login,
+            pi_auth::answer_pi_login,
+            pi_auth::cancel_pi_login,
             choose_runtime_directory,
             load_journey_projections,
             list_journey_documentation,

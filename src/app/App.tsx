@@ -120,6 +120,11 @@ import { ConversationRecoveryNotice } from "./ConversationRecoveryNotice";
 import { InterruptedNativeAttemptNotice } from "./InterruptedNativeAttemptNotice";
 import { MirrorHomeSetup } from "./MirrorHomeSetup";
 import { PiInstallStep, type PiInstallView } from "./PiInstallStep";
+import { ProviderConnectStep } from "./ProviderConnectStep";
+import {
+  answerPiLogin, applyPiLoginEvent, cancelPiLogin, inspectPiProviders, listenPiLogin, openSignInPage, startPiLogin, withoutPrompt,
+  type PiLoginView, type PiProviderStatus,
+} from "./piProviders";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { VoiceComposerControl, VoiceInstallDialog, VoiceSessionStatus, VoiceSettingsPanel } from "./VoiceComposerControl";
 import { installVoiceComponent, loadVoiceComponentCatalog, loadVoiceComponentStatus, removeVoiceComponent, transcribeVoiceWav } from "./voiceTranscriptionStorage";
@@ -939,6 +944,15 @@ export function App({ model }: AppProps) {
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
   const [runtimeBindingState, setRuntimeBindingState] = useState<"idle" | "validating" | "saving">("idle");
   const [piInstallView, setPiInstallView] = useState<PiInstallView>({ kind: "idle" });
+  // CV-010.DS-005 slice 3c-1: the model providers the app's Pi reports, and a sign-in in progress.
+  const [piProviders, setPiProviders] = useState<PiProviderStatus[]>([]);
+  const [piProvidersState, setPiProvidersState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [piProvidersMessage, setPiProvidersMessage] = useState<string>();
+  const [piLogin, setPiLogin] = useState<PiLoginView>();
+  const [providerStepOpen, setProviderStepOpen] = useState(false);
+  // The listener is registered once; it reads the sign-in in progress through this.
+  const piLoginRef = useRef<PiLoginView | undefined>(undefined);
+  piLoginRef.current = piLogin;
   const [runtimeOnboardingState, setRuntimeOnboardingState] = useState<"idle" | "importing" | "empty" | "error" | "ready">("idle");
   const [runtimeOnboardingEditing, setRuntimeOnboardingEditing] = useState(false);
   // CV-010.DS-001: an unbound channel opens on discovery; the manual form stays one click away.
@@ -1775,6 +1789,50 @@ export function App({ model }: AppProps) {
         if (!cancelled) setRuntimeChannelError(error instanceof Error ? error.message : String(error));
       });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (runtimeChannel?.status !== "validated" || runtimeChannel.piInstalled !== true || piProvidersState !== "idle") return;
+    let cancelled = false;
+    setPiProvidersState("loading");
+    void inspectPiProviders()
+      .then((providers) => {
+        if (cancelled) return;
+        setPiProviders(providers);
+        setPiProvidersState("ready");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setPiProvidersMessage(error instanceof Error ? error.message : String(error));
+        setPiProvidersState("error");
+      });
+    return () => { cancelled = true; };
+  }, [runtimeChannel, piProvidersState]);
+
+  // A sign-in's events: prompts and pages update the view; its outcome reads the providers again.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void listenPiLogin((event) => {
+      if (event.kind === "done" || event.kind === "failed") {
+        const current = piLoginRef.current;
+        if (current?.session !== event.session) return;
+        setPiProvidersMessage(event.kind === "done"
+          ? (event.ready ? `Connected to ${current.providerName}.` : `${current.providerName} did not report a sign-in. Try again.`)
+          : event.message);
+        setPiLogin(undefined);
+        setPiProvidersState("idle");
+        return;
+      }
+      setPiLogin((current) => (current ? applyPiLoginEvent(current, event) : current));
+    }).then((stop) => {
+      if (disposed) stop();
+      else unlisten = stop;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -5446,9 +5504,37 @@ export function App({ model }: AppProps) {
   const runtimeSetupNeedsConnection = Boolean(runtimeChannel)
     && (runtimeChannel?.status !== "validated" || runtimeOnboardingEditing);
   const runtimeSetupNeedsPi = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === false;
+  // Slice 3c-1: with Pi installed, a provider must be connected before the model is chosen.
+  const runtimeSetupNeedsProvider = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === true
+    && (providerStepOpen || piLogin !== undefined || piProvidersState !== "ready" || !piProviders.some((provider) => provider.ready));
+
+  async function signInToProvider(provider: PiProviderStatus, loginType: "oauth" | "api_key") {
+    setPiProvidersMessage(undefined);
+    try {
+      const session = await startPiLogin(provider.id, loginType);
+      setPiLogin((current) => current ?? { session, provider: provider.id, providerName: provider.name, prompts: [], notes: [] });
+    } catch (error) {
+      setPiProvidersMessage(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  function answerProviderPrompt(promptId: string, value: string) {
+    if (!piLogin) return;
+    const session = piLogin.session;
+    setPiLogin((current) => (current ? withoutPrompt(current, promptId) : current));
+    void answerPiLogin(session, promptId, value).catch((error) => setPiProvidersMessage(error instanceof Error ? error.message : String(error)));
+  }
+
+  function continueWithProviders() {
+    setProviderStepOpen(false);
+    setPiProvidersMessage(undefined);
+    // Models a new sign-in made available are read again.
+    setPiModelCatalogState("idle");
+  }
   const runtimeSetupVisible = !runtimeChannel
     || runtimeSetupNeedsConnection
     || runtimeSetupNeedsPi
+    || runtimeSetupNeedsProvider
     || agentProfileConfigured !== true
     || runtimeOnboardingState !== "ready"
     || flattenJourneyRegistry(loadedJourneyRegistry).length === 0;
@@ -5493,7 +5579,7 @@ export function App({ model }: AppProps) {
       >
         <section
           className="runtime-onboarding-card"
-          aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : runtimeSetupNeedsPi ? "Install Pi" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
+          aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : runtimeSetupNeedsPi ? "Install Pi" : runtimeSetupNeedsProvider ? "Connect a model provider" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
         >
           <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
           {runtimeSetupNeedsConnection ? (
@@ -5512,6 +5598,31 @@ export function App({ model }: AppProps) {
             </>
           ) : runtimeSetupNeedsPi ? (
             <PiInstallStep view={piInstallView} onInstall={() => void installAppPi()} />
+          ) : runtimeSetupNeedsProvider ? (
+            piProvidersState === "error" ? (
+              <>
+                <p className="eyebrow">Mirror Desktop TS</p>
+                <h1>Connect a model provider</h1>
+                <p className="provider-error" role="alert">{piProvidersMessage}</p>
+                <div className="provider-actions"><button type="button" onClick={() => { setPiProvidersMessage(undefined); setPiProvidersState("idle"); }}>Try again</button></div>
+              </>
+            ) : piProvidersState !== "ready" && !piLogin ? (
+              <>
+                <p className="eyebrow">Mirror Desktop TS</p>
+                <h1>Checking your model providers…</h1>
+              </>
+            ) : (
+              <ProviderConnectStep
+                providers={piProviders}
+                login={piLogin}
+                message={piProvidersMessage}
+                onSignIn={(provider, loginType) => void signInToProvider(provider, loginType)}
+                onAnswer={answerProviderPrompt}
+                onCancel={() => { if (piLogin) void cancelPiLogin(piLogin.session); }}
+                onOpenAgain={(url) => void openSignInPage(url)}
+                onContinue={continueWithProviders}
+              />
+            )
           ) : runtimeOnboardingState === "error" || runtimeOnboardingState === "empty" ? (
             <>
               <p className="eyebrow">Mirror Desktop TS</p>
@@ -5526,7 +5637,7 @@ export function App({ model }: AppProps) {
             <>
               <p className="eyebrow">Mirror connected</p>
               <h1>Choose your model</h1>
-              <p>Select a model from the catalog exposed by your validated Pi installation. Mirror Desktop does not manage provider credentials.</p>
+              <p>Select a model from the providers Pi has connected. Pi keeps the sign-ins; Mirror Desktop keeps none.</p>
               {agentSettingsState === "checking" || piModelCatalogState === "idle" || piModelCatalogState === "loading" ? (
                 <p>Loading available models…</p>
               ) : piModelCatalogState === "error" ? (
@@ -5555,6 +5666,7 @@ export function App({ model }: AppProps) {
                       {agentSettingsState === "saving" ? "Saving…" : "Save model and continue"}
                     </button>
                     <button className="secondary-button" type="button" onClick={() => setRuntimeOnboardingEditing(true)} disabled={agentSettingsState === "saving"}>Edit connection</button>
+                    <button className="secondary-button" type="button" onClick={() => setProviderStepOpen(true)} disabled={agentSettingsState === "saving"}>Connect another provider</button>
                   </div>
                 </div>
               )}

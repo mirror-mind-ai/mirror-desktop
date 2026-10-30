@@ -189,7 +189,7 @@ describe("the 0.3 runtime pin", () => {
     mkdirSync(bundle, { recursive: true });
     writeFileSync(join(bundle, "stale.txt"), "from an older stage");
     stageBundle({ root, pin: realPin, platform, runtimeDir: outDir, outDir: bundle });
-    expect(readdirSync(bundle).sort()).toEqual(["host.mjs", "node", "node_modules", "pi", "pi-install.mjs", "pin-receipt.json"]);
+    expect(readdirSync(bundle).sort()).toEqual(["host.mjs", "node", "node_modules", "pi", "pi-auth.mjs", "pi-install.mjs", "pin-receipt.json"]);
     expect(readdirSync(join(bundle, "pi"))).toEqual(["package-lock.json"]);
     expect(readdirSync(join(bundle, "node")).sort()).toEqual(["LICENSE", "bin"]);
     expect(readdirSync(join(bundle, "node", "bin"))).toEqual(["node"]);
