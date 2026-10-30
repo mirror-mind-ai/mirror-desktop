@@ -48,3 +48,11 @@ development-channel = []
 # Production can never receive it: `devtools` is not in `default`, and `build-user` passes no
 # `--features` at all. Both halves of that are asserted by tests rather than left to care.
 evaluation-channel = ["tauri/devtools"]
+
+# No debug info in debug builds. On macOS a debug build keeps its debug info in the object files
+# it links, and with incremental compilation every edit writes new ones beside the old, which Cargo
+# never removes: one test binary left 34,560 of them in `target/debug/deps` in three days, and the
+# directory reached 20 GB on a full disk. Panics and failed assertions still name file and line;
+# only a debugger session loses source mapping. Release builds are unaffected.
+[profile.dev]
+debug = false
