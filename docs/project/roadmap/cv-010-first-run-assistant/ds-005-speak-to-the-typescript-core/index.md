@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator. 3b–3d to do. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built, awaiting the Navigator's check. 3c–3d to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2206,3 +2206,67 @@ The Navigator reported "Deu certo". Read afterwards, read-only:
 
 Defects 1 and 2 of the 3a check are closed. Phase 3 stays 🟡 until 3b–3d and the acceptance on the
 clean `mirror` account.
+
+## Slice 3b Built — Install the App's Own Pi (2026-10-29)
+
+Commit `6ea6bca`, on the Navigator's "vai".
+
+- **Measured first.** `npm install --package-lock-only --ignore-scripts` for
+  `@earendil-works/pi-coding-agent` 1.4.0: 121 packages, all from `registry.npmjs.org` with sha512
+  integrity, none platform-specific or optional. Two declare an install script, and both were read:
+  `@google/genai`'s `preinstall` echoes "no-op" (its `prepare` runs only in its own repository) and
+  `protobufjs`'s `postinstall` prints a version-scheme warning. Pi needs neither, so **no package
+  script ever runs**. `pi --version` prints `1.4.0` and writes nothing to its HOME.
+- **Pin.** `pin.json` gains `pi` (package, version, `mirror-host/pi/package-lock.json`, its SHA-256,
+  the package count, `scriptsNotRun`). `mirror_host_pin.mjs verify` checks the lockfile's hash, that
+  it asks for and holds the pinned version with its `pi` command, the pinned Node meets Pi's engine
+  (`>=22.19.0`), every entry is a registry sha512 package, and the packages with install scripts are
+  exactly the ones read: a new pin that adds one fails until it is read. The runtime carries the
+  lockfile and `pi-install.mjs`; the receipt records both hashes, and `check` and `stage` compare
+  them. `BUNDLE_ENTRIES` gains both.
+- **Installer** (`mirror-host/pi-install.mjs`, run with the carried Node, no npm). Downloads the
+  lockfile's tarballs from the registry only, six at a time, three attempts each, 60 s per attempt;
+  each is checked against its integrity before it is cached and again before it is unpacked. A
+  tarball must be one folder with no absolute or `..` path and no symbolic link, and is unpacked
+  at its lockfile path inside `.installing-<random>`. Then `pi`'s command is made executable,
+  `--version` must print the pinned version under a throwaway HOME inside that folder, a receipt is
+  written, and the folder is renamed to `<app data>/pi/pi-<version>-<lockfile hash 12>/`. Earlier
+  pins' folders and the cache are removed only after that. A stopped install leaves verified
+  downloads in `cache/` and resumes from them; `install.lock` keeps one install at a time and is
+  taken over from a dead process. `install.log` holds counts, paths and refusal reasons.
+- **App.** `pi_toolchain::resolve_app_pi` accepts only that folder, when its install receipt names
+  the runtime's package, version and lockfile hash, with `pi` a plain executable file inside it; Pi
+  runs with the carried Node, whose folder leads `PATH`. Nothing on the machine's tool paths is
+  used for Pi any more; those paths remain only the `PATH` Pi's own commands run with.
+  `pi_turn_command` maps the provider command `pi` to that Pi, so turns and compaction use it too
+  (found while checking: `Command::new("pi")` with the new `PATH` would have reached
+  `/usr/local/bin/pi`). `install_pi` (async, census 90 → 91, classified as app state) checks the
+  installer's and lockfile's hashes against the receipt, runs the installer, turns its progress
+  lines into `pi-install-progress` events, and maps each refusal to a sentence.
+- **Setup.** A bound home whose app has no Pi is still `validated`, with `piInstalled: false`; binding
+  and creating a home report it the same way. The setup screen then shows **Install Pi** (about
+  24 MB, an existing Pi left alone, Pi's sign-ins used as they are), a progress bar per phase
+  (download, unpack, check), and on failure the sentence and **Try again**. On success the window
+  reloads, as after binding.
+- **Changed from the plan:** no development fallback to a Pi on the machine; decision 2 says the app's
+  Pi always, and the development channel installs it the same way, from the repository's runtime.
+
+**Measured on this Mac** (Intel, network at home): 24.4 MB downloaded, 149 MB installed, about 20 s;
+the installed Pi prints its help and `--list-models` with the carried Node. A second run downloads
+nothing. The Rust real test (`real_pi_install`, ignored) installs the same way in a scratch folder.
+
+**Gates.** vitest 283 files / 2,353 tests; cargo 399 passed / 6 ignored; real-host 2 and real Pi
+install 1 pass; `verify` and `check` READY; roadmap READY. **Mutations:** 24, all caught after six
+escapes got tests: the download-time and unpack-time integrity checks each hid the other (now: a
+refused download never reaches the cache, and a damaged cache file is downloaded again); a two-folder
+tarball; a link inside the install and a linked folder on the way, which the link and containment
+checks each hid; an `installed` line with a failed exit, now tested with a complete install in place.
+
+**Navigator check.**
+
+1. `node scripts/mirror_host_pin.mjs check` (READY), then `npm run tauri:build:dev -- --bundles app`.
+2. Open the TS Dev app on ana: it shows **Install Pi**. Install, watch the progress, and the app
+   reloads into ana's Conversations.
+3. Send a turn; it runs the app's Pi with your existing Pi sign-ins.
+4. Optional: quit, delete `~/Library/Application Support/ai.mirrormind.desktop.ts.dev/pi`, reopen, and
+   install again; or turn the network off during the install and see the sentence and Try again.
