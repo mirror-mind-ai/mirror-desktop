@@ -1,26 +1,23 @@
 import { findJourneyById, type JourneyRegistry } from "./journeyRegistry";
 
 /**
- * Exactly the operations Mirror's `journey mutate` contract accepts. There is deliberately no
- * metadata update operation here: CR130 removed one, because Mirror rejects it with
- * `unsupported_operation` and always did, so the Edit Journey dialog's Save could never succeed.
- * Mirror can update a title and some metadata through its web server, but that path skips the
- * `expectedSourceVersion` digest and the receipt ledger every mutation below rides, so it is not an
- * option for the Desktop. The upstream ask is recorded as CR100.
+ * The Journey operations, each one Mirror core call (CV24.DS8) on the 0.3 line. `update_journey`
+ * edits name, description and status; CR130 had removed it on 0.2 because no released Mirror
+ * accepted it, and CR100 asked core for it. Python's `journey mutate`, with its whole-tree
+ * `expectedSourceVersion`, is not carried: an edit carries its Journey's `updatedAt` instead, and
+ * core refuses it when the row moved since the tree was read.
  */
-export type JourneyMutationOperation = "create_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey";
+export type JourneyMutationOperation = "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey";
 export type JourneyMutationRequest = {
   schemaVersion: "mirror.journey-mutation@1.0";
   requestId: string;
-  expectedSourceVersion: string;
   operation: JourneyMutationOperation;
   payload: Record<string, unknown>;
 };
-export type JourneyMutationResult = {
-  schemaVersion: "mirror.journey-mutation@1.0";
-  receipt: { requestId: string; operation: JourneyMutationOperation; journeyId: string; resultVersion: string; idempotent: boolean };
-  registry: JourneyRegistry;
-};
+export type JourneyMutationResult = { registry: JourneyRegistry };
+
+/** The statuses Mirror accepts, as Python's `_validate_status` names them. */
+export const JOURNEY_STATUSES = ["active", "paused", "completed", "planned"] as const;
 
 export function appendJourneyPosition(registry: JourneyRegistry, parentJourneyId: string): number {
   if (!parentJourneyId) return registry.roots.length;
@@ -65,16 +62,16 @@ export function createMutationRequest(
   payload: Record<string, unknown>,
   requestId: string = crypto.randomUUID(),
 ): JourneyMutationRequest {
-  if (registry.schemaVersion !== "0.2.0" || !registry.sourceVersion) {
+  if (registry.source !== "mirror") {
     throw new Error("Reload Journeys from Mirror before administering the tree.");
   }
-  return { schemaVersion: "mirror.journey-mutation@1.0", requestId, expectedSourceVersion: registry.sourceVersion, operation, payload };
+  return { schemaVersion: "mirror.journey-mutation@1.0", requestId, operation, payload };
 }
 
 /**
  * CR110: the exact message the native layer returns when Mirror refuses a mutation because the
- * Desktop's registry snapshot is older than Mirror's Journey rows. It is compared by equality, and a
- * source guard holds it identical to the literal in `mutate_journey_registry`.
+ * Desktop's tree is older than Mirror's Journey rows. It is compared by equality, and a source guard
+ * holds it identical to `JOURNEY_STALE_MESSAGE` in `mirror_host_bridge.rs`.
  */
 export const STALE_SOURCE_MESSAGE = "Journeys changed in Mirror. Reload the tree and try again.";
 
@@ -99,7 +96,7 @@ export function rebaseCreateIntent(
   registry: JourneyRegistry,
   intent: { slug: string; parentId: string | null },
 ): CreateIntentRebase {
-  if (registry.schemaVersion !== "0.2.0" || !registry.sourceVersion) {
+  if (registry.source !== "mirror") {
     return { kind: "conflict", reason: "Reload Journeys from Mirror before administering the tree.", parentMissing: false };
   }
   if (findJourneyById(registry, intent.slug)) {
@@ -138,4 +135,33 @@ export function projectPathIntent(registry: JourneyRegistry, journeyId: string, 
   if (next === current) return { kind: "unchanged" };
   if (!next) return { kind: "clear" };
   return { kind: "set", projectPath: next };
+}
+
+export type IdentityEditIntent =
+  | { kind: "update"; payload: { journeyId: string; expectedUpdatedAt: string; name?: string; description?: string; status?: string } }
+  | { kind: "unchanged" };
+
+/**
+ * Slice 4b: what Edit Journey's name, description and status fields ask Mirror to change, compared
+ * with the loaded tree. Only a changed field is sent, so a Save that changed nothing writes nothing,
+ * and a status Mirror does not know (one written by hand) is left as it is unless another is chosen.
+ * The Journey's `updatedAt` travels with it, so core refuses an edit of a row that moved since.
+ */
+export function identityEditIntent(
+  registry: JourneyRegistry,
+  journeyId: string,
+  fields: { name: string; description: string; status: string },
+): IdentityEditIntent {
+  const journey = findJourneyById(registry, journeyId);
+  if (!journey) throw new Error("That Journey no longer exists in the loaded tree.");
+  if (!journey.updatedAt) throw new Error("Reload Journeys from Mirror before editing this Journey.");
+  const changes: { name?: string; description?: string; status?: string } = {};
+  const name = fields.name.trim();
+  if (name !== journey.name.trim()) changes.name = name;
+  const description = fields.description.trim();
+  if (description !== (journey.description ?? "").trim()) changes.description = description;
+  const status = fields.status.trim();
+  if (status !== (journey.status ?? "").trim() && (JOURNEY_STATUSES as readonly string[]).includes(status)) changes.status = status;
+  if (Object.keys(changes).length === 0) return { kind: "unchanged" };
+  return { kind: "update", payload: { journeyId, expectedUpdatedAt: journey.updatedAt, ...changes } };
 }

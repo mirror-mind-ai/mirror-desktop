@@ -8,6 +8,8 @@ export type JourneyRegistryItem = {
   parentId?: string;
   projectPath?: string;
   siblingPosition?: number;
+  /** The row's `updated_at`, which an edit carries back so Mirror can refuse a stale one. */
+  updatedAt?: string;
   children?: JourneyRegistryItem[];
 };
 

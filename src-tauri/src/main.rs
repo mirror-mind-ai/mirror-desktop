@@ -2183,9 +2183,43 @@ fn choose_project_directory() -> Result<Option<String>, String> {
 #[tauri::command(async)]
 fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_json: String, replacement_journey_id: Option<String>) -> Result<String, String> {
     let _serialized = crate::native_command_serialization::acquire();
-    // CV-010.DS-005 decision 3 of phase 2: `journey mutate` retired with the Python core.
-    let _ = (app, active_journey_id, request_json, replacement_journey_id);
-    Err(mirror_host_bridge::not_carried("Journey administration"))
+    // CV-010.DS-005 phase 4, slice 4b: Journey administration through the Mirror host (Core
+    // CV24.DS8), where 0.2 spawned Python's `journey mutate`. The guards around it are 0.2's.
+    let request: Value = serde_json::from_str(&request_json).map_err(|_| "Journey mutation request is malformed.".to_string())?;
+    let (method, call) = mirror_host_bridge::journey_call(&request)?;
+    let delete_target = if method == "deleteJourney" {
+        let journey_id = call.get("journeyId").and_then(Value::as_str)
+            .ok_or_else(|| "Journey deletion target is missing.".to_string())?;
+        let thread_path = journey_thread_path(&app, journey_id)?;
+        let state_dir = crate::home_state::home_state_dir(&app).map_err(|error| error.to_string())?;
+        let generation_dir = state_dir.join("dedicated-journey-conversations").join(sanitize_journey_id(journey_id)?);
+        if thread_path.exists() || generation_dir.exists() {
+            return Err("Journey cannot be deleted because dedicated conversation history exists.".to_string());
+        }
+        Some(journey_id.to_string())
+    } else {
+        None
+    };
+    let publication_journey_id = if delete_target.as_deref() == Some(active_journey_id.as_str()) {
+        let replacement = replacement_journey_id.as_deref().ok_or_else(|| "Deleting the active Journey requires an explicit replacement Journey.".to_string())?;
+        if replacement == active_journey_id {
+            return Err("Replacement Journey authority is invalid.".to_string());
+        }
+        sanitize_journey_id(replacement)?
+    } else {
+        active_journey_id.clone()
+    };
+    let result = mirror_host_bridge::request_journey(&app, method, call)?;
+    let tree = result.get("tree").ok_or_else(|| "Mirror answered a Journey change without the Journey tree.".to_string())?;
+    let registry = mirror_host_bridge::registry_from_tree(tree, &Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true))?;
+    let parsed: Value = serde_json::from_str(&registry).map_err(|error| error.to_string())?;
+    if !mirror_host_bridge::tree_contains(&parsed["roots"], &publication_journey_id) {
+        return Err("Mutated registry does not contain the selected Journey authority.".to_string());
+    }
+    let state_dir = crate::home_state::home_state_dir(&app).map_err(|error| error.to_string())?;
+    fs::create_dir_all(&state_dir).map_err(|error| error.to_string())?;
+    publish_refreshed_journey_registry(&state_dir, &registry)?;
+    Ok(json!({ "registry": parsed }).to_string())
 }
 
 #[tauri::command(async)]
@@ -14940,7 +14974,6 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         }
         for (signature, what) in [
             ("fn delete_desktop_conversation(", "Deleting Conversations"),
-            ("fn mutate_journey_registry(", "Journey administration"),
             ("fn open_mirror_conversation_in_terminal(", "Terminal recall"),
             ("fn inspect_published_projection(", "The Canvas"),
         ] {

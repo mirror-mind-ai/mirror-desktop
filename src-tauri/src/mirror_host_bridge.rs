@@ -289,6 +289,87 @@ pub(crate) fn request(app: &AppHandle, method: &str, params: Value) -> Result<Va
     request_for(app, &home, method, params).map_err(describe)
 }
 
+/// Phase 4, slice 4b: the Desktop's Journey request envelope, unchanged from 0.2 but for the
+/// whole-tree `expectedSourceVersion`, which the 0.3 tree has no longer. An edit carries its
+/// Journey's `updatedAt` instead, and the core checks it.
+pub(crate) const JOURNEY_MUTATION_SCHEMA: &str = "mirror.journey-mutation@1.0";
+/// The exact sentence the frontend's `STALE_SOURCE_MESSAGE` compares by equality.
+pub(crate) const JOURNEY_STALE_MESSAGE: &str = "Journeys changed in Mirror. Reload the tree and try again.";
+const JOURNEY_MALFORMED: &str = "Journey mutation request is malformed.";
+
+/// The core call (CV24.DS8) for one Desktop Journey request, with exactly the fields that
+/// operation takes, as `journey mutate`'s `exact()` allowed them.
+pub(crate) fn journey_call(request: &Value) -> Result<(&'static str, Value), String> {
+    let malformed = || JOURNEY_MALFORMED.to_string();
+    let envelope = request.as_object().ok_or_else(malformed)?;
+    if envelope.keys().any(|key| !matches!(key.as_str(), "schemaVersion" | "requestId" | "operation" | "payload"))
+        || envelope.get("schemaVersion").and_then(Value::as_str) != Some(JOURNEY_MUTATION_SCHEMA)
+    {
+        return Err(malformed());
+    }
+    let payload = envelope.get("payload").and_then(Value::as_object).ok_or_else(malformed)?;
+    let (method, allowed, required): (&'static str, &[&str], &[&str]) = match envelope.get("operation").and_then(Value::as_str) {
+        Some("create_journey") => ("addJourney", &["slug", "name", "description", "parentId", "position", "projectPath"], &["slug", "name", "description"]),
+        Some("update_journey") => ("updateJourney", &["journeyId", "expectedUpdatedAt", "name", "description", "status"], &["journeyId", "expectedUpdatedAt"]),
+        Some("set_project_path") => ("setJourneyProjectPath", &["journeyId", "projectPath"], &["journeyId", "projectPath"]),
+        Some("clear_project_path") => ("setJourneyProjectPath", &["journeyId"], &["journeyId"]),
+        Some("move_journey") => ("moveJourney", &["journeyId", "parentId", "position"], &["journeyId", "position"]),
+        Some("delete_journey") => ("deleteJourney", &["journeyId"], &["journeyId"]),
+        _ => return Err(malformed()),
+    };
+    if payload.keys().any(|key| !allowed.contains(&key.as_str())) || required.iter().any(|key| !payload.contains_key(*key)) {
+        return Err(malformed());
+    }
+    let mut call = payload.clone();
+    if method == "setJourneyProjectPath" && !call.contains_key("projectPath") {
+        call.insert("projectPath".into(), Value::Null);
+    }
+    if method == "moveJourney" && !call.contains_key("parentId") {
+        call.insert("parentId".into(), Value::Null);
+    }
+    Ok((method, Value::Object(call)))
+}
+
+/// A Journey refusal in the Navigator's words; any other failure as every host failure reads.
+pub(crate) fn describe_journey_refusal(error: MirrorHostError) -> String {
+    let MirrorHostError::Rejected { name, reason, .. } = &error else { return describe(error) };
+    if name != "JourneyCallRejectedError" {
+        return describe(error);
+    }
+    if let Some(classes) = reason.strip_prefix("journey_not_empty:") {
+        return format!("Journey cannot be deleted because protected records remain: {}.", classes.replace('_', " ").replace(',', ", "));
+    }
+    match reason.as_str() {
+        "journey_changed" => JOURNEY_STALE_MESSAGE.to_string(),
+        "unknown_journey" => "Journey no longer exists in Mirror.".to_string(),
+        "invalid_or_duplicate_slug" => "Journey slug is invalid or already exists.".to_string(),
+        "invalid_name" => "Journey name is invalid.".to_string(),
+        "invalid_description" => "Journey description must be 20 to 4,000 characters.".to_string(),
+        "invalid_status" => "Journey status must be active, paused, completed or planned.".to_string(),
+        "invalid_path" => "Project path must be an existing folder, given as a full path, and not a link.".to_string(),
+        "unknown_parent" => "The selected parent Journey no longer exists.".to_string(),
+        "invalid_parent" => "A Journey cannot be moved under itself or one of its own Journeys.".to_string(),
+        "invalid_position" => "Journey position is invalid for the selected parent.".to_string(),
+        _ => "Mirror refused the Journey change.".to_string(),
+    }
+}
+
+/// Whether the tree holds `journey_id` anywhere.
+pub(crate) fn tree_contains(nodes: &Value, journey_id: &str) -> bool {
+    nodes.as_array().is_some_and(|nodes| {
+        nodes.iter().any(|node| {
+            node.get("id").and_then(Value::as_str) == Some(journey_id)
+                || node.get("children").is_some_and(|children| tree_contains(children, journey_id))
+        })
+    })
+}
+
+/// Send one Journey call about the bound home; it answers `{ journeyId, tree }`.
+pub(crate) fn request_journey(app: &AppHandle, method: &str, request: Value) -> Result<Value, String> {
+    let home = active_home(app)?;
+    request_for(app, &home, method, json!({ "request": request })).map_err(describe_journey_refusal)
+}
+
 /// The catalog script's `catalog` and `inspect`, answered by the host.
 pub(crate) fn conversation_catalog(app: &AppHandle, operation: &str, journey_id: &str, additional_args: &[&str]) -> Result<Value, String> {
     let option = |name: &str| additional_args.windows(2).find(|pair| pair[0] == name).map(|pair| pair[1]);
@@ -537,6 +618,114 @@ mod tests {
         let rebound = host.request_for_home(&home, "rebindConversationJourney",
             json!({"request": {"conversationId": conversation, "journeyId": "outra-journey"}})).unwrap();
         assert_eq!(rebind_response("outra-journey", &conversation, &rebound).unwrap()["previousJourneyId"], journey.as_str());
+        let _ = std::fs::remove_dir_all(&parent);
+    }
+
+    fn journey_request(operation: &str, payload: Value) -> Value {
+        json!({"schemaVersion": JOURNEY_MUTATION_SCHEMA, "requestId": "request-001", "operation": operation, "payload": payload})
+    }
+
+    #[test]
+    fn each_journey_request_becomes_its_core_call_with_exactly_its_fields() {
+        let cases = [
+            ("create_journey", json!({"slug": "work", "name": "Work", "description": "d", "parentId": null, "position": 0}), "addJourney",
+             json!({"slug": "work", "name": "Work", "description": "d", "parentId": null, "position": 0})),
+            ("update_journey", json!({"journeyId": "work", "expectedUpdatedAt": "t", "name": "W"}), "updateJourney",
+             json!({"journeyId": "work", "expectedUpdatedAt": "t", "name": "W"})),
+            ("set_project_path", json!({"journeyId": "work", "projectPath": "/p"}), "setJourneyProjectPath", json!({"journeyId": "work", "projectPath": "/p"})),
+            ("clear_project_path", json!({"journeyId": "work"}), "setJourneyProjectPath", json!({"journeyId": "work", "projectPath": null})),
+            ("move_journey", json!({"journeyId": "work", "position": 1}), "moveJourney", json!({"journeyId": "work", "parentId": null, "position": 1})),
+            ("delete_journey", json!({"journeyId": "work"}), "deleteJourney", json!({"journeyId": "work"})),
+        ];
+        for (operation, payload, method, call) in cases {
+            assert_eq!(journey_call(&journey_request(operation, payload)).unwrap(), (method, call), "{operation}");
+        }
+    }
+
+    #[test]
+    fn a_journey_request_outside_its_operation_s_fields_is_refused() {
+        let malformed = [
+            journey_request("create_journey", json!({"slug": "work", "name": "Work"})),
+            journey_request("update_journey", json!({"journeyId": "work", "name": "W"})),
+            journey_request("update_journey", json!({"journeyId": "work", "expectedUpdatedAt": "t", "slug": "renamed"})),
+            journey_request("clear_project_path", json!({"journeyId": "work", "projectPath": "/p"})),
+            journey_request("delete_journey", json!({"journeyId": "work", "force": true})),
+            journey_request("rename_journey", json!({"journeyId": "work"})),
+            json!({"schemaVersion": "other", "operation": "delete_journey", "payload": {"journeyId": "work"}}),
+            json!({"schemaVersion": JOURNEY_MUTATION_SCHEMA, "expectedSourceVersion": "x", "operation": "delete_journey", "payload": {"journeyId": "work"}}),
+            json!({"schemaVersion": JOURNEY_MUTATION_SCHEMA, "operation": "delete_journey", "payload": []}),
+        ];
+        for request in malformed {
+            assert_eq!(journey_call(&request).unwrap_err(), JOURNEY_MALFORMED, "{request}");
+        }
+    }
+
+    #[test]
+    fn a_journey_refusal_reads_as_a_sentence_and_a_stale_edit_as_the_reload_message() {
+        let refused = |reason: &str| MirrorHostError::Rejected { name: "JourneyCallRejectedError".into(), reason: reason.into(), message: reason.into() };
+        assert_eq!(describe_journey_refusal(refused("journey_changed")), JOURNEY_STALE_MESSAGE);
+        assert_eq!(
+            describe_journey_refusal(refused("journey_not_empty:conversations,runtime_sessions")),
+            "Journey cannot be deleted because protected records remain: conversations, runtime sessions."
+        );
+        for reason in ["unknown_journey", "invalid_or_duplicate_slug", "invalid_name", "invalid_description", "invalid_status",
+                       "invalid_path", "unknown_parent", "invalid_parent", "invalid_position", "something_new"] {
+            let sentence = describe_journey_refusal(refused(reason));
+            assert!(sentence.ends_with('.') && !sentence.contains('_'), "{reason}: {sentence}");
+        }
+        let other = MirrorHostError::Rejected { name: "DatabaseNotCurrentError".into(), reason: "ahead".into(), message: String::new() };
+        assert_eq!(describe_journey_refusal(other), "Mirror refused the request (DatabaseNotCurrentError: ahead).");
+    }
+
+    #[test]
+    fn the_tree_is_searched_at_every_depth() {
+        let roots = json!([{"id": "a", "children": [{"id": "b", "children": [{"id": "c"}]}]}, {"id": "d"}]);
+        for id in ["a", "b", "c", "d"] {
+            assert!(tree_contains(&roots, id), "{id}");
+        }
+        assert!(!tree_contains(&roots, "e"));
+        assert!(!tree_contains(&json!({}), "a"));
+    }
+
+    /// Slice 4b through the real core: create, edit, move, path, delete, and the refusals the
+    /// app names. Run as `real_host_feeds` is.
+    #[test]
+    #[ignore]
+    fn real_host_administers_journeys_in_the_shapes_the_app_reads() {
+        let runtime = PathBuf::from(std::env::var("MIRROR_HOST_RUNTIME").expect("MIRROR_HOST_RUNTIME"));
+        let parent = std::env::temp_dir().join(format!("mirror-bridge-journeys-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&parent);
+        std::fs::create_dir_all(&parent).unwrap();
+        let parent = parent.canonicalize().unwrap();
+        let mut host = MirrorHost::new(MirrorHostConfig::for_runtime(runtime));
+        host.request("createMarkedHome", json!({"request": {"homePath": parent.join("ana"), "userName": "ana"}})).unwrap();
+        let home = MarkedHome::open(&parent.join("ana")).unwrap();
+        let mut send = |operation: &str, payload: Value| {
+            let (method, call) = journey_call(&journey_request(operation, payload)).unwrap();
+            host.request_for_home(&home, method, json!({"request": call})).map_err(describe_journey_refusal)
+        };
+        let created = send("create_journey", json!({"slug": "escrita", "name": "Escrita", "description": "Um lugar para escrever o livro.", "parentId": null, "position": 1})).unwrap();
+        let registry: Value = serde_json::from_str(&registry_from_tree(&created["tree"], "2026-10-30T12:00:00Z").unwrap()).unwrap();
+        assert_eq!(registry["roots"][1]["id"], "escrita");
+        assert_eq!(registry["roots"][1]["name"], "Escrita");
+        let updated_at = registry["roots"][1]["updatedAt"].as_str().unwrap().to_string();
+        let edited = send("update_journey", json!({"journeyId": "escrita", "expectedUpdatedAt": updated_at, "name": "O Livro", "status": "paused"})).unwrap();
+        assert_eq!(edited["tree"]["roots"][1]["name"], "O Livro");
+        assert_eq!(edited["tree"]["roots"][1]["status"], "paused");
+        assert_eq!(send("update_journey", json!({"journeyId": "escrita", "expectedUpdatedAt": updated_at, "name": "Tarde"})).unwrap_err(), JOURNEY_STALE_MESSAGE);
+        let project = parent.join("projeto");
+        std::fs::create_dir_all(&project).unwrap();
+        let pathed = send("set_project_path", json!({"journeyId": "escrita", "projectPath": project})).unwrap();
+        assert_eq!(pathed["tree"]["roots"][1]["projectPath"], json!(project));
+        assert!(send("set_project_path", json!({"journeyId": "escrita", "projectPath": "relativo"})).unwrap_err().contains("full path"));
+        send("clear_project_path", json!({"journeyId": "escrita"})).unwrap();
+        let seeded = registry["roots"][0]["id"].as_str().unwrap().to_string();
+        let moved = send("move_journey", json!({"journeyId": "escrita", "parentId": seeded, "position": 0})).unwrap();
+        assert!(tree_contains(&moved["tree"]["roots"][0]["children"], "escrita"));
+        assert_eq!(send("delete_journey", json!({"journeyId": seeded})).unwrap_err(),
+            "Journey cannot be deleted because protected records remain: child journeys.");
+        let deleted = send("delete_journey", json!({"journeyId": "escrita"})).unwrap();
+        assert!(!tree_contains(&deleted["tree"]["roots"], "escrita"));
         let _ = std::fs::remove_dir_all(&parent);
     }
 

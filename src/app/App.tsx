@@ -469,7 +469,7 @@ import {
   sanitizeJourneyPreferenceState,
   type JourneyPreferenceState,
 } from "../domain/journeyPreferencePersistence";
-import { appendJourneyPosition, createMutationRequest, isStaleSourceError, journeyAdministrationError, projectPathIntent, rebaseCreateIntent, replacementJourneyAfterDeletion, suggestJourneySlug, type JourneyMutationRequest, type ProjectPathIntent } from "../domain/journeyMutation";
+import { appendJourneyPosition, createMutationRequest, identityEditIntent, isStaleSourceError, JOURNEY_STATUSES, journeyAdministrationError, projectPathIntent, rebaseCreateIntent, replacementJourneyAfterDeletion, suggestJourneySlug, type JourneyMutationRequest, type ProjectPathIntent } from "../domain/journeyMutation";
 import {
   agentThinkingLevels,
   createDefaultAgentSettings,
@@ -693,6 +693,7 @@ export function App({ model }: AppProps) {
   const [journeyAdminParent, setJourneyAdminParent] = useState("");
   const [journeyAdminPosition, setJourneyAdminPosition] = useState(0);
   const [journeyAdminPath, setJourneyAdminPath] = useState("");
+  const [journeyAdminStatus, setJourneyAdminStatus] = useState("");
   const [journeyAdminState, setJourneyAdminState] = useState<"idle" | "saving" | "failed">("idle");
   const [journeyAdminMessage, setJourneyAdminMessage] = useState<string | undefined>();
   const [journeyAdminPendingRequest, setJourneyAdminPendingRequest] = useState<JourneyMutationRequest | null>(null);
@@ -5139,6 +5140,7 @@ export function App({ model }: AppProps) {
     setJourneyAdminName(journey.name);
     setJourneyAdminSlug(journey.id);
     setJourneyAdminDescription(journey.description ?? "");
+    setJourneyAdminStatus(journey.status ?? "");
     setJourneyAdminPath(journey.projectPath ?? "");
     setJourneyAppearanceMessage(undefined);
     setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
@@ -5241,8 +5243,13 @@ export function App({ model }: AppProps) {
     setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
   }
 
-  async function executeJourneyMutation(operation: "create_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey", payload: Record<string, unknown>) {
-    if (runtimeBusy) return;
+  /**
+   * Run one Journey operation; true when Mirror accepted it. Slice 4b: an edit can be two
+   * operations, identity then project path, so the first keeps the dialog open for the second,
+   * where a failure must still be read.
+   */
+  async function executeJourneyMutation(operation: "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey", payload: Record<string, unknown>, closeOnSuccess = true): Promise<boolean> {
+    if (runtimeBusy) return false;
     setJourneyAdminState("saving"); setJourneyAdminMessage(undefined);
     try {
       const request = journeyAdminPendingRequest?.operation === operation && JSON.stringify(journeyAdminPendingRequest.payload) === JSON.stringify(payload)
@@ -5270,15 +5277,18 @@ export function App({ model }: AppProps) {
       setJourneyPreferences((current) => ({ ...current, activeJourneyId: selectedAfterMutation, pinnedJourneyIds: reconciled.pinnedJourneyIds, recentJourneyIds: reconciled.recentJourneyIds }));
       setCollapsedJourneyIds(reconciled.collapsedJourneyIds);
       dispatchConversationExpansion({ type: "restore", journeyIds: [...reconciled.expandedConversationJourneyIds] });
-      setJourneyAdminDialog(null); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
+      if (closeOnSuccess) setJourneyAdminDialog(null);
+      setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
       setJourneyRegistryRefreshState("succeeded"); setJourneyRegistryRefreshMessage("Journey structure updated from Mirror.");
+      return true;
     } catch (error) {
       if (isStaleSourceError(error)) {
         await rebaseJourneyAdministrationAfterStaleSource(operation, payload);
-        return;
+        return false;
       }
       const message = journeyAdministrationError(error);
       setJourneyAdminState("failed"); setJourneyAdminMessage(message);
+      return false;
     }
   }
 
@@ -5291,7 +5301,7 @@ export function App({ model }: AppProps) {
    * request id. A create that no longer fits names what changed. Nothing is retried on its own.
    */
   async function rebaseJourneyAdministrationAfterStaleSource(
-    operation: "create_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey",
+    operation: "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey",
     payload: Record<string, unknown>,
   ) {
     let refreshedRegistry: JourneyRegistry;
@@ -5342,21 +5352,26 @@ export function App({ model }: AppProps) {
       });
     } else if (journeyAdminDialog.mode === "edit") {
       /**
-       * CR130: this branch used to submit a canonical metadata update, which Mirror's `journey mutate`
-       * contract rejects with `unsupported_operation`, so Save changes could never succeed. The project
-       * path is the one canonical field the contract can change, through two operations whose payloads
-       * it accepts exactly. Name and description are read-only in the form for the same reason, and are
-       * deliberately absent here rather than sent and refused.
+       * Slice 4b: name, description and status are one `update_journey`, which Mirror core accepts
+       * on the 0.3 line (CV24.DS8); CR130 had kept them read-only because no Mirror did. The project
+       * path stays the two operations CR130 wired. Each is sent only when its fields changed, the
+       * identity first, so a refused edit leaves the path unsent.
        */
       const journeyId = journeyAdminDialog.journeyId;
       if (!journeyId) return;
+      let identity: ReturnType<typeof identityEditIntent>;
       let intent: ProjectPathIntent;
       try {
+        identity = identityEditIntent(journeyRegistry, journeyId, { name: journeyAdminName, description: journeyAdminDescription, status: journeyAdminStatus });
         intent = projectPathIntent(journeyRegistry, journeyId, journeyAdminPath);
       } catch (error) {
         setJourneyAdminState("failed");
         setJourneyAdminMessage(journeyAdministrationError(error));
         return;
+      }
+      if (identity.kind === "update") {
+        const accepted = await executeJourneyMutation("update_journey", identity.payload, intent.kind === "unchanged");
+        if (!accepted || intent.kind === "unchanged") return;
       }
       if (intent.kind === "unchanged") {
         setJourneyAdminDialog(null);
@@ -7323,7 +7338,7 @@ export function App({ model }: AppProps) {
                     setJourneyAdminName(next);
                   }} required maxLength={160} /></label>
                 ) : (
-                  <label>Name<input value={journeyAdminName} readOnly aria-describedby="journey-uneditable-canonical" /></label>
+                  <label>Name<input value={journeyAdminName} onChange={(event) => setJourneyAdminName(event.target.value)} required maxLength={160} /></label>
                 )}
                 {journeyAdminDialog.mode === "create" ? (
                   <label>Slug<input value={journeyAdminSlug} onChange={(event) => setJourneyAdminSlug(event.target.value)} required pattern="[a-z0-9][a-z0-9-]{1,78}[a-z0-9]" /></label>
@@ -7333,9 +7348,15 @@ export function App({ model }: AppProps) {
                 {journeyAdminDialog.mode === "create" ? (
                   <label>Description<textarea value={journeyAdminDescription} onChange={(event) => setJourneyAdminDescription(event.target.value)} required minLength={20} maxLength={4000} /></label>
                 ) : (
-                  <label>Description<textarea value={journeyAdminDescription} readOnly aria-describedby="journey-uneditable-canonical" /></label>
+                  <label>Description<textarea value={journeyAdminDescription} onChange={(event) => setJourneyAdminDescription(event.target.value)} required minLength={20} maxLength={4000} /></label>
                 )}
-                {journeyAdminDialog.mode === "edit" ? <small id="journey-uneditable-canonical" className="journey-admin-immutable-note">Name, description, Journey ID and slug are shown as Mirror holds them. Mirror has no canonical update operation for them yet, so they cannot be changed here.</small> : null}
+                {journeyAdminDialog.mode === "edit" ? (
+                  <label>Status<select value={journeyAdminStatus} onChange={(event) => setJourneyAdminStatus(event.target.value)}>
+                    {(JOURNEY_STATUSES as readonly string[]).includes(journeyAdminStatus) ? null : <option value={journeyAdminStatus}>{journeyAdminStatus || "Not set"}</option>}
+                    {JOURNEY_STATUSES.map((status) => <option key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</option>)}
+                  </select></label>
+                ) : null}
+                {journeyAdminDialog.mode === "edit" ? <small id="journey-uneditable-canonical" className="journey-admin-immutable-note">The slug is this Journey's id in Mirror. Its Conversations, memories and tasks are kept under it, so it cannot be changed here.</small> : null}
               </>
             ) : null}
             {journeyAdminDialog.mode === "edit" && journeyAdminDialog.journeyId ? (
@@ -7408,7 +7429,7 @@ export function App({ model }: AppProps) {
             ) : null}
             <div className="journey-admin-summary">
               {journeyAdminDialog.mode === "create" ? `Create ${journeyAdminSlug || "this Journey"} under ${journeyAdminParent || "Root"}. It will be appended after the existing Journeys. No repository or conversation will be created.` :
-                journeyAdminDialog.mode === "edit" ? `Update the project path for ${journeyAdminDialog.journeyId}. Name, description, Journey identity, hierarchy and conversations remain unchanged.` :
+                journeyAdminDialog.mode === "edit" ? `Save the changes to ${journeyAdminDialog.journeyId} in Mirror. Its id, place in the tree and Conversations remain unchanged.` :
                   journeyAdminDialog.mode === "move" ? `Move ${journeyAdminDialog.journeyId} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}.` :
                     `Permanently delete ${findJourneyById(journeyRegistry, journeyAdminDialog.journeyId ?? "")?.name ?? journeyAdminDialog.journeyId}. Project files, repositories and protected history will not be deleted.${journeyAdminDialog.journeyId === selectedJourney ? ` The active Journey will change to ${findJourneyById(journeyRegistry, replacementJourneyAfterDeletion(journeyRegistry, journeyAdminDialog.journeyId ?? "") ?? "")?.name ?? "another Journey"}.` : ""}`}
             </div>

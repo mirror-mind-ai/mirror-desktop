@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { STALE_SOURCE_MESSAGE, isStaleSourceError, rebaseCreateIntent } from "../domain/journeyMutation";
 import type { JourneyRegistry } from "../domain/journeyRegistry";
 import appSource from "../app/App.tsx?raw";
-import tauriSource from "../../src-tauri/src/main.rs?raw";
+import bridgeSource from "../../src-tauri/src/mirror_host_bridge.rs?raw";
 
 // CR110: Mirror compares one digest over every Journey's row, so any change anywhere refuses a
 // create that it does not conflict with. The rule that decides whether the intent still fits lives
 // in the domain; the wiring that reloads the tree inside the form is guarded here.
 const registry: JourneyRegistry = {
-  schemaVersion: "0.2.0", source: "mirror", sourceVersion: "b".repeat(64), syncedAt: "now",
+  schemaVersion: "0.1.0", source: "mirror", syncedAt: "now",
   roots: [
     { id: "vida-tecnica", name: "Vida Técnica", children: [{ id: "existing", name: "Existing", parentId: "vida-tecnica" }] },
     { id: "other", name: "Other" },
@@ -22,11 +22,11 @@ describe("CR110: a stale create intent is judged against the fresh tree", () => 
     expect(isStaleSourceError(new Error("Journey slug is invalid or already exists."))).toBe(false);
   });
 
-  // CV-010.DS-005 decision 3 of phase 2: the native stale-source literal lived in the retired
-  // `journey mutate` boundary, which stays on release/0.2; the 0.3 line refuses administration.
-  it("has no native stale-source literal on the 0.3 line", () => {
-    expect(tauriSource).not.toContain('Some("stale_source")');
-    expect(tauriSource).toContain('Err(mirror_host_bridge::not_carried("Journey administration"))');
+  // Slice 4b: on the 0.3 line the stale refusal is core's `journey_changed` for an edit, and the
+  // bridge answers it with this exact sentence, so the form's reload branch still recognises it.
+  it("holds the native stale message identical to the one the form compares by equality", () => {
+    expect(bridgeSource).toContain(`pub(crate) const JOURNEY_STALE_MESSAGE: &str = "${STALE_SOURCE_MESSAGE}";`);
+    expect(bridgeSource).not.toContain('"stale_source"');
   });
 
   it("keeps an intent whose parent still exists and whose id is still free, with a recomputed position", () => {
@@ -52,9 +52,9 @@ describe("CR110: a stale create intent is judged against the fresh tree", () => 
     }
   });
 
-  it("refuses to rebase against a registry without exact version authority", () => {
-    const legacy = { ...registry, schemaVersion: "0.1.0" as const, sourceVersion: undefined };
-    expect(rebaseCreateIntent(legacy, { slug: "x", parentId: null }).kind).toBe("conflict");
+  it("refuses to rebase against a tree that is not Mirror's", () => {
+    const fixture = { ...registry, source: "fixture" as const };
+    expect(rebaseCreateIntent(fixture, { slug: "x", parentId: null }).kind).toBe("conflict");
   });
 });
 

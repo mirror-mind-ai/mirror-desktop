@@ -66,6 +66,7 @@ describe("the Mirror host", () => {
       "appendConversationMessages", "renameConversation", "rebindConversationJourney",
       "readJourneyTree", "listJourneyConversations", "inspectConversation",
       "deliverMirrorContext", "forgetMirrorContext", "learnFromConversations",
+      "addJourney", "updateJourney", "setJourneyProjectPath", "moveJourney", "deleteJourney",
     ]);
     host.child.stdin.end();
     expect(await host.exited).toBe(0);
@@ -172,6 +173,34 @@ describe("the Mirror host", () => {
     const bare = { learnFromConversations: async () => { throw new Error("broken with sk-or-learn"); } };
     expect(await answer(bare, JSON.stringify({ id: 3, method: "learnFromConversations", params })))
       .toEqual({ id: 3, ok: false, error: { name: "Error", reason: "internal", message: "broken with [key]" } });
+  });
+
+  it("passes a Journey request to the core as given, and names a refusal with what holds records", async () => {
+    // Slice 4b: the five Journey calls take (dbPath, request) and answer with the tree.
+    const home = join(realpathSync(mkdtempSync(join(tmpdir(), "mirror-host-journeys-"))), "ana");
+    mkdirSync(home);
+    mark(home);
+    class JourneyCallRejectedError extends Error {
+      constructor(reason, populated = []) { super(populated.length ? `${reason}:${populated.join(",")}` : reason); this.reason = reason; }
+    }
+    const calls = [];
+    const answerWith = (method) => async (...args) => { calls.push([method, ...args]); return { journeyId: "j", tree: { roots: [], findings: [] } }; };
+    const core = {
+      JourneyCallRejectedError,
+      addJourney: answerWith("addJourney"), updateJourney: answerWith("updateJourney"),
+      setJourneyProjectPath: answerWith("setJourneyProjectPath"), moveJourney: answerWith("moveJourney"),
+      deleteJourney: async () => { throw new JourneyCallRejectedError("journey_not_empty", ["conversations", "tasks"]); },
+    };
+    const dbPath = join(home, "memory.db");
+    let id = 0;
+    for (const method of ["addJourney", "updateJourney", "setJourneyProjectPath", "moveJourney"]) {
+      const request = { journeyId: "j", method };
+      expect(await answer(core, JSON.stringify({ id: ++id, method, params: { dbPath, request } })))
+        .toEqual({ id, ok: true, result: { journeyId: "j", tree: { roots: [], findings: [] } } });
+      expect(calls.at(-1)).toEqual([method, dbPath, request]);
+    }
+    expect(await answer(core, JSON.stringify({ id: 9, method: "deleteJourney", params: { dbPath, request: { journeyId: "j" } } })))
+      .toEqual({ id: 9, ok: false, error: { name: "JourneyCallRejectedError", reason: "journey_not_empty:conversations,tasks", message: "journey_not_empty:conversations,tasks" } });
   });
 
   it("never sends back the key it was given, whatever a refusal said", () => {

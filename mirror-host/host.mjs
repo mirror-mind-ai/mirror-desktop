@@ -64,6 +64,12 @@ const CALLS = {
   forgetMirrorContext: (d, p) => d.forgetMirrorContext(p.dbPath, p.request),
   // Phase 4, slice 4a: learn from idle Conversations. Run by a second host, so a turn never waits.
   learnFromConversations: (d, p) => d.learnFromConversations(p.dbPath, p.request, { apiKey: p.apiKey }),
+  // Phase 4, slice 4b: Journey administration. Each answers with the Journey tree.
+  addJourney: (d, p) => d.addJourney(p.dbPath, p.request),
+  updateJourney: (d, p) => d.updateJourney(p.dbPath, p.request),
+  setJourneyProjectPath: (d, p) => d.setJourneyProjectPath(p.dbPath, p.request),
+  moveJourney: (d, p) => d.moveJourney(p.dbPath, p.request),
+  deleteJourney: (d, p) => d.deleteJourney(p.dbPath, p.request),
 };
 export const HOST_METHODS = Object.keys(CALLS);
 
@@ -186,6 +192,8 @@ const REFUSALS = [
   ["MigrateHomeRejectedError", (error) => error.reason],
   ["MirrorContextRejectedError", (error) => error.reason],
   ["LearningRejectedError", (error) => error.reason],
+  // The message, not the reason: `journey_not_empty:<classes>` names what still holds records.
+  ["JourneyCallRejectedError", (error) => error.message],
 ];
 
 function failure(id, name, reason, message) {

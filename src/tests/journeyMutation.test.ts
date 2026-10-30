@@ -6,17 +6,20 @@ import itemMenuSource from "../app/JourneyItemContextMenu.tsx?raw";
 import storageSource from "../app/journeyMutationStorage.ts?raw";
 import tauriSource from "../../src-tauri/src/main.rs?raw";
 
+// The 0.3 tree: no whole-tree `sourceVersion`, which only Python's retired `journey mutate` read.
 const registry: JourneyRegistry = {
-  schemaVersion: "0.2.0", source: "mirror", sourceVersion: "a".repeat(64), syncedAt: "now", roots: [],
+  schemaVersion: "0.1.0", source: "mirror", syncedAt: "now", roots: [],
 };
 
 describe("Journey administration boundary", () => {
-  it("builds exact versioned requests and rejects legacy projections", () => {
+  // Slice 4b: a request is built from Mirror's tree, never from a fixture, and carries no
+  // whole-tree version; an edit carries its Journey's `updatedAt` in its payload instead.
+  it("builds exact requests from Mirror's tree and refuses a fixture", () => {
     expect(createMutationRequest(registry, "move_journey", { journeyId: "one", parentId: null, position: 0 }, "request-001")).toEqual({
-      schemaVersion: "mirror.journey-mutation@1.0", requestId: "request-001", expectedSourceVersion: "a".repeat(64),
+      schemaVersion: "mirror.journey-mutation@1.0", requestId: "request-001",
       operation: "move_journey", payload: { journeyId: "one", parentId: null, position: 0 },
     });
-    expect(() => createMutationRequest({ ...registry, schemaVersion: "0.1.0", sourceVersion: undefined }, "clear_project_path", {})).toThrow(/Reload Journeys/);
+    expect(() => createMutationRequest({ ...registry, source: "fixture" }, "clear_project_path", {})).toThrow(/Reload Journeys/);
   });
 
   /**
@@ -32,7 +35,6 @@ describe("Journey administration boundary", () => {
       projectPath: "/Users/nav/code/one",
     }, "update-request-001")).toMatchObject({
       operation: "set_project_path",
-      expectedSourceVersion: "a".repeat(64),
       payload: {
         journeyId: "one",
         projectPath: "/Users/nav/code/one",
@@ -41,8 +43,8 @@ describe("Journey administration boundary", () => {
   });
 
   it("builds a delete request from exact registry authority", () => {
-    expect(createMutationRequest(registry, "delete_journey", { journeyId: "empty-leaf" }, "delete-request-001")).toMatchObject({
-      operation: "delete_journey", expectedSourceVersion: "a".repeat(64), payload: { journeyId: "empty-leaf" },
+    expect(createMutationRequest(registry, "delete_journey", { journeyId: "empty-leaf" }, "delete-request-001")).toEqual({
+      schemaVersion: "mirror.journey-mutation@1.0", requestId: "delete-request-001", operation: "delete_journey", payload: { journeyId: "empty-leaf" },
     });
   });
 
@@ -82,15 +84,16 @@ describe("Journey administration boundary", () => {
 
   it("keeps mutation model-free and publishes only verified Mirror output", () => {
     expect(storageSource).toContain('invoke<string>("mutate_journey_registry"');
-    // CV-010.DS-005 decision 3 of phase 2: `journey mutate` retired with the Python core, so the
-    // 0.3 line refuses Journey administration natively and plainly. Its Python boundary and error
-    // mapping remain on release/0.2.
+    // Slice 4b: `journey mutate` retired with the Python core (phase 2, decision 3); the 0.3 line
+    // administers Journeys through the Mirror host's core calls and publishes the tree they answer.
     const mutationCommand = tauriSource.slice(
       tauriSource.indexOf("fn mutate_journey_registry"),
       tauriSource.indexOf("fn load_journey_registry"),
     );
-    expect(mutationCommand).toContain('Err(mirror_host_bridge::not_carried("Journey administration"))');
-    expect(mutationCommand).not.toMatch(/"mutate"|"uv"/);
+    expect(mutationCommand).toContain("mirror_host_bridge::journey_call(&request)?");
+    expect(mutationCommand).toContain("mirror_host_bridge::request_journey(&app, method, call)?");
+    expect(mutationCommand).toContain("publish_refreshed_journey_registry(&state_dir, &registry)?");
+    expect(mutationCommand).not.toMatch(/"mutate"|"uv"|not_carried/);
     expect(tauriSource).toContain("publish_refreshed_journey_registry");
     expect(tauriSource).not.toContain("mutate_journey_registry_provider");
   });
@@ -107,11 +110,12 @@ describe("Journey administration boundary", () => {
     expect(itemMenuSource).toContain("Edit Journey…");
     expect(appSource).toContain("onEdit={openEditJourney}");
     expect(appSource).toContain('journeyAdminDialog.mode === "edit"');
-    // Re-aimed by CR130: the form submits the path operations core accepts, and names the canonical
-    // fields it cannot change instead of offering them.
+    // Re-aimed by CR130, then by slice 4b: the form submits the operations core accepts, now the
+    // identity edit too, and names the one field it cannot change instead of offering it.
+    expect(appSource).toContain('executeJourneyMutation("update_journey"');
     expect(appSource).toContain('executeJourneyMutation("set_project_path"');
     expect(appSource).toContain('executeJourneyMutation("clear_project_path"');
-    expect(appSource).toContain("Journey ID and slug are shown as Mirror holds them");
+    expect(appSource).toContain("The slug is this Journey's id in Mirror.");
   });
 
   it("extends Edit Journey with device-local appearance without adding canonical fields", () => {
