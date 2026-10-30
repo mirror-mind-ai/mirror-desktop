@@ -188,7 +188,7 @@ including any Navigator check, is met.
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
-| 4 · Stable | 🟡 Planned | Planned 2026-10-30: four slices (4a end and learn, 4b create a Journey, 4c the first 0.3 release, 4d the daily-use period) and five decisions awaiting the Navigator |
+| 4 · Stable | 🟡 Planned | Decisions accepted 2026-10-30. 4a (learn from the app's Conversations; Core CV24.DS7) built, awaiting the Navigator check; then 4b, 4c, 4d |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
@@ -2818,3 +2818,65 @@ reopened below; its trigger stands.
 
 The 0.2 loss is recorded, not fixed on `release/0.2`: it is lost learning, not serious harm, so it
 waits under the Refinement Suspension.
+
+## Slice 4a Built — Mirror Learns From the App's Conversations (2026-10-30)
+
+The Navigator approved the revised 4a and asked for the Core spec and the build together ("vai"),
+after asking how the Core change would reach other users. The answer recorded here: nothing reaches
+them until the branch is merged and released, each at the Navigator's word; and in existing Core
+code the slice only adds `export` to three helpers.
+
+### Core — CV24.DS7 (`mirror-ts`, branch `desktop/library-seam-1a`)
+
+- Spec `a5193276`, code `b2b8d14a`; Core CI green on run 41108690556 (macOS, Ubuntu, smoke,
+  Windows install kind). Doc: `docs/project/roadmap/cv24-embeddable-core-for-mirror-desktop/cv24-ds7-learn-from-a-conversations-newest-stretch/index.md`.
+- `learnFromConversations(dbPath, {interface, idleMinutes?, limit?}, {apiKey})`: the host's open
+  Conversations with a Journey, idle 30 minutes, oldest first; the messages after the watermark
+  `learned_through`, at least 4; pieces of at most 40 messages and 60,000 characters (a message cut
+  to 20,000 in the prompt only); embeddings staged, then the memories and the watermark in one
+  transaction; tasks best-effort; at most 10 pieces per call; a piece failing 3 times skipped. Never
+  ends a Conversation or writes its title, summary or `extracted`; an ended one is the terminal's.
+  Refuses `no_key` only when there is work, before any write.
+- Existing code: `export` on `insertMemory`, `persistExtractedTasks`, `resolveUserName` in
+  `extraction.ts`, and two names in `lib/desktop.js`. The one existing test touched is the entry's
+  name list. 11 new tests; 24 mutations caught; the suite 3,607 tests with only the known Node 24.6.0
+  FTS5 failure.
+
+### Desktop
+
+- **Pin:** Core `b2b8d14a` (tarball `vendor/mirror-host/mirror-mind-0.37.0-b2b8d14a.tgz`, sha
+  `518446d2639…`, packed twice in a clean worktree with the same hash), Node v24.22.2 unchanged.
+- **`host.mjs`:** method `learnFromConversations`, the key to the core alone; `LearningRejectedError`
+  among the refusals. Found while testing: a core lacking one refusal class made `answer` throw a
+  `TypeError` instead of answering, which would have crashed the host; it now answers `internal`.
+- **`src-tauri/src/mirror_learning.rs`:** a second supervisor, so a turn's context never waits on a
+  run; deadline 600 s; the host stops after each run. A minute after launch, then every ten minutes,
+  only while the Pi process registry is idle (`is_idle`, nothing reserved or running). The key comes
+  from the Keychain per run. The last run is kept in memory (counts only) for the async command
+  `mirror_learning_status` (command census 101 → 102). The interface is single-sourced as
+  `CONVERSATION_INTERFACE` (`nautilus_harness`).
+- **Settings › Connections:** a line under the OpenRouter key: the rule before any run, "nothing new
+  to learn", what was learned (stretches, new memories, failures, set aside, waiting), "no OpenRouter
+  key is kept", or why a run did not finish. No memory content.
+- Gates: cargo 426 passed / 9 ignored; real-host 3 pass, including a new one through the real core
+  (nothing to learn needs no key; an idle stretch with no key is refused); vitest 290 files / 2,408
+  tests; 19 Desktop mutations caught, one escaped at first (one failed stretch), now tested.
+
+### Known gaps
+
+- At quit, a running learning host is not killed; it finishes its run (at most ten minutes) and exits
+  when its stdin closes. Its writes are whole-piece transactions, so nothing is left half-written.
+- A real provider run has not been measured; that is the Navigator check.
+
+### Navigator check
+
+1. Open **Mirror Desktop TS Dev** on ana (its OpenRouter key is kept), and leave it open without
+   sending a turn for a minute.
+2. Open **Settings › Connections**: the line under the key should say Mirror learned from ana's
+   Conversations, with how many new memories. If it still shows the rule, wait a minute and reopen
+   the tab.
+3. Optional: send a turn, wait more than 30 minutes, and check the line again after the next
+   ten-minute run.
+
+I will then read ana's database read-only: memories against her Conversations, the
+`learned_through` watermark, and the `extraction` calls in `llm_calls`.
