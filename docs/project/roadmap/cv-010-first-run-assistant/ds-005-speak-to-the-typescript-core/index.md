@@ -2772,3 +2772,49 @@ Then phase 4 is ✅ Done, and **the Refinement Suspension ends**: CR work resume
    before a public 0.3.
 
 **Order:** 4a, 4b, 4c, then 4d. Each slice is built and checked by the Navigator before the next.
+
+### Decisions accepted (2026-10-30)
+
+The Navigator accepted the five recommendations with "vai": (1) a Conversation's learning is
+triggered by 30 minutes idle, checked at launch and while idle, with no End button; (2) the daily home
+is a new home from the assistant, with template identity; (3) no mode returns in phase 4; (4) the
+daily-use period is 7 consecutive days; (5) publish unsigned and x64 only. Decision 1's mechanism is
+reopened below; its trigger stands.
+
+### 4a measured before building: ending does not fit a Desktop thread
+
+- **A Desktop Conversation is one Mirror Conversation for its whole life.** Desktop provisions it once
+  per generation and appends every later turn to the stored `mirrorConversationId`; a new generation
+  (a new Pi session, the model's transcript lost) is a reset the person asks for, not an idle event.
+- **Core accepts an append to an ended Conversation without a word** (`append.ts` checks the row and
+  the Journey, not `ended_at`), and `ensureConversation` binds a new Conversation once the bound one
+  has ended. An idle close would therefore leave every later turn in an ended, already-extracted
+  Conversation, never learned from.
+- **This is already happening in production, on the 0.2 line** (read only, 2026-10-30): of 138
+  Conversations with interface `nautilus_harness`, 74 were ended; 38 of them then received **5,602
+  messages after `ended_at`**, and 36 of those were already extracted. The 64 still open have
+  sessions `active = 1`, which the orphan close treats as attended, so they never close. Desktop's
+  Conversations reached 1,278 messages and 3.05 MB of text; extraction formats the whole transcript,
+  unbounded.
+- So neither of the plan's two options holds: *reopening* re-extracts the whole Conversation
+  (duplicate memories, an unbounded prompt); *carrying into a new one* is a generation reset.
+
+### 4a revised (proposed): learn from a Conversation's newest stretch, without ending it
+
+- **Core, CV24.DS7:** `learnFromConversations(dbPath, {interface, idleMinutes, limit}, {apiKey})`.
+  For each Conversation of the named interface, idle at least `idleMinutes`, with at least 4 messages
+  after its watermark (`learned_through` in metadata): extract memories and tasks from that stretch
+  only, store them against the Conversation, and move the watermark past it. A stretch longer than a
+  fixed size is cut into pieces in order. At most `limit` pieces per call (AI-05's budget); a failure
+  counts attempts per stretch and, at the terminal's maximum, quarantines that stretch and moves on,
+  so one bad stretch never blocks the next. It never ends a Conversation, never writes a title or a
+  summary, never touches another interface's Conversations, reads no environment, and refuses without
+  a key before any write.
+- **Desktop:** the host runs it at launch and every 10 minutes while no turn runs, with its own
+  deadline; without a key it does nothing, said once as in 3d. Settings shows the last run (pieces
+  learned, failed, waiting), with no memory content.
+- **Later use:** at the migration (phase 5), the same call can learn the 0.2 Conversations' unlearned
+  messages, with the watermark at their `ended_at`.
+
+The 0.2 loss is recorded, not fixed on `release/0.2`: it is lost learning, not serious harm, so it
+waits under the Refinement Suspension.
