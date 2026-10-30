@@ -2270,3 +2270,17 @@ checks each hid; an `installed` line with a failed exit, now tested with a compl
 3. Send a turn; it runs the app's Pi with your existing Pi sign-ins.
 4. Optional: quit, delete `~/Library/Application Support/ai.mirrormind.desktop.ts.dev/pi`, reopen, and
    install again; or turn the network off during the install and see the sentence and Try again.
+
+## Navigator Check of 3b: Install Failed, Fixed (2026-10-30)
+
+The packaged TS Dev app showed "Pi could not be installed (it stopped without an outcome)", and no
+`install.log` existed. Reproduced by running the bundled installer as the app does: it exited 0
+and printed nothing. Its entry-point guard compared `argv[1]` with the module URL's pathname, which
+percent-encodes the spaces in `Mirror Desktop TS Dev.app`, so `main` never ran. The tests and the
+real Rust install ran from paths without spaces. A link on the way (`/tmp`) breaks the same
+comparison. Fixed in `8568985`: both sides are real paths; a test runs the installer from a folder with
+spaces reached through a link, and fails without the fix. Installed for real from such a folder.
+The app's sentence was right; it pointed at a log the installer never got to write.
+
+Gates: vitest 283 files / 2,354 tests; cargo 399 passed; real Pi install passes.
+
