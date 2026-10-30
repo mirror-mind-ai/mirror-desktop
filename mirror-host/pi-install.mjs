@@ -20,9 +20,10 @@ import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import {
   appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync,
-  readFileSync, renameSync, rmSync, writeFileSync, writeSync,
+  readFileSync, realpathSync, renameSync, rmSync, writeFileSync, writeSync,
 } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const REGISTRY = "https://registry.npmjs.org/";
 export const PI_PACKAGE = "@earendil-works/pi-coding-agent";
@@ -315,6 +316,17 @@ async function main(argv) {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname)) {
+/** Whether this file is the script Node was asked to run. Real paths on both sides: the app's path
+ * holds spaces, which a URL percent-encodes, and may pass through a link (`/tmp`), which Node
+ * resolves for the module but not in `argv`. A mismatch would exit 0 having done nothing. */
+function isEntryPoint() {
+  try {
+    return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isEntryPoint()) {
   process.exitCode = await main(process.argv.slice(2));
 }

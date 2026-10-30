@@ -208,6 +208,26 @@ describe("installing the pinned Pi", () => {
   });
 });
 
+describe("the installer as the app runs it", () => {
+  it("runs from a folder whose path has spaces and passes through a link", () => {
+    // Reached through a link, as `/tmp` is on macOS: Node resolves the module's path, not argv.
+    const real = scratch();
+    const linked = join(scratch(), "linked");
+    symlinkSync(real, linked);
+    const folder = join(linked, "Mirror Desktop TS Dev.app", "Contents", "Resources", "mirror-host");
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, "pi-install.mjs"), readFileSync(join(import.meta.dirname, "..", "..", "mirror-host", "pi-install.mjs")));
+    let stdout = "";
+    try {
+      execFileSync(process.execPath, [join(folder, "pi-install.mjs")], { encoding: "utf8", env: {} });
+    } catch (error) {
+      stdout = error.stdout;
+      expect(error.status).toBe(2);
+    }
+    expect(JSON.parse(stdout.trim())).toMatchObject({ event: "failed", reason: "usage" });
+  });
+});
+
 describe("the Pi pin", () => {
   const root = join(import.meta.dirname, "..", "..");
   const pin = readPin(root);
