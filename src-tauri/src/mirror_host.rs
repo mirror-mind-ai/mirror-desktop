@@ -46,6 +46,8 @@ pub(crate) struct MirrorHostDeadlines {
     /// A migration snapshots the whole database first; 108 MB took about 0.9 s.
     pub migrate: Duration,
     pub create_home: Duration,
+    /// Slice 3d: a turn's context. Core bounds its provider calls to about 20 s in all.
+    pub context: Duration,
 }
 
 impl MirrorHostDeadlines {
@@ -55,6 +57,7 @@ impl MirrorHostDeadlines {
             append: Duration::from_secs(30),
             migrate: Duration::from_secs(300),
             create_home: Duration::from_secs(60),
+            context: Duration::from_secs(30),
         }
     }
 
@@ -63,6 +66,7 @@ impl MirrorHostDeadlines {
             "appendConversationMessages" => self.append,
             "migrateHome" => self.migrate,
             "createMarkedHome" => self.create_home,
+            "deliverMirrorContext" => self.context,
             _ => self.default,
         }
     }
@@ -468,6 +472,7 @@ done"#
                 append: Duration::from_millis(1_500),
                 migrate: Duration::from_millis(1_500),
                 create_home: Duration::from_millis(1_500),
+                context: Duration::from_millis(1_500),
             },
             max_consecutive_failures: 3,
             backoff: vec![Duration::from_millis(50), Duration::from_millis(100)],
@@ -700,6 +705,8 @@ done"#
         assert_eq!(deadlines.for_method("appendConversationMessages"), Duration::from_secs(30));
         assert_eq!(deadlines.for_method("migrateHome"), Duration::from_secs(300));
         assert_eq!(deadlines.for_method("createMarkedHome"), Duration::from_secs(60));
+        assert_eq!(deadlines.for_method("deliverMirrorContext"), Duration::from_secs(30));
+        assert_eq!(deadlines.for_method("forgetMirrorContext"), Duration::from_secs(15));
         assert_eq!(deadlines.for_method("readJourneyTree"), Duration::from_secs(15));
     }
 

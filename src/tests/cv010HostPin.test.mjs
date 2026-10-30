@@ -189,7 +189,7 @@ describe("the 0.3 runtime pin", () => {
     mkdirSync(bundle, { recursive: true });
     writeFileSync(join(bundle, "stale.txt"), "from an older stage");
     stageBundle({ root, pin: realPin, platform, runtimeDir: outDir, outDir: bundle });
-    expect(readdirSync(bundle).sort()).toEqual(["host.mjs", "node", "node_modules", "pi", "pi-auth.mjs", "pi-install.mjs", "pin-receipt.json"]);
+    expect(readdirSync(bundle).sort()).toEqual(["host.mjs", "mirror-context.mjs", "node", "node_modules", "pi", "pi-auth.mjs", "pi-install.mjs", "pin-receipt.json"]);
     expect(readdirSync(join(bundle, "pi"))).toEqual(["package-lock.json"]);
     expect(readdirSync(join(bundle, "node")).sort()).toEqual(["LICENSE", "bin"]);
     expect(readdirSync(join(bundle, "node", "bin"))).toEqual(["node"]);
@@ -224,6 +224,14 @@ describe("the 0.3 runtime pin", () => {
     expect(checkRuntime({ root, pin: realPin, platform, dir: outDir })).toEqual([
       "the runtime's host is not the current mirror-host/host.mjs; rematerialize with --replace",
     ]);
+  });
+
+  it("refuses a runtime whose Mirror context extension was edited after it was materialized", async () => {
+    // Slice 3d: Pi loads this file into every mediated turn, so it is held to its receipt.
+    const work = mkdtempSync(join(tmpdir(), "mirror-host-stage-"));
+    const { pin: realPin, platform, outDir } = await fakeRuntime(work);
+    writeFileSync(join(outDir, "mirror-context.mjs"), "// edited after materialize\n");
+    expect(checkRuntime({ root, pin: realPin, platform, dir: outDir })).toEqual(["the runtime's mirror-context.mjs is not the one its receipt records"]);
   });
 
   it("refuses a symlink inside the runtime", async () => {

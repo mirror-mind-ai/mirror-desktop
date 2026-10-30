@@ -8,6 +8,7 @@ mod model_intents;
 mod native_command_serialization;
 mod native_panic_trace;
 mod pi_global_extensions;
+mod mirror_context;
 mod openrouter_key;
 mod pi_auth;
 mod pi_install;
@@ -3884,12 +3885,19 @@ async fn compact_pi_session(
     }
     let in_flight_registry = compaction_state.in_flight.clone();
     let claimed_journey = journey_id.clone();
+    let forget_app = app.clone();
     let outcome = tauri::async_runtime::spawn_blocking(move || {
+        let mediated = config.invocation_mode == "mirror";
         let result = run_manual_compaction(&config, &session_file, custom_instructions.as_deref());
         // Released on the same thread that ran the process, so the claim cannot outlive it
         // even if the awaiting side goes away.
         if let Ok(mut in_flight) = in_flight_registry.lock() {
             in_flight.remove(&claimed_journey);
+        }
+        // CV-010.DS-005 slice 3d: the folder left the transcript, so the next turn is full again.
+        // Best effort: a missed signal leaves the next turn a delta, as on the terminal.
+        if mediated && result.is_ok() {
+            let _ = mirror_context::forget(&forget_app, &session_file);
         }
         result
     })
@@ -7934,6 +7942,35 @@ fn run_pi_process_unguarded(
         // Mirror context returns through the host in phase 3.
         args.extend(mediated_turn_flags(&global_extensions));
     }
+    // CV-010.DS-005 slice 3d: Mirror's context before the model, never in place of the turn. The
+    // doorman reads what the person typed, not the Journey authority envelope around it.
+    let mut context_file: Option<PathBuf> = None;
+    let _context_guard = if mirror_mediated {
+        let (typed, _) = project_dedicated_user_text_and_envelope(&prompt);
+        let (context, guard) =
+            mirror_context::prepare_turn(&app, &run_authority.pi_session_file, &typed, &run_authority.journey_id);
+        if let Some(note) = context.note {
+            emit(&app, &authority, PiProcessEventKind::Stderr, note);
+        }
+        match mirror_host_bridge::current_runtime_dir().and_then(|dir| mirror_context::context_extension(&dir)) {
+            Ok(extension) => {
+                if let Some(file) = context.file {
+                    args.push("--extension".to_string());
+                    args.push(extension.to_string_lossy().into_owned());
+                    context_file = Some(file);
+                }
+            }
+            Err(error) => emit(
+                &app,
+                &authority,
+                PiProcessEventKind::Stderr,
+                format!("This turn went without Mirror's context: {error}"),
+            ),
+        }
+        Some(guard)
+    } else {
+        None
+    };
     let use_stdin = mirror_mediated || config.safe_test_mode || config.use_stdin;
 
     if !use_stdin {
@@ -7974,6 +8011,9 @@ fn run_pi_process_unguarded(
         }
     };
     let mut process_command = pi_turn_command(&command, args, &profile);
+    if let Some(file) = &context_file {
+        process_command.env(mirror_context::CONTEXT_ENV, file);
+    }
     if mirror_mediated {
         match serde_json::to_string(&run_authority.correlation) {
             Ok(payload) => {

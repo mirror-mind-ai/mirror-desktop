@@ -2463,3 +2463,9 @@ Navigator's account, and its tests read source and render markup, which cannot r
 4. **Mirror's context · OpenRouter**: paste a wrong key (refused, nothing kept), then your key
    (kept); Test; Remove and confirm. Optionally keep it again at the end.
 5. Send a turn.
+
+## Slice 3d Built — Mirror's Context Before the Model (2026-10-30)
+
+The Core pin moved to `46208a8a` (`desktop/library-seam-1a`, CV24.DS6), vendored as
+`vendor/mirror-host/mirror-mind-0.37.0-46208a8a.tgz` (`npm pack` gave the same hash twice); Node stays
+v24.22.2.

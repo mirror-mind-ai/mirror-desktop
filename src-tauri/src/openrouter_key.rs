@@ -234,7 +234,6 @@ fn openrouter_context(app: &AppHandle) -> Result<(Keychain, PathBuf), String> {
 }
 
 /// The key for slice 3d's host calls; never sent to the screen.
-#[allow(dead_code)]
 pub(crate) fn kept_key(app: &AppHandle) -> Result<Option<String>, String> {
     let (store, _) = openrouter_context(app)?;
     store.read()

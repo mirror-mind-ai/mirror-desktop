@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { assertMarkedHome, createMarkedHome, HOST_METHODS, HOST_PROTOCOL_VERSION, MAX_REQUEST_BYTES } from "../../mirror-host/host.mjs";
+import { answer, assertMarkedHome, createMarkedHome, HOST_METHODS, HOST_PROTOCOL_VERSION, MAX_REQUEST_BYTES, withoutKey } from "../../mirror-host/host.mjs";
 import { layoutHost, readPin } from "../../scripts/mirror_host_pin.mjs";
 
 // CV-010.DS-005 phase 2, slice 2b: the host process. It imports the vendored core through
@@ -65,6 +65,7 @@ describe("the Mirror host", () => {
       "inspectMigrationState", "migrateHome", "createMarkedHome", "ensureConversation",
       "appendConversationMessages", "renameConversation", "rebindConversationJourney",
       "readJourneyTree", "listJourneyConversations", "inspectConversation",
+      "deliverMirrorContext", "forgetMirrorContext",
     ]);
     host.child.stdin.end();
     expect(await host.exited).toBe(0);
@@ -94,6 +95,56 @@ describe("the Mirror host", () => {
     host.child.stdin.end();
     expect(await host.exited).toBe(0);
     expect(host.stderr()).not.toMatch(/ExperimentalWarning/);
+  });
+
+  it("asks the core for a turn's Mirror context, with the key it is given and no other", async () => {
+    // Slice 3d. No test reaches a provider: a command turn delivers nothing, and a turn that would
+    // deliver is refused without a key, with the host still serving and the session untouched.
+    const host = startHost();
+    await host.next();
+    const parent = realpathSync(mkdtempSync(join(tmpdir(), "mirror-host-context-")));
+    const created = await host.send({ id: 1, method: "createMarkedHome", params: { request: { homePath: join(parent, "ana"), userName: "ana" } } });
+    const dbPath = created.result.dbPath;
+    await host.send({ id: 2, method: "ensureConversation", params: { dbPath, request: { sessionId: "/s/one.jsonl", journeyId: "j1", title: "Primeira", interface: "mirror-desktop-ts" } } });
+    const request = (prompt) => ({ sessionId: "/s/one.jsonl", prompt, journeyId: "j1" });
+    expect(await host.send({ id: 3, method: "deliverMirrorContext", params: { dbPath, request: request("/mm-journeys"), apiKey: "sk-or-unused" } }))
+      .toEqual({ id: 3, ok: true, result: { kind: "nothing", block: "", persona: null, journey: null } });
+    expect(await host.send({ id: 4, method: "deliverMirrorContext", params: { dbPath, request: request("Olá") } }))
+      .toMatchObject({ id: 4, ok: false, error: { name: "MirrorContextRejectedError", reason: "no_key" } });
+    expect(await host.send({ id: 5, method: "deliverMirrorContext", params: { dbPath, request: { sessionId: "/s/one.jsonl", prompt: "" }, apiKey: "k" } }))
+      .toMatchObject({ id: 5, ok: false, error: { name: "MirrorContextRejectedError", reason: "invalid_request" } });
+    expect(await host.send({ id: 6, method: "forgetMirrorContext", params: { dbPath, request: { sessionId: "/s/unknown.jsonl" } } })).toMatchObject({ id: 6, ok: true });
+    expect(readdirSync(join(parent, "ana"))).not.toContain("backups");
+    host.child.stdin.end();
+    expect(await host.exited).toBe(0);
+  });
+
+  it("hands the core the key with the request, and a marked home only", async () => {
+    const home = join(realpathSync(mkdtempSync(join(tmpdir(), "mirror-host-key-"))), "ana");
+    mkdirSync(home);
+    mark(home);
+    const calls = [];
+    const core = {
+      deliverMirrorContext: async (...args) => { calls.push(args); return { kind: "full", block: "b", persona: null, journey: "j1" }; },
+      forgetMirrorContext: (...args) => { calls.push(args); },
+    };
+    const request = { sessionId: "/s/one.jsonl", prompt: "Olá", journeyId: "j1" };
+    const line = (id, method, params) => JSON.stringify({ id, method, params });
+    expect(await answer(core, line(1, "deliverMirrorContext", { dbPath: join(home, "memory.db"), request, apiKey: "sk-or-kept" })))
+      .toEqual({ id: 1, ok: true, result: { kind: "full", block: "b", persona: null, journey: "j1" } });
+    expect(calls[0]).toEqual([join(home, "memory.db"), request, { apiKey: "sk-or-kept" }]);
+    await answer(core, line(2, "forgetMirrorContext", { dbPath: join(home, "memory.db"), request: { sessionId: "/s/one.jsonl" } }));
+    expect(calls[1]).toEqual([join(home, "memory.db"), { sessionId: "/s/one.jsonl" }]);
+    expect(await answer(core, line(3, "deliverMirrorContext", { dbPath: "/tmp/unmarked/memory.db", request, apiKey: "k" })))
+      .toMatchObject({ ok: false, error: { name: "HomeNotMarkedError" } });
+    expect(calls).toHaveLength(2);
+  });
+
+  it("never sends back the key it was given, whatever a refusal said", () => {
+    expect(withoutKey("bad key sk-or-v1-abcdef in the request", { apiKey: " sk-or-v1-abcdef " })).toBe("bad key [key] in the request");
+    expect(withoutKey("sk-or-v1-abcdef sk-or-v1-abcdef", { apiKey: "sk-or-v1-abcdef" })).toBe("[key] [key]");
+    expect(withoutKey("a message", { apiKey: "abc" })).toBe("a message");
+    expect(withoutKey("a message", undefined)).toBe("a message");
   });
 
   it("names every refusal and keeps serving", async () => {

@@ -59,6 +59,9 @@ const CALLS = {
   readJourneyTree: (d, p) => d.readJourneyTree(p.dbPath),
   listJourneyConversations: (d, p) => d.listJourneyConversations(p.dbPath, p.request),
   inspectConversation: (d, p) => d.inspectConversation(p.dbPath, p.request),
+  // Slice 3d: Mirror's context for a turn. The key comes with each call and goes to the core alone.
+  deliverMirrorContext: (d, p) => d.deliverMirrorContext(p.dbPath, p.request, { apiKey: p.apiKey }),
+  forgetMirrorContext: (d, p) => d.forgetMirrorContext(p.dbPath, p.request),
 };
 export const HOST_METHODS = Object.keys(CALLS);
 
@@ -179,6 +182,7 @@ const REFUSALS = [
   ["ConversationCallRejectedError", (error) => error.reason],
   ["CreateHomeRejectedError", (error) => error.reason],
   ["MigrateHomeRejectedError", (error) => error.reason],
+  ["MirrorContextRejectedError", (error) => error.reason],
 ];
 
 function failure(id, name, reason, message) {
@@ -189,8 +193,15 @@ function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** A refusal never carries the key it was given, whatever the core's message held. */
+export function withoutKey(message, params) {
+  const text = String(message);
+  const key = isRecord(params) && typeof params.apiKey === "string" ? params.apiKey.trim() : "";
+  return key.length >= 4 ? text.split(key).join("[key]") : text;
+}
+
 /** Answer one request line. Exported for the supervisor's tests to share the shape. */
-export function answer(desktop, line) {
+export async function answer(desktop, line) {
   if (Buffer.byteLength(line, "utf8") > MAX_REQUEST_BYTES) {
     return failure(null, "HostProtocolError", "limit_exceeded", `request exceeds ${MAX_REQUEST_BYTES} bytes`);
   }
@@ -210,12 +221,12 @@ export function answer(desktop, line) {
   if (!isRecord(params)) return failure(id, "HostProtocolError", "malformed_request", "params is not an object");
   try {
     if (method !== "createMarkedHome") assertMarkedHome(params.dbPath);
-    return { id, ok: true, result: CALLS[method](desktop, params) };
+    return { id, ok: true, result: await CALLS[method](desktop, params) };
   } catch (error) {
     for (const [name, reasonOf, ownClass] of REFUSALS) {
-      if (error instanceof (ownClass ?? desktop[name])) return failure(id, name, reasonOf(error), error.message);
+      if (error instanceof (ownClass ?? desktop[name])) return failure(id, name, reasonOf(error), withoutKey(error.message, params));
     }
-    return failure(id, "Error", "internal", error instanceof Error ? error.message : error);
+    return failure(id, "Error", "internal", withoutKey(error instanceof Error ? error.message : error, params));
   }
 }
 
@@ -237,7 +248,8 @@ async function main() {
     methods: HOST_METHODS,
   });
   for await (const line of createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY })) {
-    write(answer(desktop, line));
+    // One at a time, in order: a turn's context is awaited before the next request is read.
+    write(await answer(desktop, line));
   }
 }
 
