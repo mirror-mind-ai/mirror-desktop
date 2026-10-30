@@ -187,7 +187,7 @@ including any Navigator check, is met.
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
-| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built and checked by the Navigator. 3c–3d to do. |
+| 3 · The first-run assistant on 0.3 | 🟡 Planned | Four slices (3a–3d), planned 2026-10-29; all five decisions accepted, decision 1 revised to `~/Mirror Homes`. 3a and 3a-2 (state per home) built and checked by the Navigator; 3b (install Pi) built and checked by the Navigator; 3c split into 3c-1 (model provider, built, awaiting the Navigator's check) and 3c-2 (OpenRouter key). 3d to do. |
 | 4 · Stable | 🟡 Candidate | A full plan |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
@@ -2000,8 +2000,8 @@ OpenRouter key Mirror's context needs is taken.
 1. **Where a created home goes by default.** Recommendation: `~/Mirror/<name>`, visible in Finder,
    with "Choose another place". Not `~/.mirror-minds`, which belongs to the Python homes.
 2. **How Pi arrives.** Recommendation: installed at first run, pinned and integrity-checked, into the
-   app's own folder, and always that one on 0.3. This keeps the app about 48 MB to download, against
-   about 100 MB if Pi is bundled. An existing Pi on the machine is not used; its credentials in
+   app's own folder, and always that one on 0.3. ~~This keeps the app about 48 MB to download, against
+   about 100 MB if Pi is bundled.~~ (Corrected 2026-10-30, below: about 75 MB bundled.) An existing Pi on the machine is not used; its credentials in
    `~/.pi/agent` are, since that is where Pi keeps them.
 3. **API keys typed in the app.** Recommendation: typed once and handed straight to Pi's own login,
    which stores them. Desktop keeps no copy and never shows one back. This refines the CV-010 rule
@@ -2299,3 +2299,84 @@ afterwards, read-only:
 
 The optional checks (reinstall after deleting `pi/`, network off during the install) were not
 reported, so they are not evidenced.
+
+## Decision 2 Revisited: the Reason Corrected, the Decision Kept (2026-10-30)
+
+The Navigator asked why Pi is not bundled too. The recorded reason, "about 48 MB against about
+100 MB", was an estimate. Measured: the installed Pi is 149 MB in about 15,000 files and 27 MB as a
+`tar.gz`, so a bundled app would download at about 75 MB, not 100.
+
+- **What still holds.** Tauri's updater downloads the whole app: bundled, every app update would
+  carry Pi's 27 MB again; installed, Pi is fetched only when its pin moves. A first run needs the
+  network anyway, to sign in to a provider and for the model to answer.
+- **What bundling would buy.** One fewer step that can fail at first run; slice 3b's step is built,
+  resumable and checked.
+- **For CV-009.** Pi carries native modules (`pi-tui`'s `darwin-platform.node`). Bundled, they
+  are signed with the app; installed, loading them from the signed Node may need an entitlement.
+  Not measured yet.
+
+The Navigator kept the decision. Its reason is updates, not the first download.
+
+## Slice 3c-1 Built — Connect a Model Provider (2026-10-30)
+
+Commit `2d9e114`, on the Navigator's "vamos seguir para 3c". Slice 3c is split: **3c-1** is the model
+provider; **3c-2** is the OpenRouter key for Mirror's context (Keychain and its Settings section).
+
+### Measured first (Pi 1.4.0, scratch credential folders, nothing real)
+
+- `ModelRuntime.login(providerId, type, interaction, options)` runs outside a terminal. An API key
+  is one `secret` prompt and is stored in `auth.json` (0600). A subscription asks for a method
+  (`select`), emits `auth_url`, starts its own localhost callback, and races a `manual_code` prompt
+  against it, aborting the prompt when the callback wins. Pi does not open the browser.
+- Anthropic, OpenAI Codex and OpenRouter reached their authorization pages; GitHub Copilot first asks
+  for an Enterprise domain (`text`); OpenAI's ChatGPT sign-in needs `getDeviceId`.
+- Readiness: `ReadOnlyAuthStorage`, the view `pi auth check --no-refresh` uses, with
+  `checkAuth(id)` for each of 42 providers took 18 ms and left the credentials file byte-identical.
+- `security-framework` 3.7.0 is already in the lockfile (for 3c-2).
+
+### Built
+
+- **Helper** (`mirror-host/pi-auth.mjs`, carried in the runtime, receipt-checked like the
+  installer, `BUNDLE_ENTRIES` + `piAuth` hash). `status` lists each provider with its ways to sign in
+  and its readiness (`type`, `source`, never the credential). `login` runs Pi's login and speaks JSON
+  lines: `select`/`prompt` with ids, `prompt_closed`, `auth_url`, `device_code`, notes, then `done`
+  or `failed` with a reason; `answer` and `cancel` come in. An answer to another prompt is ignored;
+  closed input cancels. `agentName` is "Mirror Desktop"; the device id is a UUID in
+  `<app data>/pi-device-id` (0600, made on first use).
+- **App** (`pi_auth.rs`). The helper runs with the carried Node, `--pi` the installed package, and
+  only `HOME` and that Node's folder as environment. `inspect_pi_providers` bounds `status` at 20 s.
+  One sign-in at a time; events become `pi-login-event` with a session number; an `auth_url` is
+  opened only if https; a sign-in is killed after 15 minutes, and 3 s after a cancel. A helper that
+  ends without an outcome is reported as failed. Each refusal reason has a sentence. Census 91 → 95;
+  the reader of the app data folder is classified as app state.
+- **Setup.** After Install Pi, **Connect a model provider**, skipped when one is connected: every
+  provider, connected first, with "Sign in · …" and/or "Use an API key"; during a sign-in, the
+  page's host, "Open the sign-in page again", each prompt (a key in a password field), and Cancel.
+  When it ends, providers are read again and "Connected to …" or the sentence shows; Continue goes to
+  Choose your model, which offers **Connect another provider**.
+
+### Changed from the plan
+
+- Readiness comes from the SDK in the helper, not `pi auth check` per provider (one process, 18 ms,
+  the same read-only view).
+- Turns run with the app's environment, so a key exported in a shell that launched the app would
+  work in turns without showing as connected. A Finder launch has none.
+
+### Gates and controls
+
+vitest 285 files / 2,369 tests; cargo 405 passed / 7 ignored; real-host 2 pass; the real ignored
+`real_pi_auth` installs Pi, signs in to DeepSeek with a made-up key under a scratch HOME and sees it
+ready (22 s); pin `verify` and `check` READY. Mutations: 21, all caught. During the build, two
+defects were found and fixed before the commit: the helper awaited its stdin reader after the login
+settled, so a real sign-in never said `done`; and the app's reader waited on the child under the lock
+a cancel needs to kill it.
+
+### Navigator check
+
+1. `npm run tauri:build:dev -- --bundles app`, open the TS Dev app on ana. Your Pi sign-ins are in
+   `~/.pi/agent`, so it goes straight on; open **Connect another provider** from Settings' model
+   choice, or from the setup step if it shows.
+2. Sign in to a provider you have with a subscription: the browser opens, finish there, and the app
+   says "Connected to …".
+3. Optionally, start an API-key sign-in and Cancel.
+4. Send a turn.
