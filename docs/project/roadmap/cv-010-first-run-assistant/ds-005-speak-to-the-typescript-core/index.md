@@ -2443,6 +2443,15 @@ removes a throwaway item and leaves none; pin `verify` and `check` READY; the de
 reset kept in the file, the confirmation before Disconnect, Not now outside setup) and each got a
 test, plus one mutation that proved nothing was replaced by a stronger one; all 24 caught.
 
+### Defect found by the Navigator: setup stuck at "Checking your model providers…" (fixed in `09bac62`)
+
+The effect that asks Pi for the providers set its own state to `loading`, one of its dependencies;
+the effect re-ran and its cleanup marked the request it had just started as cancelled, so the answer
+was discarded. The OpenRouter status read had the same shape. Pi itself answered in 2.4 s with the
+Navigator's two providers ready. Both cleanups are removed; `cv010SetupReadsAreNotDiscarded` refuses
+the pattern and fails on the old code. 3c-1 carried it too: its step was never reached on the
+Navigator's account, and its tests read source and render markup, which cannot run an effect.
+
 ### Navigator check (3c-1 and 3c-2)
 
 1. `npm run tauri:build:dev -- --bundles app` and open the TS Dev app on ana. If the OpenRouter step
