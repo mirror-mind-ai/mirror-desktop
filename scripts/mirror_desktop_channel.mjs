@@ -144,6 +144,8 @@ if (!selected) {
   console.error("Usage: node scripts/mirror_desktop_channel.mjs <user|dev|build-dev|build-user|build-eval|install-eval|validate-desktop>");
   process.exit(2);
 }
+// A user build without its signing key is refused first, before the runtime is copied for bundling.
+const launchEnvironment = selected.requiresUpdaterSigning ? userBuildEnvironment() : cleanLaunchEnvironment();
 // CV-010.DS-005 slice 2f: every packaged build carries the pinned Mirror host runtime; dev runs the
 // repository's materialized one.
 let bundledRuntime = [];
@@ -157,7 +159,7 @@ if (selected.args[0] === "build") {
 }
 const result = spawnSync(tauri, [...selected.args, ...bundledRuntime, ...process.argv.slice(3)], {
   cwd: process.cwd(),
-  env: selected.requiresUpdaterSigning ? userBuildEnvironment() : cleanLaunchEnvironment(),
+  env: launchEnvironment,
   stdio: "inherit",
 });
 if (result.error) {
