@@ -1809,39 +1809,34 @@ export function App({ model }: AppProps) {
 
   useEffect(() => {
     if (runtimeChannel?.status !== "validated" || runtimeChannel.piInstalled !== true || piProvidersState !== "idle") return;
-    let cancelled = false;
+    // No cleanup that discards the answer: setting "loading" re-runs this effect, and a cleanup would
+    // cancel the very request it started, leaving the screen at "Checking…" for good.
     setPiProvidersState("loading");
     void inspectPiProviders()
       .then((providers) => {
-        if (cancelled) return;
         setPiProviders(providers);
         setPiProvidersState("ready");
         setPiProvidersLoadedOnce(true);
       })
       .catch((error) => {
-        if (cancelled) return;
         setPiProvidersMessage(error instanceof Error ? error.message : String(error));
         setPiProvidersState("error");
       });
-    return () => { cancelled = true; };
   }, [runtimeChannel, piProvidersState]);
 
   useEffect(() => {
     if (runtimeChannel?.status !== "validated" || runtimeChannel.piInstalled !== true || openRouterState !== "idle") return;
-    let cancelled = false;
+    // As above: no cleanup that discards the answer to the request this effect started.
     setOpenRouterState("loading");
     void loadOpenRouterKeyStatus()
       .then((status) => {
-        if (cancelled) return;
         setOpenRouterKey(status);
         setOpenRouterState("ready");
       })
       .catch((error) => {
-        if (cancelled) return;
         setOpenRouterMessage(error instanceof Error ? error.message : String(error));
         setOpenRouterState("error");
       });
-    return () => { cancelled = true; };
   }, [runtimeChannel, openRouterState]);
 
   // A sign-in's events: prompts and pages update the view; its outcome reads the providers again.
