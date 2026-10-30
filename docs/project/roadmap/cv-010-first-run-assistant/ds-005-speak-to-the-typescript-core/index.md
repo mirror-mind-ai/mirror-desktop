@@ -188,7 +188,7 @@ including any Navigator check, is met.
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
-| 4 · Stable | 🟡 Planned | Decisions accepted 2026-10-30. 4a (learn from the app's Conversations; Core CV24.DS7) built, awaiting the Navigator check; then 4b, 4c, 4d |
+| 4 · Stable | 🟡 Planned | Decisions accepted 2026-10-30. 4a (learn from the app's Conversations; Core CV24.DS7) built and checked by the Navigator; then 4b, 4c, 4d |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
@@ -2880,3 +2880,20 @@ code the slice only adds `export` to three helpers.
 
 I will then read ana's database read-only: memories against her Conversations, the
 `learned_through` watermark, and the `extraction` calls in `llm_calls`.
+
+## Navigator Check of 4a: Passed (2026-10-30)
+
+The Navigator opened the 4a build on ana and found Settings reporting a run ("parece ter
+funcionado"). Read from ana's database read-only:
+
+- **One run, at 19:48Z,** over both Conversations, neither ended.
+  - The first (8 messages): `learning_status` `ok`, two memories (an idea and an insight), watermark
+    at its last assistant message.
+  - The second (4 messages): `no_signal`, no memory, watermark moved, so it is not read again.
+- **Provider calls:** 2 `extraction`, 2 `task_extraction`, 2 `embedding`, all written to
+  `llm_calls`; no task extracted; no `extracted` flag, title or summary touched.
+- **Acceptance 5 holds:** production binary `303ede287de3…`, production home at 016.
+- **Disk.** Free space on the Data volume fell back to 1.1 GB after the run; the cause is outside
+  this check and is recorded for the Navigator.
+
+4a is done. Next: 4b, create a Journey in the app.
