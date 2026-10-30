@@ -119,6 +119,7 @@ import {
 import { ConversationRecoveryNotice } from "./ConversationRecoveryNotice";
 import { InterruptedNativeAttemptNotice } from "./InterruptedNativeAttemptNotice";
 import { MirrorHomeSetup } from "./MirrorHomeSetup";
+import { PiInstallStep, type PiInstallView } from "./PiInstallStep";
 import { PendingFileAttachments } from "./PendingFileAttachments";
 import { VoiceComposerControl, VoiceInstallDialog, VoiceSessionStatus, VoiceSettingsPanel } from "./VoiceComposerControl";
 import { installVoiceComponent, loadVoiceComponentCatalog, loadVoiceComponentStatus, removeVoiceComponent, transcribeVoiceWav } from "./voiceTranscriptionStorage";
@@ -498,7 +499,7 @@ import {
 } from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
 import {
-  bindMirrorHome, chooseRuntimeDirectory, createMirrorHome, inspectRuntimeChannel,
+  bindMirrorHome, chooseRuntimeDirectory, createMirrorHome, inspectRuntimeChannel, installPi,
   type RuntimeChannelDiagnostic,
 } from "./runtimeChannelStorage";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
@@ -937,6 +938,7 @@ export function App({ model }: AppProps) {
   }
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
   const [runtimeBindingState, setRuntimeBindingState] = useState<"idle" | "validating" | "saving">("idle");
+  const [piInstallView, setPiInstallView] = useState<PiInstallView>({ kind: "idle" });
   const [runtimeOnboardingState, setRuntimeOnboardingState] = useState<"idle" | "importing" | "empty" | "error" | "ready">("idle");
   const [runtimeOnboardingEditing, setRuntimeOnboardingEditing] = useState(false);
   // CV-010.DS-001: an unbound channel opens on discovery; the manual form stays one click away.
@@ -5427,10 +5429,26 @@ export function App({ model }: AppProps) {
     }
   }
 
+  /**
+   * CV-010.DS-005 slice 3b: install the app's own Pi. On success the window reloads, as after
+   * binding a home, so everything read through Pi (the model catalog first) is read from it.
+   */
+  async function installAppPi() {
+    setPiInstallView({ kind: "installing", done: 0, total: 0 });
+    try {
+      await installPi((step) => setPiInstallView({ kind: "installing", ...step }));
+      reloadForBoundHome();
+    } catch (error) {
+      setPiInstallView({ kind: "failed", message: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
   const runtimeSetupNeedsConnection = Boolean(runtimeChannel)
     && (runtimeChannel?.status !== "validated" || runtimeOnboardingEditing);
+  const runtimeSetupNeedsPi = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === false;
   const runtimeSetupVisible = !runtimeChannel
     || runtimeSetupNeedsConnection
+    || runtimeSetupNeedsPi
     || agentProfileConfigured !== true
     || runtimeOnboardingState !== "ready"
     || flattenJourneyRegistry(loadedJourneyRegistry).length === 0;
@@ -5475,7 +5493,7 @@ export function App({ model }: AppProps) {
       >
         <section
           className="runtime-onboarding-card"
-          aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
+          aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : runtimeSetupNeedsPi ? "Install Pi" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
         >
           <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
           {runtimeSetupNeedsConnection ? (
@@ -5492,6 +5510,8 @@ export function App({ model }: AppProps) {
               <h1>Checking your Mirror connection…</h1>
               <p>{runtimeChannelError ?? "Preparing secure local setup."}</p>
             </>
+          ) : runtimeSetupNeedsPi ? (
+            <PiInstallStep view={piInstallView} onInstall={() => void installAppPi()} />
           ) : runtimeOnboardingState === "error" || runtimeOnboardingState === "empty" ? (
             <>
               <p className="eyebrow">Mirror Desktop TS</p>

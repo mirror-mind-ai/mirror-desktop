@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export type RuntimeChannelDiagnostic = {
   channel: "user" | "development" | "evaluation";
@@ -11,11 +12,13 @@ export type RuntimeChannelDiagnostic = {
   dbPath?: string;
   status: "unbound" | "invalid" | "validated";
   message?: string;
+  /** CV-010.DS-005 slice 3b: on a validated home, whether the app's own Pi is installed. */
+  piInstalled?: boolean;
 };
 
 const ALLOWED_KEYS = [
   "channel", "productName", "bundleIdentifier", "appDataRoot", "mirrorRoot",
-  "mirrorHome", "mirrorUser", "dbPath", "status", "message",
+  "mirrorHome", "mirrorUser", "dbPath", "status", "message", "piInstalled",
 ] as const;
 const COORDINATE_KEYS = ["mirrorRoot", "mirrorHome", "mirrorUser", "dbPath"] as const;
 
@@ -56,6 +59,10 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
     || typeof diagnostic.message !== "string" || diagnostic.message.length === 0) {
     throw new Error("Unavailable runtime channel diagnostic contains invalid details.");
   }
+  if (diagnostic.piInstalled !== undefined
+    && (typeof diagnostic.piInstalled !== "boolean" || diagnostic.status !== "validated")) {
+    throw new Error("Runtime channel diagnostic reports Pi outside a validated home.");
+  }
   return diagnostic as RuntimeChannelDiagnostic;
 }
 
@@ -79,4 +86,19 @@ export async function bindMirrorHome(homePath: string): Promise<RuntimeChannelDi
 /** CV-010.DS-005 slice 3a: create a 0.3 home for `userName` in `folder` (or `~/Mirror Homes`) and bind it. */
 export async function createMirrorHome(userName: string, folder?: string): Promise<RuntimeChannelDiagnostic> {
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("create_mirror_home", { userName, folder: folder ?? null }));
+}
+
+export type PiInstallProgress = { phase: "download" | "unpack" | "check"; done: number; total: number };
+
+/**
+ * CV-010.DS-005 slice 3b: install the app's own Pi, reporting each step to `onProgress`. Resolves
+ * once Pi is installed and resolvable; rejects with a sentence that says what to do.
+ */
+export async function installPi(onProgress: (step: PiInstallProgress) => void): Promise<void> {
+  const unlisten: UnlistenFn = await listen<PiInstallProgress>("pi-install-progress", (event) => onProgress(event.payload));
+  try {
+    await invoke("install_pi");
+  } finally {
+    unlisten();
+  }
 }

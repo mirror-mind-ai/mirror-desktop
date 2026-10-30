@@ -9576,3 +9576,18 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   justify-content: center;
   width: 34px;
 }
+
+/* CV-010.DS-005 slice 3b: the Pi install step's progress. */
+.pi-install-progress {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.pi-install-progress progress {
+  width: 100%;
+}
+
+.pi-install-progress p {
+  margin: 0;
+}

@@ -8,6 +8,7 @@ mod model_intents;
 mod native_command_serialization;
 mod native_panic_trace;
 mod pi_global_extensions;
+mod pi_install;
 mod pi_process_registry;
 mod pi_rpc;
 mod run_loop_guard;
@@ -2127,7 +2128,8 @@ fn bind_marked_home(app: &AppHandle, app_data_root: &Path, home_path: &Path) -> 
         return Err(format!("This Mirror home reads as {state}, not current. Mirror Desktop TS does not migrate a home yet."));
     }
     mirror_home::persist_home_binding(app_data_root, &home)?;
-    Ok(RuntimeChannelProfile::active()?.diagnostic(app_data_root))
+    // Slice 3b: a bound home is reported as `inspect_runtime_channel` would, Pi installed or not.
+    Ok(RuntimeChannelDiagnostic::inspect(RuntimeChannel::active(), app_data_root))
 }
 
 /// CV-010.DS-005 slice 3a-2: Desktop's state is per home, and a turn, compaction or Journey thread
@@ -2329,10 +2331,7 @@ fn inspect_runtime_channel(app: AppHandle) -> Result<RuntimeChannelDiagnostic, S
     let channel = RuntimeChannel::active();
     let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
     channel.validate_app_identity(&app.config().identifier, &app_data_root)?;
-    Ok(match active_runtime_channel() {
-        Ok(profile) => profile.diagnostic(&app_data_root),
-        Err(error) => RuntimeChannelDiagnostic::unavailable(channel, &app_data_root, error),
-    })
+    Ok(RuntimeChannelDiagnostic::inspect(channel, &app_data_root))
 }
 
 const DOCUMENT_PREVIEW_MAX_BYTES: u64 = 1024 * 1024;
@@ -7529,8 +7528,10 @@ fn acknowledge_mirror_append_item(
 /// mode, it runs in the bound 0.3 home (a data folder, never a Mirror checkout whose
 /// `.pi/extensions` would load), with `MIRROR_HOME`, `MIRROR_USER`, `DB_PATH` and the Python
 /// variables removed: the shell that launched the app may export a production Mirror's.
+///
+/// Slice 3b: the provider command `pi` is the app's own Pi (decision 2), never one `PATH` finds.
 fn pi_turn_command(program: &str, args: Vec<String>, profile: &RuntimeChannelProfile) -> Command {
-    let mut command = Command::new(program);
+    let mut command = if program == "pi" { Command::new(&profile.pi_bin) } else { Command::new(program) };
     command.args(args);
     isolate_pi_command(command, profile)
 }
@@ -10078,6 +10079,7 @@ fn main() {
             inspect_runtime_channel,
             bind_mirror_home,
             create_mirror_home,
+            pi_install::install_pi,
             choose_runtime_directory,
             load_journey_projections,
             list_journey_documentation,
@@ -14844,6 +14846,9 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
 
         let directory = scratch("pi-isolation");
         let profile = RuntimeChannelProfile::for_home(crate::runtime_channel::RuntimeChannel::Development, &directory);
+        // Slice 3b: `pi` is the profile's Pi, the app's own; safe test mode's `cat` stays itself.
+        assert_eq!(pi_turn_command("pi", Vec::new(), &profile).get_program(), profile.pi_bin.as_os_str());
+        assert_eq!(pi_turn_command("cat", Vec::new(), &profile).get_program(), "cat");
         fs::create_dir_all(&profile.mirror_home).unwrap();
         // A shell that exported production's coordinates launched the app; set them on the base
         // command as the inherited environment would carry them, and prove the child never sees them.

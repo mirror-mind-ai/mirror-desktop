@@ -105,6 +105,21 @@ pub(crate) fn runtime_dir(channel: RuntimeChannel, resources: Option<&Path>, rep
     directory.canonicalize().map_err(|error| format!("Could not resolve {}: {error}", directory.display()))
 }
 
+/// The runtime this process runs with. The resources folder is the one Tauri resolves on macOS,
+/// `Contents/Resources` beside the executable's `Contents/MacOS`, found without an `AppHandle` so
+/// the runtime channel's profile and the host supervisor read the same runtime.
+pub(crate) fn current_runtime_dir() -> Result<PathBuf, String> {
+    let resources = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().and_then(Path::parent).map(|contents| contents.join("Resources")));
+    runtime_dir(
+        RuntimeChannel::active(),
+        resources.as_deref(),
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join(".."),
+        std::env::consts::ARCH,
+    )
+}
+
 /// A bundled runtime is the one its receipt names: this platform's, with that `host.mjs`, and a
 /// `node` to run it. A damaged app refuses rather than runs something else.
 fn check_bundled_runtime(directory: &Path, platform: &str) -> Result<(), String> {
@@ -248,14 +263,7 @@ fn with_host<T>(app: &AppHandle, call: impl FnOnce(&mut MirrorHost) -> Result<T,
     let state = app.state::<MirrorHostState>();
     let mut guard = state.0.lock().map_err(|_| MirrorHostError::Protocol("the Mirror host lock is poisoned".into()))?;
     if guard.is_none() {
-        let resources = app.path().resource_dir().ok();
-        let directory = runtime_dir(
-            RuntimeChannel::active(),
-            resources.as_deref(),
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join(".."),
-            std::env::consts::ARCH,
-        )
-        .map_err(MirrorHostError::SpawnFailed)?;
+        let directory = current_runtime_dir().map_err(MirrorHostError::SpawnFailed)?;
         let mut config = MirrorHostConfig::for_runtime(directory);
         // CR163's bound, single-sourced: the append deadline is the app's append timeout.
         config.deadlines.append = crate::MIRROR_APPEND_TIMEOUT;

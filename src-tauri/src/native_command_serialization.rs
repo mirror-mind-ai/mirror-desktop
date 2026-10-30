@@ -42,6 +42,7 @@ mod tests {
         include_str!("journey_appearance.rs"),
         include_str!("agent_settings.rs"),
         include_str!("model_intents.rs"),
+        include_str!("pi_install.rs"),
     ];
 
     /// Commands that stay on the main thread. Each is either a native dialog, hands off to another
@@ -139,7 +140,8 @@ mod tests {
         // CV-010.DS-005 slice 2f-2 removed the Python binding's candidate, discovery, validate and
         // save commands: 93 → 89.
         // CV-010.DS-005 slice 3a added `create_mirror_home`, serialised and off the main thread: 89 → 90.
-        assert_eq!(v.len(), 90, "the command census changed; update SOURCES or this count");
+        // CV-010.DS-005 slice 3b added `install_pi`, async, its long work on a blocking thread: 90 → 91.
+        assert_eq!(v.len(), 91, "the command census changed; update SOURCES or this count");
         v
     }
 

@@ -18,6 +18,12 @@
 // checking the runtime still matches the pin and the current `host.mjs`. Packaged builds add that
 // folder to the app's resources as `mirror-host/` through `bundleConfig`.
 //
+// Slice 3b adds Pi, which the app installs at first run rather than carries: `pin.pi` records the
+// package, its version, and the SHA-256 of a vendored npm lockfile (`mirror-host/pi/`) whose sha512
+// integrity covers every dependency. The runtime carries that lockfile and `pi-install.mjs`, and
+// the receipt records both hashes. `scriptsNotRun` names the packages that declare an install
+// script, which the installer never runs; a new pin that adds one fails `verify` until it is read.
+//
 // Known gap: SHASUMS256.txt is signed by Node's releasers, and this machine has no gpg, so the
 // recorded hashes were taken from the file over HTTPS, not from a verified signature.
 
@@ -31,6 +37,8 @@ export const MIN_NODE_VERSION = "24.21.0";
 export const PLATFORMS = ["darwin-arm64", "darwin-x64"];
 export const PIN_PATH = "mirror-host/pin.json";
 export const HOST_SCRIPT_PATH = "mirror-host/host.mjs";
+export const PI_INSTALLER_PATH = "mirror-host/pi-install.mjs";
+export const PI_REGISTRY = "https://registry.npmjs.org/";
 
 export function readPin(root) {
   return JSON.parse(readFileSync(join(root, PIN_PATH), "utf8"));
@@ -83,6 +91,35 @@ export function validatePin(pin, root) {
   const yamlTarball = yaml?.tarball ? join(root, yaml.tarball) : "";
   if (!yamlTarball || !existsSync(yamlTarball)) problems.push("yaml tarball is missing");
   else if (sha512Integrity(yamlTarball) !== yaml.integrity) problems.push("yaml tarball integrity does not match the pin");
+  problems.push(...validatePiPin(pin, root));
+  return problems;
+}
+
+/** Every problem with `pin.pi` and its lockfile, or none. */
+export function validatePiPin(pin, root) {
+  const pi = pin?.pi;
+  if (!pi) return ["Pi is not pinned"];
+  const lockfile = pi.lockfile ? join(root, pi.lockfile) : "";
+  if (!lockfile || !existsSync(lockfile)) return ["Pi's lockfile is missing"];
+  if (sha256File(lockfile) !== pi.lockfileSha256) return ["Pi's lockfile sha256 does not match the pin"];
+  const problems = [];
+  const packages = JSON.parse(readFileSync(lockfile, "utf8")).packages ?? {};
+  const entries = Object.entries(packages).filter(([path]) => path !== "");
+  if (packages[""]?.dependencies?.[pi.package] !== pi.version) problems.push(`Pi's lockfile does not ask for ${pi.package} ${pi.version}`);
+  const own = packages[`node_modules/${pi.package}`];
+  if (own?.version !== pi.version) problems.push(`Pi's lockfile does not hold ${pi.package} ${pi.version}`);
+  if (typeof own?.bin?.pi !== "string") problems.push("Pi's lockfile does not name the pi command");
+  const engine = /^>=(\d+\.\d+\.\d+)$/.exec(own?.engines?.node ?? "");
+  if (!engine || !versionAtLeast(pin.node?.version, engine[1])) problems.push(`the pinned Node does not meet Pi's engine ${own?.engines?.node}`);
+  if (entries.length !== pi.packages) problems.push(`Pi's lockfile holds ${entries.length} packages, the pin ${pi.packages}`);
+  for (const [path, entry] of entries) {
+    if (!String(entry.resolved ?? "").startsWith(PI_REGISTRY)) problems.push(`${path} does not come from the npm registry`);
+    if (!String(entry.integrity ?? "").startsWith("sha512-")) problems.push(`${path} has no sha512 integrity`);
+  }
+  const scripted = entries.filter(([, entry]) => entry.hasInstallScript).map(([path]) => path.slice(path.lastIndexOf("node_modules/") + 13)).sort();
+  if (JSON.stringify(scripted) !== JSON.stringify([...(pi.scriptsNotRun ?? [])].sort())) {
+    problems.push(`the packages with install scripts are ${scripted.join(", ")}, not the ones the pin read (${(pi.scriptsNotRun ?? []).join(", ")})`);
+  }
   return problems;
 }
 
@@ -114,12 +151,17 @@ export function layoutHost({ root, pin, outDir, node = null }) {
   extractPackage(join(root, pin.core.tarball), join(outDir, "node_modules", pin.core.package));
   extractPackage(join(root, pin.core.dependencies.yaml.tarball), join(outDir, "node_modules", "yaml"));
   copyFileSync(join(root, HOST_SCRIPT_PATH), join(outDir, "host.mjs"));
+  copyFileSync(join(root, PI_INSTALLER_PATH), join(outDir, "pi-install.mjs"));
+  mkdirSync(join(outDir, "pi"));
+  copyFileSync(join(root, pin.pi.lockfile), join(outDir, "pi", "package-lock.json"));
   writeFileSync(join(outDir, "pin-receipt.json"), `${JSON.stringify({
     schemaVersion: "1.0.0",
     ...(node ?? {}),
     core: { commit: pin.core.commit, sha256: pin.core.sha256, desktopApiVersion: pin.core.desktopApiVersion },
     yaml: { version: pin.core.dependencies.yaml.version, integrity: pin.core.dependencies.yaml.integrity },
     host: { sha256: sha256File(join(root, HOST_SCRIPT_PATH)) },
+    pi: { package: pin.pi.package, version: pin.pi.version, lockfileSha256: pin.pi.lockfileSha256 },
+    piInstaller: { sha256: sha256File(join(root, PI_INSTALLER_PATH)) },
   }, null, 2)}\n`);
 }
 
@@ -197,6 +239,16 @@ export function checkRuntime({ root, pin, platform, dir }) {
   if (receipt.host?.sha256 !== sha256File(join(root, HOST_SCRIPT_PATH))) {
     problems.push(`the runtime's host is not the current ${HOST_SCRIPT_PATH}; rematerialize with --replace`);
   }
+  if (receipt.pi?.version !== pin.pi.version || receipt.pi?.lockfileSha256 !== pin.pi.lockfileSha256) {
+    problems.push("the runtime's Pi pin is not the current one; rematerialize with --replace");
+  }
+  if (receipt.piInstaller?.sha256 !== sha256File(join(root, PI_INSTALLER_PATH))) {
+    problems.push(`the runtime's Pi installer is not the current ${PI_INSTALLER_PATH}; rematerialize with --replace`);
+  }
+  const lockCopy = join(dir, "pi", "package-lock.json");
+  if (!existsSync(lockCopy) || sha256File(lockCopy) !== receipt.pi?.lockfileSha256) problems.push("the runtime's Pi lockfile is not the one its receipt records");
+  const installer = join(dir, "pi-install.mjs");
+  if (!existsSync(installer) || sha256File(installer) !== receipt.piInstaller?.sha256) problems.push("the runtime's pi-install.mjs is not the one its receipt records");
   const host = join(dir, "host.mjs");
   if (!existsSync(host) || sha256File(host) !== receipt.host?.sha256) problems.push("the runtime's host.mjs is not the one its receipt records");
   if (!existsSync(join(dir, "node", "bin", "node"))) problems.push("the runtime has no node/bin/node");
@@ -208,7 +260,7 @@ export function checkRuntime({ root, pin, platform, dir }) {
 }
 
 /** What the app carries from a runtime: npm, corepack and Node's headers stay behind. */
-export const BUNDLE_ENTRIES = ["host.mjs", "pin-receipt.json", "node/bin/node", "node/LICENSE", "node_modules"];
+export const BUNDLE_ENTRIES = ["host.mjs", "pin-receipt.json", "node/bin/node", "node/LICENSE", "node_modules", "pi-install.mjs", "pi"];
 
 /**
  * Copy `BUNDLE_ENTRIES` of the runtime at `runtimeDir` into `outDir`, replacing it, all or

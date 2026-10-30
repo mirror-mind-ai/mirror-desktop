@@ -155,8 +155,11 @@ describe("runtime channel configuration", () => {
     expect(runtimeChannelSource).toContain('.fnm/node-versions');
     expect(runtimeChannelSource).toContain('.volta/bin');
     expect(runtimeChannelSource).toContain('discover_versioned_runtime_directories');
-    expect(piToolchainSource).toContain('resolve_pi_toolchain');
-    expect(piToolchainSource).toContain('executable_at(directory, "node")');
+    // Slice 3b: Pi is the app's own install, run with the carried Node; none is found on the machine.
+    // The tool directories above remain only the PATH Pi's own commands run with.
+    expect(piToolchainSource).toContain("pub(crate) fn resolve_app_pi(app_data_root: &Path, runtime_dir: &Path)");
+    expect(runtimeChannelSource).toContain("crate::pi_toolchain::resolve_app_pi(&app_data_root, &runtime_dir)?");
+    expect(piToolchainSource).not.toContain("executable_at(directory");
     expect(rustSource).toContain("mirror_runtime_command");
     expect(rustSource).not.toContain('PathBuf::from("/Users/alissonvale/mirror")');
     expect(rustSource).not.toContain("Ok(mirror_root)\n    } else {\n        harness_root()");

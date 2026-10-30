@@ -21,7 +21,7 @@ pub struct RuntimeChannelProfile {
     pub mirror_home: PathBuf,
     pub mirror_user: String,
     pub db_path: PathBuf,
-    pi_bin: PathBuf,
+    pub(crate) pi_bin: PathBuf,
     node_bin: PathBuf,
     pi_runtime_directory: PathBuf,
     home: PathBuf,
@@ -45,6 +45,9 @@ pub struct RuntimeChannelDiagnostic {
     pub status: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+    /// CV-010.DS-005 slice 3b: whether the app's own Pi is installed, on a validated home only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pi_installed: Option<bool>,
 }
 
 impl RuntimeChannel {
@@ -247,6 +250,39 @@ impl RuntimeChannelDiagnostic {
                 "invalid"
             },
             message: Some(message),
+            pi_installed: None,
+        }
+    }
+
+    /// The bound home's diagnostic. A home whose app has not installed Pi yet is still validated:
+    /// binding it did not depend on Pi, and the setup screen installs Pi next.
+    pub fn inspect(channel: RuntimeChannel, app_data_root: &Path) -> Self {
+        match RuntimeChannelProfile::active() {
+            Ok(profile) => profile.diagnostic(app_data_root),
+            Err(error) if error == crate::pi_toolchain::PI_NOT_INSTALLED => {
+                match crate::mirror_home::load_home_binding(app_data_root) {
+                    Ok(Some(home)) => Self::without_pi(channel, app_data_root, &home),
+                    Ok(None) => Self::unavailable(channel, app_data_root, UNBOUND_0_3.to_string()),
+                    Err(error) => Self::unavailable(channel, app_data_root, error),
+                }
+            }
+            Err(error) => Self::unavailable(channel, app_data_root, error),
+        }
+    }
+
+    pub(crate) fn without_pi(channel: RuntimeChannel, app_data_root: &Path, home: &crate::mirror_home::MarkedHome) -> Self {
+        Self {
+            channel: channel.diagnostic_str(),
+            product_name: channel.product_name(),
+            bundle_identifier: channel.bundle_identifier(),
+            app_data_root: app_data_root.to_string_lossy().to_string(),
+            mirror_root: None,
+            mirror_home: Some(home.home_path.to_string_lossy().to_string()),
+            mirror_user: None,
+            db_path: Some(home.db_path.to_string_lossy().to_string()),
+            status: "validated",
+            message: None,
+            pi_installed: Some(false),
         }
     }
 }
@@ -263,8 +299,9 @@ pub(crate) const UNBOUND_0_3: &str =
     "Mirror Desktop TS is unbound. Choose a Mirror home made for Mirror Desktop TS.";
 
 impl RuntimeChannelProfile {
-    /// The profile of the bound 0.3 home (CV-010.DS-005 slice 2d-1). Pi is resolved from the
-    /// trusted local tool locations, as before; nothing names a Mirror source tree, a user or `uv`.
+    /// The profile of the bound 0.3 home (CV-010.DS-005 slice 2d-1); nothing names a Mirror source
+    /// tree, a user or `uv`. Since slice 3b, Pi is the app's own install, run with the Node the
+    /// app carries, whose folder leads `PATH` so Pi's `env node` finds it.
     pub fn active() -> Result<Self, String> {
         let home = env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
             "Could not resolve HOME for the Mirror Desktop runtime channel.".to_string()
@@ -275,9 +312,10 @@ impl RuntimeChannelProfile {
             .join(channel.bundle_identifier());
         let marked = crate::mirror_home::load_home_binding(&app_data_root)?
             .ok_or_else(|| UNBOUND_0_3.to_string())?;
-        let (pi_bin, node_bin, pi_runtime_directory) =
-            crate::pi_toolchain::resolve_pi_toolchain(&runtime_search_directories(&home))?;
-        Ok(Self::from_home(channel, &home, &marked, pi_bin, node_bin, pi_runtime_directory))
+        let runtime_dir = crate::mirror_host_bridge::current_runtime_dir()?;
+        let pi = crate::pi_toolchain::resolve_app_pi(&app_data_root, &runtime_dir)?;
+        let node_directory = pi.node_bin.parent().map(Path::to_path_buf).unwrap_or_else(|| runtime_dir.clone());
+        Ok(Self::from_home(channel, &home, &marked, pi.pi_bin, pi.node_bin, node_directory))
     }
 
     pub(crate) fn from_home(
@@ -378,6 +416,7 @@ impl RuntimeChannelProfile {
             db_path: Some(self.db_path.to_string_lossy().to_string()),
             status: "validated",
             message: None,
+            pi_installed: Some(true),
         }
     }
 }
@@ -535,7 +574,8 @@ mod tests {
         let diagnostic = profile.diagnostic(Path::new("/tmp/ai.mirrormind.desktop.ts.dev"));
         let value = serde_json::to_value(diagnostic).unwrap();
         // The 0.3 diagnostic names the home and its database, and no Mirror source tree or user.
-        assert_eq!(value.as_object().unwrap().len(), 7);
+        assert_eq!(value.as_object().unwrap().len(), 8);
+        assert_eq!(value["piInstalled"], true);
         assert_eq!(value["mirrorHome"], "/Users/example/Mirror Homes/development");
         assert_eq!(value["dbPath"], "/Users/example/Mirror Homes/development/memory.db");
         assert_eq!(value["channel"], "development");
@@ -552,6 +592,31 @@ mod tests {
         assert_eq!(diagnostic.status, "unbound");
         assert_eq!(diagnostic.bundle_identifier, "ai.mirrormind.desktop.ts");
         assert_eq!(diagnostic.mirror_root, None);
+        assert_eq!(serde_json::to_value(&diagnostic).unwrap().get("piInstalled"), None);
+    }
+
+    #[test]
+    fn a_home_without_the_apps_pi_is_validated_and_says_so() {
+        // CV-010.DS-005 slice 3b.
+        let home = crate::mirror_home::MarkedHome {
+            home_path: std::path::PathBuf::from("/Users/example/Mirror Homes/ana"),
+            db_path: std::path::PathBuf::from("/Users/example/Mirror Homes/ana/memory.db"),
+            marker: crate::mirror_home::HomeMarker { home_id: "home-ana-0000".into(), created_at: "2026-10-29T00:00:00Z".into() },
+        };
+        let value = serde_json::to_value(super::RuntimeChannelDiagnostic::without_pi(
+            RuntimeChannel::Development,
+            Path::new("/tmp/ai.mirrormind.desktop.ts.dev"),
+            &home,
+        ))
+        .unwrap();
+        assert_eq!(value["status"], "validated");
+        assert_eq!(value["piInstalled"], false);
+        assert_eq!(value["mirrorHome"], "/Users/example/Mirror Homes/ana");
+        assert_eq!(value.get("message"), None);
+        let source = include_str!("runtime_channel.rs");
+        let inspect = &source[source.find("pub fn inspect(").unwrap()..];
+        let inspect = &inspect[..inspect.find("\n    }\n").unwrap()];
+        assert!(inspect.contains("Err(error) if error == crate::pi_toolchain::PI_NOT_INSTALLED"), "only a missing Pi keeps a home validated");
     }
 
     #[test]

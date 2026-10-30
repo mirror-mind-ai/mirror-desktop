@@ -30,5 +30,16 @@
         "integrity": "sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA=="
       }
     }
+  },
+  "pi": {
+    "package": "@earendil-works/pi-coding-agent",
+    "version": "1.4.0",
+    "lockfile": "mirror-host/pi/package-lock.json",
+    "lockfileSha256": "d36b5fc72875d574e2020de5df1a7012bec52201f675d3273ec437f923ce4bad",
+    "packages": 121,
+    "scriptsNotRun": [
+      "@google/genai",
+      "protobufjs"
+    ]
   }
 }

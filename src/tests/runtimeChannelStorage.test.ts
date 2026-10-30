@@ -68,6 +68,17 @@ describe("runtime channel storage", () => {
     expect(() => parseRuntimeChannelDiagnostic({ ...development, dbPath: undefined })).toThrow(/lacks required coordinates/);
   });
 
+  // CV-010.DS-005 slice 3b: whether the app's Pi is installed travels on a validated home only.
+  it("accepts piInstalled on a validated home, and refuses it anywhere else", () => {
+    expect(parseRuntimeChannelDiagnostic({ ...development, piInstalled: false }).piInstalled).toBe(false);
+    expect(parseRuntimeChannelDiagnostic({ ...development, piInstalled: true }).piInstalled).toBe(true);
+    expect(() => parseRuntimeChannelDiagnostic({ ...development, piInstalled: "no" })).toThrow(/Pi outside a validated home/);
+    expect(() => parseRuntimeChannelDiagnostic({
+      channel: "user", productName: "Mirror Desktop TS", bundleIdentifier: "ai.mirrormind.desktop.ts",
+      appDataRoot: "/tmp/x", status: "unbound", message: "unbound", piInstalled: false,
+    })).toThrow(/Pi outside a validated home/);
+  });
+
   // CV-010.DS-005 slice 2d-1: a 0.3 diagnostic names the home and its database, nothing else.
   it("accepts a 0.3 diagnostic that names only the home and its database", () => {
     const { mirrorRoot: _root, mirrorUser: _user, ...home } = development;
