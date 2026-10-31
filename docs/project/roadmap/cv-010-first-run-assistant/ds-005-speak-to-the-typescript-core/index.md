@@ -3174,6 +3174,38 @@ Built in the Navigator's monorepo `~/Code/mirror-extensions` (`mirror-mind-ai/ex
 During setup a `git init` landed inside the monorepo's `finances/` (no file changed); its `.git` was
 moved to `/tmp/finances-nested-git-mistake-20261031`, kept until the Navigator names it for deletion.
 
+**Fix, `c4383cb`.** The TypeScript core starts a subcommand in the installed extension directory
+(`dispatch.ts`, `cwd: extensionRoot`), so `import-statement extrato.ofx` looked for the file inside the
+extension (measured: `file not found`); under the Python core the handler ran in the caller's process.
+The runtime now moves to the caller's `PWD`, which the core passes through, and refuses without one.
+The oracle had used absolute paths only, which is why it missed this. 157 tests; control: without the
+move, 1 fails.
+
+### Extension port 2 of 2 — `atelier-drafts` (2026-10-31)
+
+Canonical source: `alissonvale-com/extensions/atelier-drafts` (the installed copy is identical). At
+the Navigator's word, built on local branch `atelier-drafts-ts-runtime` at `1fa282f`, in a separate
+worktree `~/Code/worktrees/alissonvale-com-atelier-ts`, because that repository's own checkout
+carries uncommitted work of its Journey (untouched; not pushed).
+
+- The 5 subcommands touch no database; the Python core supplied only `register()` and, through its
+  environment, PyYAML. Each is now `mirror-cli-v1` run as `uv run --quiet --script runtime/cli.py`,
+  the script declaring `pyyaml==6.0.3`. Handlers moved unchanged to `src/atelier_drafts/commands.py`;
+  the runtime starts from `PWD` (the default `--output-dir .mirror/atelier-drafts` is relative).
+- Tests: the 59 existing pass with only their import line changed, plus 13 new (one runs the declared
+  `uv` command); 72 on 3.13 and Apple's 3.9. Controls: without the move to `PWD` 3 fail; without the
+  declared dependency 2 fail.
+- Oracle against the original handlers on Python 0.31.14, through `mirror-mind` 0.39.0 in the sandbox
+  home, on two `git archive` copies of the site: 7 cases (prepare, refuse an existing draft, promote,
+  refuse without `--approve`, a missing body, promote a snapshot) answer with the same exit codes and
+  words, and the 5 files written are identical apart from their timestamps. Nothing reached the site.
+- Also updated: `docs/product/fluxo-editorial-mirror-atelie-v0.md` (its commands). Merging the branch
+  belongs to the alissonvale-com Journey's word; 5c installs from that repository's `extensions/`.
+
+**Captured for Core (when CRs resume):** a `mirror-cli-v1` subcommand cannot learn the caller's
+directory except through the shell's `PWD`; the core could pass it explicitly (e.g.
+`MIRROR_INVOCATION_DIR`), extend-only.
+
 ### Order and authority
 
 alpha.2 published and the update checked (closes phase 4) → the two extension ports → 5a → 5b with its rehearsal
