@@ -4,12 +4,12 @@
 
 | Item | Estado | Progresso |
 | --- | --- | --- |
-| **Linha 0.3 · Mirror Desktop TS · `main`** | 🔄 em construção · 0.3.0-alpha.1 preparada · nada publicado · canal `/ts/` ainda não existe no servidor | `███████░░░` 4 ✅ · 2 🟡 · de 6 fases |
+| **Linha 0.3 · Mirror Desktop TS · `main`** | 🔄 em construção · 0.3.0-alpha.1 publicada no canal `/ts/` · Intel · sem assinatura | `███████░░░` 4 ✅ · 2 🟡 · de 6 fases |
 | ↳　Fase 0 · Separar | ✅ Done · aceita por você em 28/10 · pasta 0.2 Dev intacta | `██████████` |
 | ↳　Fase 1 · Costura de biblioteca no Core | ✅ Done · CV24.DS1–DS8 no Core v0.39.0 · publicado no npm · pin nele | `██████████` |
 | ↳　Fase 2 · Host embutido | ✅ Done · build empacotada testada por você em 29/10 · Node e Core dentro do app · sem Python | `██████████` |
 | ↳　Fase 3 · Assistente de primeiro uso na 0.3 | ✅ Done · aceita na conta mirror · falhas do critério 4 só em testes | `██████████` |
-| ↳　Fase 4 · Estável | 🟡 Planned · 4c · alpha.1 preparada · falta sua confirmação para publicar | `██████░░░░` |
+| ↳　Fase 4 · Estável | 🟡 Planned · 4c · alpha.1 publicada · falta instalar e uma 2ª versão para testar a atualização | `███████░░░` |
 | ↳　Fase 5 · Migração da produção | 🟡 Candidate · só com sua palavra · backup ensaiado · fim do web console | `░░░░░░░░░░` |
 | **Linha 0.2 · Mirror Desktop · `release/0.2`** | ⏸️ congelada na alpha.58 · em produção e no download público · só dano grave · canal `alpha` | — |
 | ↳　Candidatos a levar para a 0.2 | 🟡 5 candidatos · 1 pronto: tela preta em instalação nova (B1) · nenhum autorizado | — |
@@ -42,6 +42,6 @@
 
 | Entrega | Story | Release | Estado |
 | --- | --- | --- | --- |
+| 0.3.0-alpha.1 · A Mirror of Its Own · primeira versão da linha 0.3 | CV-010 | `v0.3.0-alpha.1` · canal `/ts/` | ✅ publicada · verificada |
 | DS-005 fase 4b · criar, editar, mover e apagar Journeys no app | CV-010 | `main` · não publicada | ✅ testada · criar, editar, mover e apagar |
 | DS-005 fase 4a · o Mirror aprende com as Conversas do app | CV-010 | `main` · não publicada | ✅ testada · 2 memórias na ana |
-| DS-005 fase 3 · 3a a 3d · home, Pi, provedores, chave e contexto do Mirror | CV-010 | `main` · não publicada | ✅ aceita na conta mirror |
