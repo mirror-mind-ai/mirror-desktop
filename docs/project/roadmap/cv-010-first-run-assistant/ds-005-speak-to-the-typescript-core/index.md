@@ -3539,3 +3539,19 @@ Next: the rehearsal on a copy of production (its own word), as planned above.
   reaches Mirror through the outbox).
 
 Next: the Navigator opens three Journeys and sends one turn.
+
+## 5a-2 Rehearsal: Every Journey Refused in the Dev Build (2026-10-31)
+
+The Navigator reopened the Dev build: the Journeys listed, and every one showed *This Journey
+conversation needs recovery — invalid_record*. Cause, read from the code and the carried files: all
+30 carried threads record `runtimeChannel: "user"` (0.2 is a User build), and `load_journey_thread`
+refuses a thread of another channel (`validate_thread_runtime_channel`); the app's generic catch shows
+any load failure as `invalid_record`. The guard is right and the carry is not at fault: the
+production cutover runs the User build, where these threads pass. The rehearsal was in the wrong
+channel.
+
+Two lessons: the rehearsal must run a User-channel build of `main` (data folder
+`ai.mirrormind.desktop.ts`, the one the installed alpha.2 also uses, per-home so `fred-soares` is
+untouched); and the screen should name a channel refusal instead of `invalid_record` (captured).
+Rewriting `runtimeChannel` in the carry for a Dev rehearsal is declined: activation receipts compare
+it, and the rehearsal would then prove a different file set from the one 5c carries.
