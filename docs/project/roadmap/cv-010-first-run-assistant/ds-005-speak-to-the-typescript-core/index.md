@@ -2997,3 +2997,8 @@ remains. Production unchanged (binary `303ede287de3`, database at 016).
   DS8 marked done; CV24 stays open). CI green (Tests: four jobs; Docs). `release:doctor`: ready
   with warnings (no tag yet, `stable` behind). Not published: no tag, `stable` at `a7d11f34`
   (v0.38.1), nothing on npm. Publication waits on the Navigator's separate word.
+- **Published at the Navigator's word (2026-10-31):** `release:promote --push` created tag
+  `v0.39.0` and moved Core `stable` to `ca7295a4`; the GitHub Release v0.39.0 is published and
+  marked latest. npm: `publish.yml` run 41199153260 (`dist_tag=stable`) waits on the Navigator's
+  `release` environment approval and `npm stage approve` with 2FA; then `npm dist-tag add
+  mirror-mind@0.39.0 latest`. Until then npm reads 0.38.1 for both tags.
