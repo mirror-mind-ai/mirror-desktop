@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.3.0-alpha.1 — A Mirror of Its Own](v0.3.0-alpha.1.md) — The first release of the 0.3 line, Mirror Desktop TS: a separate application that carries its own Mirror, creates it on the first screen, keeps Mirror in every Conversation from the first turn, learns from idle Conversations, and manages Journeys. Intel only, not signed.
 - [v0.2.0-alpha.58 — Your Mirror, Found](v0.2.0-alpha.58.md) — If you already use Mirror, Mirror Desktop now finds it for you. Instead of a form asking for three
 folder paths and a user name, the first screen looks in the usual places, works out whose Mirror it is
 the same way Mirror does, checks everything it needs in plain language, and connects with one click.

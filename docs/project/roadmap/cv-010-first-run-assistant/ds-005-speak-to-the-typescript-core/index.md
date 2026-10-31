@@ -185,10 +185,10 @@ including any Navigator check, is met.
 | Phase | Status | What is owed |
 |---|---|---|
 | 0 · Freeze and separate | ✅ Done | — (Navigator check passed 2026-10-28) |
-| 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
+| 1 · A library seam in Core | ✅ Done | — (CV24.DS1–DS8 merged as Core PR #52 and released as `mirror-mind` 0.39.0, 2026-10-31; the pin is on it) |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
-| 4 · Stable | 🟡 Planned | Decisions accepted 2026-10-30. 4a (learn; CV24.DS7) and 4b (Journeys in the app; CV24.DS8) built and checked by the Navigator; then 4c, 4d |
+| 4 · Stable | 🟡 Planned | Decisions accepted 2026-10-30. 4a and 4b checked by the Navigator; 4c: Core released and pinned, `0.3.0-alpha.1` being prepared; then 4d |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
