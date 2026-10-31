@@ -2984,3 +2984,7 @@ remains. Production unchanged (binary `303ede287de3`, database at 016).
   Navigator's word: CV24 DS1 to DS8, suggested v0.39.0. Mergeable, all five checks green.
 - The merge and the Core release are a separate step; the Navigator holds authority for both.
   The Desktop pin stays on the branch tarball (`36ec8cf3`) until then.
+- Reviewed as maintainer at the Navigator's request (2026-10-31), posted on #52 as a comment:
+  approve with two pre-merge adjustments, both applied in `c858cf67` (the smoke script's lost
+  executable bit; the top-level roadmap row said DS1 to DS6). Owed at release: a note naming
+  `mirror-mind/desktop` and that the new `exports` field closes every other deep import.
