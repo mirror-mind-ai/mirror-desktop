@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | ✅ Done | — (alpha.1 and alpha.2 published on `/mirror-desktop/ts/`; the installed app updated itself, checked by the Navigator 2026-10-31; 4d waived) |
-| 5 · Migration | 🟡 Candidate | Extensions ported; 5a built, awaiting the Navigator's check; owed before 5c: the 0.2 app data decision and the two-Mirrors rule (Explorer Mode) |
+| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; owed before 5c: carrying the 0.2 Conversations into the list (measured, all in Mirror) and the two-Mirrors rule (Explorer Mode) |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -3375,3 +3375,23 @@ this Journey before creating additional conversations." without one), so an adop
 with 81 Journeys and no 0.3 root threads (the 0.2 app data is not carried), so after the cutover
 every Journey would look empty until started, one by one. To decide with the 0.2 app data item,
 before 5c: list Mirror history without a root thread, start threads on adoption, or accept it.
+
+## The 0.2 Conversations, Measured (2026-10-31)
+
+Asked by the Navigator: are the long 0.2 Conversations lost in the cutover? Read-only, counts only:
+
+- **Their text is in Mirror's database, not only in the app.** The 0.2 app data references 47 Mirror
+  Conversations (`journey-threads`, `dedicated-journey-conversations`); all 47 are in production's
+  `conversations` (interface `nautilus_harness`), 7,846 messages across 28 Journeys. The migration
+  keeps every row (5a's acceptance 1, measured on `adopt-check`).
+- **The 0.2 outbox is empty** (0 items), so no turn is waiting to reach Mirror.
+- **What stays in the 0.2 app data** and does not reach 0.3: which Conversation is each Journey's
+  thread and its generations, the Pi session files (`pi-sessions`, 47 files, 673 MB, the full agent
+  transcript including tool calls), conversation segments, drafts, voice and appearance. Without them
+  0.3 knows the 47 only as Mirror history, which it lists only once a Journey is started (the finding
+  above), and cannot resume a 0.2 Pi session.
+
+**This reverses the earlier recommendation to abandon the 0.2 app data.** Recommendation now, before
+5c: (1) list Mirror history without a started Journey; (2) import each 0.2 Journey's thread mapping, so
+a Journey opens on its own 0.2 Conversations. Whether a 0.2 Pi session can be continued in 0.3 is not
+yet measured. The 0.2 app data stays on disk untouched in every case, for the way back.
