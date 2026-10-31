@@ -3146,6 +3146,28 @@ a rollback unless carried back by hand.
 3. **The window back** is 3 days.
 4. **5a** is built in the app.
 
+### Extension port 1 of 2 — `finances` (2026-10-31)
+
+Built in the Navigator's monorepo `~/Code/mirror-extensions` (`mirror-mind-ai/extensions`), whose
+`main` is byte-identical to the installed copy, on local branch `finances-ts-runtime` at `2e2f5ab`
+(not pushed; `main` there already carries 62 unpushed `maestro/` commits of the Navigator's).
+
+- Each of the 12 subcommands is declared `mirror-cli-v1` and `financial_summary` `mirror-context-v1`,
+  both `python3`; `runtime/api.py` carries the retired `ExtensionAPI`'s prefix and read-only rules;
+  `extension.py` is gone and nothing imports `memory`.
+- Tests: the 128 existing pass unchanged on the local API (baseline: 128 on the Python core), plus
+  26 new ones driving both entry points as subprocesses; 154 on Python 3.13 and on Apple's 3.9.
+  Control: with the prefix check disabled, 6 fail.
+- Oracle, on a copy of production's `ext_finances_*` tables only (read `?mode=ro`, into a sandbox
+  home under `/tmp/mirror-ts-sandbox`): `mirror-mind` 0.39.0 against the original handlers on Python
+  0.31.14. 14 reads and refusals identical byte for byte; 6 writes identical in rows, differing only
+  in the generated ids; a real `mirror load --persona treasurer` carries the same 44-line summary.
+- Production unchanged: its `extensions/finances` equals `main`, the database at 016. The summary has
+  no binding in production today, so it reaches no turn before or after.
+
+During setup a `git init` landed inside the monorepo's `finances/` (no file changed); its `.git` was
+moved to `/tmp/finances-nested-git-mistake-20261031`, kept until the Navigator names it for deletion.
+
 ### Order and authority
 
 alpha.2 published and the update checked (closes phase 4) → the two extension ports → 5a → 5b with its rehearsal
