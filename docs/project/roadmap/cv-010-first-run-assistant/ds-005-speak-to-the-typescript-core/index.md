@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | 🟡 Planned | 4a and 4b checked; 4c: `0.3.0-alpha.1` published and installed, a second release owed to prove the update; 4d waived by the Navigator 2026-10-31 |
-| 5 · Migration | 🟡 Candidate | Plan written 2026-10-31 (5a adopt in the app, 5b rehearsed way back, 5c cutover, 5d window); four decisions owed, first the Python extensions |
+| 5 · Migration | 🟡 Candidate | Plan written and its four decisions accepted 2026-10-31 (port `finances` and `atelier-drafts`; console ends; 3-day window; 5a in the app) |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -3129,7 +3129,17 @@ a rollback unless carried back by hand.
 4. **5a in the app, not a script.** Recommendation: in the app, because it is the path every 0.2 user
    will take; it costs one slice.
 
+### Decisions accepted (2026-10-31)
+
+1. **Extensions:** `finances` and `atelier-drafts` are ported to a declared runtime, without the
+   Python core, before the cutover. `testimonials` and `nautilus-synthesis` go dark, their tables
+   intact. The ports are built and tested on copies; the production home's `extensions/` changes
+   only in 5c.
+2. **The web console** ends with the cutover.
+3. **The window back** is 3 days.
+4. **5a** is built in the app.
+
 ### Order and authority
 
-alpha.2 published and the update checked (closes phase 4) → decisions → 5a → 5b with its rehearsal
+alpha.2 published and the update checked (closes phase 4) → the two extension ports → 5a → 5b with its rehearsal
 → 5c at the Navigator's word → 5d. Each act on production needs its own word.

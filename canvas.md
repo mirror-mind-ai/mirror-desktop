@@ -10,7 +10,7 @@
 | ↳　Fase 2 · Host embutido | ✅ Done · build empacotada testada por você em 29/10 · Node e Core dentro do app · sem Python | `██████████` |
 | ↳　Fase 3 · Assistente de primeiro uso na 0.3 | ✅ Done · aceita na conta mirror · falhas do critério 4 só em testes | `██████████` |
 | ↳　Fase 4 · Estável | 🟡 Planned · 4c · alpha.2 preparada · falta publicar e você atualizar · 4d dispensada | `████████░░` |
-| ↳　Fase 5 · Migração da produção | 🟡 Candidate · plano escrito · 4 decisões suas · extensões Python param · volta ensaiada antes | `░░░░░░░░░░` |
+| ↳　Fase 5 · Migração da produção | 🟡 Candidate · plano e decisões aceitos · portar finances e atelier-drafts · volta ensaiada antes | `░░░░░░░░░░` |
 | **Linha 0.2 · Mirror Desktop · `release/0.2`** | ⏸️ congelada na alpha.58 · em produção e no download público · só dano grave · canal `alpha` | — |
 | ↳　Candidatos a levar para a 0.2 | 🟡 5 candidatos · 1 pronto: tela preta em instalação nova (B1) · nenhum autorizado | — |
 | **Corte de CRs · desde 2026-10-27** | ⏸️ suspenso pelo onboarding · nenhuma CR começa · exceção: perda de dados ou app inutilizável · checks de campo seguem · volta na fase 4 | — |
