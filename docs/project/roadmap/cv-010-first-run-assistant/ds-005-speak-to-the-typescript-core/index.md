@@ -188,7 +188,7 @@ including any Navigator check, is met.
 | 1 · A library seam in Core | ✅ Done | — (CV24.DS1–DS8 merged as Core PR #52 and released as `mirror-mind` 0.39.0, 2026-10-31; the pin is on it) |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
-| 4 · Stable | 🟡 Planned | 4a and 4b checked; 4c: `0.3.0-alpha.1` published and installed, a second release owed to prove the update; 4d waived by the Navigator 2026-10-31 |
+| 4 · Stable | ✅ Done | — (alpha.1 and alpha.2 published on `/mirror-desktop/ts/`; the installed app updated itself, checked by the Navigator 2026-10-31; 4d waived) |
 | 5 · Migration | 🟡 Candidate | Plan written and its four decisions accepted 2026-10-31 (port `finances` and `atelier-drafts`; console ends; 3-day window; 5a in the app) |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
@@ -3150,3 +3150,22 @@ a rollback unless carried back by hand.
 
 alpha.2 published and the update checked (closes phase 4) → the two extension ports → 5a → 5b with its rehearsal
 → 5c at the Navigator's word → 5d. Each act on production needs its own word.
+
+## Phase 4 Done (2026-10-31)
+
+The Navigator updated the installed `Mirror Desktop TS.app` from 0.3.0-alpha.1 to 0.3.0-alpha.2
+through Settings › Check for updates: "it worked". Read afterwards: the installed bundle is
+0.3.0-alpha.2 (`ai.mirrormind.desktop.ts`, `mirror-mind` 0.39.0), relaunched at 15:44; still bound to
+`~/Mirror Homes/fred-soares`, with its marker, 18 migrations, 20 identity rows and 1 Conversation;
+the app's Pi in place. Production unchanged (binary `303ede287de3`, database at 016).
+
+A first attempt failed with "plugin updater not found": it ran in the **Dev** build left in the
+repository (`target/release/bundle/macos/Mirror Desktop TS Dev.app`), which registers no updater by
+design. Captured for when CRs resume: a Dev build should say it does not update itself instead of
+the plugin's error, and the two apps should be told apart at a glance.
+
+Acceptance: 1 and 2 (4a, 4b) checked by the Navigator; 3 installed from `/mirror-desktop/ts/` and
+updated once, `alpha` manifests never offered it; 4 waived by the Navigator (the daily-use period
+moves to phase 5, on the real home); 5 production unchanged throughout. **Phase 4 is ✅ Done and the
+Refinement Suspension ends:** CR work resumes from the queue (CR159, CR163, then the captured ones)
+alongside phase 5.
