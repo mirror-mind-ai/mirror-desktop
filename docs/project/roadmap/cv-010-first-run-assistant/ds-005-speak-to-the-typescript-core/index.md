@@ -3049,6 +3049,13 @@ change in behavior. `release:deploy prepare` at candidate `7c6a676`: all gates p
 publication would also rewrite the `0.3.0-alpha.1` manifests to name alpha.2, which is how the
 installed app finds it. Nothing published.
 
+**Published at the Navigator's word (2026-10-31):** tag `v0.3.0-alpha.2` at `7c6a676`, GitHub
+prerelease, six manifests verified: the `0.3.0-alpha.1` and `0.3.0-alpha.2` manifests and the `/ts/`
+download alias all name 0.3.0-alpha.2. Every `alpha` manifest (polled by 0.2.0-alpha.57 and .58) and
+the `alpha` download alias still name 0.2.0-alpha.58. Evidence:
+`docs/update/v0.3.0-alpha.2-release-publication-2026-10-31.md`. Owed: the Navigator's update of the
+installed 0.3.0-alpha.1 through Settings › Check for updates, which closes 4c and phase 4.
+
 ## Phase 5 Plan — Production Moves to the 0.3 Line (2026-10-31)
 
 **Outcome.** The Navigator's production home `~/.mirror-minds/alisson-vale` runs on the TypeScript
