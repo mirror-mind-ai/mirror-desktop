@@ -262,6 +262,50 @@ pub(crate) fn describe_home_creation(error: MirrorHostError, home_path: &Path) -
     }
 }
 
+/// Slice 5a: a development or evaluation build never adopts a home where the terminal's homes live,
+/// so building and checking adoption cannot reach the Navigator's production home. Only the user
+/// channel, which reaches the installed app through a release, may.
+pub(crate) fn adoption_channel_refusal(channel: crate::runtime_channel::RuntimeChannel, home_path: &Path) -> Option<&'static str> {
+    let reserved = home_path.components().any(|part| part.as_os_str().to_string_lossy().eq_ignore_ascii_case(".mirror-minds"));
+    (reserved && !channel.supports_updater())
+        .then_some("This build of Mirror Desktop TS is for development and does not open homes in .mirror-minds. Use a copy elsewhere.")
+}
+
+/// Slice 5a: what the folder at `home_path` is, changing nothing.
+pub(crate) fn inspect_home_for_adoption(app: &AppHandle, home_path: &Path) -> Result<Value, MirrorHostError> {
+    let params = json!({"request": {"homePath": home_path}});
+    with_host(app, |host| host.request("inspectHomeForAdoption", params))
+}
+
+/// Slice 5a: migrate exactly `expected_pending` behind the core's verified backup, then mark the home.
+pub(crate) fn adopt_home(app: &AppHandle, home_path: &Path, expected_pending: &[String]) -> Result<Value, MirrorHostError> {
+    let params = json!({"request": {"homePath": home_path, "expectedPending": expected_pending}});
+    with_host(app, |host| host.request("adoptHome", params))
+}
+
+const HOME_CHANGED: &str = "This home changed since you looked at it, so nothing was done. Choose it again to see it as it is now.";
+
+/// A refused inspection or adoption, in the words the review shows.
+pub(crate) fn describe_home_adoption(error: MirrorHostError, home_path: &Path) -> String {
+    let MirrorHostError::Rejected { reason, .. } = &error else { return describe(error) };
+    match reason.as_str() {
+        "already_marked" => "This home is already a Mirror Desktop TS home. Choose it again to open it.".to_string(),
+        "not_adoptable" => format!("{} is not a Mirror home Mirror Desktop TS can open. Choose another.", home_path.display()),
+        "no_database" => format!("{} holds no Mirror database. Choose the folder that holds memory.db.", home_path.display()),
+        "inside_repository" => format!(
+            "{} is inside a code repository, such as a Mirror installation. Choose the home folder itself.",
+            home_path.display()
+        ),
+        "invalid_home_path" => "That folder can't be opened as a Mirror home: it must exist and not be a link. Choose another.".to_string(),
+        "pending_changed" => HOME_CHANGED.to_string(),
+        "nothing_pending" => HOME_CHANGED.to_string(),
+        "backup_failed" => {
+            "Mirror could not take and check a copy of this home, so nothing was changed. Make room on the disk and try again.".to_string()
+        }
+        _ => describe(error),
+    }
+}
+
 fn with_host<T>(app: &AppHandle, call: impl FnOnce(&mut MirrorHost) -> Result<T, MirrorHostError>) -> Result<T, MirrorHostError> {
     with_supervisor(&app.state::<MirrorHostState>().0, call)
 }
@@ -421,6 +465,30 @@ pub(crate) fn conversation_catalog(app: &AppHandle, operation: &str, journey_id:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_the_user_channel_adopts_a_home_where_the_terminal_homes_live() {
+        let production = Path::new("/Users/ana/.mirror-minds/ana");
+        let folded = Path::new("/Users/ana/.Mirror-Minds/ana");
+        let elsewhere = Path::new("/Users/ana/Mirror Homes/copy-of-ana");
+        for channel in [RuntimeChannel::Development, RuntimeChannel::Evaluation] {
+            assert!(adoption_channel_refusal(channel, production).is_some());
+            assert!(adoption_channel_refusal(channel, folded).is_some());
+            assert_eq!(adoption_channel_refusal(channel, elsewhere), None);
+        }
+        assert_eq!(adoption_channel_refusal(RuntimeChannel::User, production), None);
+        assert_eq!(adoption_channel_refusal(RuntimeChannel::User, elsewhere), None);
+    }
+
+    #[test]
+    fn a_refused_adoption_is_said_in_plain_words() {
+        let home = Path::new("/Users/ana/Mirror Homes/ana");
+        let refused = |reason: &str| MirrorHostError::Rejected { name: "X".into(), reason: reason.into(), message: "m".into() };
+        assert!(describe_home_adoption(refused("pending_changed"), home).contains("changed since you looked at it"));
+        assert!(describe_home_adoption(refused("backup_failed"), home).contains("nothing was changed"));
+        assert!(describe_home_adoption(refused("no_database"), home).contains("/Users/ana/Mirror Homes/ana holds no Mirror database"));
+        assert_eq!(describe_home_adoption(refused("other"), home), "Mirror refused the request (X: other).");
+    }
 
     #[test]
     fn identifiers_follow_the_catalog_rule() {

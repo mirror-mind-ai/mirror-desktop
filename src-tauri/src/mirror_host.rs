@@ -67,7 +67,8 @@ impl MirrorHostDeadlines {
     pub fn for_method(&self, method: &str) -> Duration {
         match method {
             "appendConversationMessages" => self.append,
-            "migrateHome" => self.migrate,
+            // Slice 5a: adoption migrates through the core's `migrateHome`, behind the same backup.
+            "migrateHome" | "adoptHome" => self.migrate,
             "createMarkedHome" => self.create_home,
             "deliverMirrorContext" => self.context,
             "learnFromConversations" => self.learn,
@@ -709,6 +710,8 @@ done"#
         let deadlines = MirrorHostDeadlines::standard();
         assert_eq!(deadlines.for_method("appendConversationMessages"), Duration::from_secs(30));
         assert_eq!(deadlines.for_method("migrateHome"), Duration::from_secs(300));
+        assert_eq!(deadlines.for_method("adoptHome"), Duration::from_secs(300));
+        assert_eq!(deadlines.for_method("inspectHomeForAdoption"), Duration::from_secs(15));
         assert_eq!(deadlines.for_method("createMarkedHome"), Duration::from_secs(60));
         assert_eq!(deadlines.for_method("deliverMirrorContext"), Duration::from_secs(30));
         assert_eq!(deadlines.for_method("forgetMirrorContext"), Duration::from_secs(15));

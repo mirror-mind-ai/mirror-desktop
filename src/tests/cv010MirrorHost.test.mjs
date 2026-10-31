@@ -62,7 +62,7 @@ describe("the Mirror host", () => {
       methods: HOST_METHODS,
     });
     expect(HOST_METHODS).toEqual([
-      "inspectMigrationState", "migrateHome", "createMarkedHome", "ensureConversation",
+      "inspectMigrationState", "migrateHome", "createMarkedHome", "inspectHomeForAdoption", "adoptHome", "ensureConversation",
       "appendConversationMessages", "renameConversation", "rebindConversationJourney",
       "readJourneyTree", "listJourneyConversations", "inspectConversation",
       "deliverMirrorContext", "forgetMirrorContext", "learnFromConversations",

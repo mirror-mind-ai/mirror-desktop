@@ -2114,6 +2114,39 @@ fn create_mirror_home(app: AppHandle, user_name: String, folder: Option<String>)
     bind_marked_home(&app, &app_data_root, &home_path)
 }
 
+/// CV-010.DS-005 slice 5a: what the chosen folder is, before anything changes. A home this app made
+/// answers marked; any other, the core's report and what it holds.
+#[tauri::command(async)]
+fn inspect_home_for_adoption(app: AppHandle, home_path: String) -> Result<Value, String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    validated_app_data_root(&app)?;
+    let home_path = PathBuf::from(home_path);
+    if let Some(refusal) = mirror_host_bridge::adoption_channel_refusal(RuntimeChannel::active(), &home_path) {
+        return Err(refusal.to_string());
+    }
+    mirror_host_bridge::inspect_home_for_adoption(&app, &home_path)
+        .map_err(|error| mirror_host_bridge::describe_home_adoption(error, &home_path))
+}
+
+/// CV-010.DS-005 slice 5a: adopt the reviewed home: the host migrates exactly `expected_pending`
+/// behind the core's verified backup and marks it, then it is bound as a chosen home is.
+#[tauri::command(async)]
+fn adopt_mirror_home(app: AppHandle, home_path: String, expected_pending: Vec<String>) -> Result<RuntimeChannelDiagnostic, String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    let app_data_root = validated_app_data_root(&app)?;
+    let home_path = PathBuf::from(home_path);
+    if let Some(refusal) = mirror_host_bridge::adoption_channel_refusal(RuntimeChannel::active(), &home_path) {
+        return Err(refusal.to_string());
+    }
+    let current = mirror_home::load_home_binding(&app_data_root)?;
+    if let Some(refusal) = home_switch_refusal(current.as_ref().map(|home| home.marker.home_id.as_str()), None, desktop_is_busy(&app)) {
+        return Err(refusal.to_string());
+    }
+    mirror_host_bridge::adopt_home(&app, &home_path, &expected_pending)
+        .map_err(|error| mirror_host_bridge::describe_home_adoption(error, &home_path))?;
+    bind_marked_home(&app, &app_data_root, &home_path)
+}
+
 fn validated_app_data_root(app: &AppHandle) -> Result<PathBuf, String> {
     let app_data_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&app_data_root).map_err(|error| format!("Could not create application data root: {error}"))?;
@@ -10163,6 +10196,8 @@ fn main() {
             compact_pi_session,
             inspect_runtime_channel,
             bind_mirror_home,
+            inspect_home_for_adoption,
+            adopt_mirror_home,
             create_mirror_home,
             pi_install::install_pi,
             pi_auth::inspect_pi_providers,

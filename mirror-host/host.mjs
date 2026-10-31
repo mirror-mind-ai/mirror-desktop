@@ -28,6 +28,13 @@
 // folder inside a git repository: a Mirror checkout is one, and macOS folds case, so `~/Mirror` can
 // be the production checkout `~/mirror`.
 //
+// Phase 5, slice 5a, opens the one door through (b): `inspectHomeForAdoption` and `adoptHome`
+// take a home that is not marked, by its folder and never by a `dbPath`. Inspection changes nothing.
+// Adoption applies exactly the pending list the person was shown, through the core's `migrateHome`
+// and its verified backup, then writes the marker and the receipt the way back reads,
+// `.mirror-desktop/adoption.json`. Unlike creation, a `.mirror-minds` folder is allowed: that is
+// where the homes being adopted live. The app's development builds refuse such a path before asking.
+//
 // The host reads no environment variable, and stdout carries the protocol alone. `console.log` is
 // sent to stderr, and Node's ExperimentalWarning for `node:sqlite` is dropped. The host exits 0
 // when stdin closes.
@@ -37,6 +44,7 @@
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import { createRequire } from "node:module";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { createInterface } from "node:readline";
@@ -52,6 +60,9 @@ const CALLS = {
   inspectMigrationState: (d, p) => d.inspectMigrationState(p.dbPath),
   migrateHome: (d, p) => d.migrateHome(p.dbPath, p.request),
   createMarkedHome: (d, p) => createMarkedHome(d, p.request),
+  // Phase 5, slice 5a: the only two methods that take a home without the 0.3 marker.
+  inspectHomeForAdoption: (d, p) => inspectHomeForAdoption(d, p.request),
+  adoptHome: (d, p) => adoptHome(d, p.request),
   ensureConversation: (d, p) => d.ensureConversation(p.dbPath, p.request),
   appendConversationMessages: (d, p) => d.appendConversationMessages(p.dbPath, p.request),
   renameConversation: (d, p) => d.renameConversation(p.dbPath, p.request),
@@ -183,9 +194,120 @@ export function createMarkedHome(desktop, request) {
   }
 }
 
+/** Methods that name no marked home: the marker check before the core is theirs to make. */
+const UNMARKED_METHODS = new Set(["createMarkedHome", "inspectHomeForAdoption", "adoptHome"]);
+
+class HomeAdoptionRefusedError extends Error {
+  constructor(reason, message) {
+    super(message);
+    this.reason = reason;
+  }
+}
+
+function isMarked(homePath) {
+  try {
+    assertMarkedHome(join(homePath, "memory.db"));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The home a person chose to adopt, checked as creation checks a target: absolute and normalized, a
+ * real folder reached through no symlink, in no git repository, holding `memory.db` as a file.
+ */
+function adoptableHome(request) {
+  const homePath = request?.homePath;
+  if (typeof homePath !== "string" || !isAbsolute(homePath) || resolve(homePath) !== homePath) {
+    throw new HomeAdoptionRefusedError("invalid_home_path", "the home path must be absolute and normalized");
+  }
+  let real;
+  try {
+    real = realpathSync(homePath);
+  } catch {
+    throw new HomeAdoptionRefusedError("invalid_home_path", `there is no folder at ${homePath}`);
+  }
+  if (real !== homePath) throw new HomeAdoptionRefusedError("invalid_home_path", `${homePath} passes through a symlink`);
+  if (!statSync(homePath).isDirectory()) throw new HomeAdoptionRefusedError("invalid_home_path", `${homePath} is not a folder`);
+  for (let folder = homePath; ; folder = dirname(folder)) {
+    if (occupied(join(folder, ".git"))) {
+      throw new HomeAdoptionRefusedError("inside_repository", `${homePath} is inside the repository ${folder}`);
+    }
+    if (dirname(folder) === folder) break;
+  }
+  const dbPath = join(homePath, "memory.db");
+  let database;
+  try {
+    database = lstatSync(dbPath);
+  } catch {
+    throw new HomeAdoptionRefusedError("no_database", `${homePath} holds no memory.db`);
+  }
+  if (!database.isFile()) throw new HomeAdoptionRefusedError("no_database", `${dbPath} is not a file`);
+  const marked = isMarked(homePath);
+  if (!marked && occupied(join(homePath, ".mirror-desktop"))) {
+    throw new HomeAdoptionRefusedError("invalid_home_path", `${homePath} carries a .mirror-desktop folder that is not a 0.3 marker`);
+  }
+  return { homePath, dbPath, marked };
+}
+
+/** What a person recognises a home by: counts only, through a read-only open. */
+function homeContents(dbPath) {
+  const db = new DatabaseSync(dbPath, { readOnly: true });
+  try {
+    const count = (sql) => Number(db.prepare(sql).get().n);
+    return {
+      journeys: count("SELECT count(*) AS n FROM identity WHERE layer = 'journey'"),
+      conversations: count("SELECT count(*) AS n FROM conversations"),
+      memories: count("SELECT count(*) AS n FROM memories"),
+      personas: count("SELECT count(*) AS n FROM identity WHERE layer = 'persona'"),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+/** Report a home for the adoption review, changing nothing. */
+export function inspectHomeForAdoption(desktop, request) {
+  const { homePath, dbPath, marked } = adoptableHome(request);
+  if (marked) return { homePath, dbPath, marked: true };
+  const report = desktop.inspectMigrationState(dbPath);
+  const contents = report.state === "pending" || report.state === "current" ? homeContents(dbPath) : null;
+  return { homePath, dbPath, marked: false, report, contents };
+}
+
+/** Migrate exactly `request.expectedPending` behind the core's verified backup, then mark the home. */
+export function adoptHome(desktop, request) {
+  const { homePath, dbPath, marked } = adoptableHome(request);
+  if (marked) throw new HomeAdoptionRefusedError("already_marked", `${homePath} is already a Mirror Desktop TS home`);
+  const report = desktop.inspectMigrationState(dbPath);
+  if (report.state !== "pending" && report.state !== "current") {
+    throw new HomeAdoptionRefusedError("not_adoptable", `${homePath} reads as ${report.state}`);
+  }
+  const expected = request.expectedPending;
+  let receipt;
+  if (report.state === "current" && Array.isArray(expected) && expected.length === 0) {
+    receipt = { coreVersion: report.coreVersion, appliedIds: [], backup: null };
+  } else {
+    // Its refusals (`pending_changed`, `backup_failed`, …) leave the home exactly as it was.
+    const migrated = desktop.migrateHome(dbPath, { expectedPending: expected });
+    receipt = { coreVersion: migrated.after.coreVersion, appliedIds: migrated.appliedIds, backup: migrated.backup };
+  }
+  // Migration precedes the marker: a failure between them leaves a migrated, unmarked home,
+  // which a second adoption marks.
+  const homeId = writeMarker(homePath);
+  writeFileSync(
+    join(homePath, ".mirror-desktop", "adoption.json"),
+    `${JSON.stringify({ adoptedAt: new Date().toISOString(), ...receipt }, null, 2)}\n`,
+    { flag: "wx", mode: 0o600 },
+  );
+  return { homePath, dbPath, homeId, appliedIds: receipt.appliedIds, backup: receipt.backup };
+}
+
 const REFUSALS = [
   ["HomeNotMarkedError", (error) => error.reason, HomeNotMarkedError],
   ["HomeCreationRefusedError", (error) => error.reason, HomeCreationRefusedError],
+  ["HomeAdoptionRefusedError", (error) => error.reason, HomeAdoptionRefusedError],
   ["DatabaseNotCurrentError", (error) => error.state],
   ["ConversationCallRejectedError", (error) => error.reason],
   ["CreateHomeRejectedError", (error) => error.reason],
@@ -231,7 +353,7 @@ export async function answer(desktop, line) {
   }
   if (!isRecord(params)) return failure(id, "HostProtocolError", "malformed_request", "params is not an object");
   try {
-    if (method !== "createMarkedHome") assertMarkedHome(params.dbPath);
+    if (!UNMARKED_METHODS.has(method)) assertMarkedHome(params.dbPath);
     return { id, ok: true, result: await CALLS[method](desktop, params) };
   } catch (error) {
     for (const [name, reasonOf, ownClass] of REFUSALS) {

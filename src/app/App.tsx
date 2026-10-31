@@ -119,6 +119,8 @@ import {
 import { ConversationRecoveryNotice } from "./ConversationRecoveryNotice";
 import { InterruptedNativeAttemptNotice } from "./InterruptedNativeAttemptNotice";
 import { MirrorHomeSetup } from "./MirrorHomeSetup";
+import { MirrorHomeAdoption } from "./MirrorHomeAdoption";
+import type { HomeAdoptionInspection } from "../domain/mirrorHomeAdoption";
 import { PiInstallStep, type PiInstallView } from "./PiInstallStep";
 import { ProviderConnectStep } from "./ProviderConnectStep";
 import { ModelProvidersPanel } from "./ModelProvidersPanel";
@@ -511,7 +513,7 @@ import {
 } from "../domain/fileAttachments";
 import appIconUrl from "../../src-tauri/icons/icon.svg";
 import {
-  bindMirrorHome, chooseRuntimeDirectory, createMirrorHome, inspectRuntimeChannel, installPi,
+  adoptMirrorHome, bindMirrorHome, chooseRuntimeDirectory, createMirrorHome, inspectHomeForAdoption, inspectRuntimeChannel, installPi,
   type RuntimeChannelDiagnostic,
 } from "./runtimeChannelStorage";
 import { JourneyTreeIcon } from "./JourneyTreeIcon";
@@ -950,6 +952,8 @@ export function App({ model }: AppProps) {
     setWhatsNewState(resolveWhatsNewState(acknowledged, installed.version));
   }
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
+  // CV-010.DS-005 slice 5a: a chosen home Mirror Desktop TS did not make, under review.
+  const [homeAdoption, setHomeAdoption] = useState<Extract<HomeAdoptionInspection, { marked: false }>>();
   const [runtimeBindingState, setRuntimeBindingState] = useState<"idle" | "validating" | "saving">("idle");
   const [piInstallView, setPiInstallView] = useState<PiInstallView>({ kind: "idle" });
   // CV-010.DS-005 slice 3c-1: the model providers the app's Pi reports, and a sign-in in progress.
@@ -5528,9 +5532,13 @@ export function App({ model }: AppProps) {
     }
   }
 
-  /** CV-010.DS-005 slice 2d-1: choose a 0.3 home, bind it, then load its Journeys. */
+  /**
+   * CV-010.DS-005 slice 2d-1: choose a 0.3 home, bind it, then load its Journeys. Since slice 5a the
+   * home is inspected first: one Mirror Desktop TS made binds as before, any other is reviewed.
+   */
   async function chooseAndBindMirrorHome() {
     setRuntimeChannelError(undefined);
+    setHomeAdoption(undefined);
     let homePath: string | undefined;
     try {
       homePath = await chooseRuntimeDirectory("mirrorHome");
@@ -5541,13 +5549,43 @@ export function App({ model }: AppProps) {
     if (!homePath) return;
     setRuntimeBindingState("saving");
     try {
-      await bindMirrorHome(homePath);
+      const inspection = await inspectHomeForAdoption(homePath);
+      if (inspection.marked) {
+        await bindMirrorHome(homePath);
+        reloadForBoundHome();
+        return;
+      }
+      setHomeAdoption(inspection);
+      setRuntimeBindingState("idle");
+    } catch (error) {
+      setRuntimeChannelError(error instanceof Error ? error.message : String(error));
+      setRuntimeBindingState("idle");
+    }
+  }
+
+  /** CV-010.DS-005 slice 5a: adopt the reviewed home with exactly the pending list shown, then bind it. */
+  async function adoptAndBindMirrorHome(expectedPending: string[]) {
+    if (!homeAdoption) return;
+    setRuntimeChannelError(undefined);
+    setRuntimeBindingState("saving");
+    try {
+      await adoptMirrorHome(homeAdoption.homePath, expectedPending);
       reloadForBoundHome();
     } catch (error) {
       setRuntimeChannelError(error instanceof Error ? error.message : String(error));
       setRuntimeBindingState("idle");
     }
   }
+
+  const homeAdoptionReview = homeAdoption ? (
+    <MirrorHomeAdoption
+      inspection={homeAdoption}
+      adopting={runtimeBindingState !== "idle"}
+      error={runtimeChannelError}
+      onAdopt={(expectedPending) => void adoptAndBindMirrorHome(expectedPending)}
+      onCancel={() => { setHomeAdoption(undefined); setRuntimeChannelError(undefined); }}
+    />
+  ) : null;
 
   /**
    * CV-010.DS-005 slice 3b: install the app's own Pi. On success the window reloads, as after
@@ -5685,7 +5723,7 @@ export function App({ model }: AppProps) {
           aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : runtimeSetupNeedsPi ? "Install Pi" : runtimeSetupNeedsProvider ? "Connect a model provider" : runtimeSetupNeedsOpenRouter ? "Mirror's context" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
         >
           <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
-          {runtimeSetupNeedsConnection ? (
+          {runtimeSetupNeedsConnection && homeAdoptionReview ? homeAdoptionReview : runtimeSetupNeedsConnection ? (
             <MirrorHomeSetup
               binding={runtimeBindingState !== "idle"}
               error={runtimeChannelError ?? (runtimeChannel?.status === "invalid" ? runtimeChannel.message : undefined)}
@@ -7649,7 +7687,8 @@ export function App({ model }: AppProps) {
               ) : <p className="provider-note">{runtimeChannelError ?? "Inspecting the native runtime channel…"}</p>}
               {/* CV-010.DS-005 slice 2d-1: the 0.3 line binds a Mirror home made for it, nothing else. */}
               <div className="runtime-binding-form" aria-label="Mirror home binding">
-                {runtimeChannelError ? <p className="provider-error">{runtimeChannelError}</p> : null}
+                {homeAdoptionReview}
+                {runtimeChannelError && !homeAdoptionReview ? <p className="provider-error">{runtimeChannelError}</p> : null}
                 <div className="settings-actions">
                   <button type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void chooseAndBindMirrorHome()}>
                     {runtimeBindingState === "idle" ? "Choose Mirror home…" : "Opening…"}

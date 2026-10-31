@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { parseHomeAdoptionInspection, type HomeAdoptionInspection } from "../domain/mirrorHomeAdoption";
 
 export type RuntimeChannelDiagnostic = {
   channel: "user" | "development" | "evaluation";
@@ -81,6 +82,21 @@ export async function chooseRuntimeDirectory(kind: "mirrorHome" | "homeFolder"):
 /** CV-010.DS-005 slice 2d-1: bind this app to a Mirror home made for Mirror Desktop TS. */
 export async function bindMirrorHome(homePath: string): Promise<RuntimeChannelDiagnostic> {
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("bind_mirror_home", { homePath }));
+}
+
+/**
+ * CV-010.DS-005 slice 5a: what a chosen folder is, changing nothing. A home Mirror Desktop TS made
+ * answers `marked: true`; any other, what adopting it would change. Rejects an answer it cannot read.
+ */
+export async function inspectHomeForAdoption(homePath: string): Promise<HomeAdoptionInspection> {
+  const inspection = parseHomeAdoptionInspection(await invoke<unknown>("inspect_home_for_adoption", { homePath }));
+  if (!inspection) throw new Error("Mirror Desktop TS could not read what this home holds. Choose it again.");
+  return inspection;
+}
+
+/** CV-010.DS-005 slice 5a: migrate exactly `expectedPending` behind a verified backup, mark the home, and bind it. */
+export async function adoptMirrorHome(homePath: string, expectedPending: string[]): Promise<RuntimeChannelDiagnostic> {
+  return parseRuntimeChannelDiagnostic(await invoke<unknown>("adopt_mirror_home", { homePath, expectedPending }));
 }
 
 /** CV-010.DS-005 slice 3a: create a 0.3 home for `userName` in `folder` (or `~/Mirror Homes`) and bind it. */
