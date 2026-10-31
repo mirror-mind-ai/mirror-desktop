@@ -3002,3 +3002,12 @@ remains. Production unchanged (binary `303ede287de3`, database at 016).
   marked latest. npm: `publish.yml` run 41199153260 (`dist_tag=stable`) waits on the Navigator's
   `release` environment approval and `npm stage approve` with 2FA; then `npm dist-tag add
   mirror-mind@0.39.0 latest`. Until then npm reads 0.38.1 for both tags.
+- **Public on npm (2026-10-31):** the Navigator added himself as a second required reviewer of
+  Core's `release` environment (the only one was Vinicius), approved the stage, approved the npm
+  stage and moved `latest`, both with 2FA. `npm view mirror-mind dist-tags`: `latest` and `stable`
+  at 0.39.0, `gitHead` `ca7295a4`. Core worklog closed (`ce79b91e`).
+- **Pin moved to the released Core:** `mirror-mind@0.39.0`, commit
+  `ca7295a4fd29abf2afdb915a04470d2e9a2a2c36`, the tarball npm serves
+  (`vendor/mirror-host/mirror-mind-0.39.0.tgz`, sha256 `946f59da…`, sha512 integrity equal to the
+  registry's). The pin names `release: v0.39.0` instead of a branch; `validatePin` now also checks
+  the registry's integrity for a released core. The branch tarball `36ec8cf3` is removed.

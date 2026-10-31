@@ -9,7 +9,7 @@
 | ↳　Fase 1 · Costura de biblioteca no Core | 🟠 Implemented · CV24.DS1–DS5 construídas, CI do Core verde · 15 nomes em `mirror-mind/desktop` · falta merge e release do Core | `░░░░░░░░░░` |
 | ↳　Fase 2 · Host embutido | ✅ Done · build empacotada testada por você em 29/10 · Node e Core dentro do app · sem Python | `██████████` |
 | ↳　Fase 3 · Assistente de primeiro uso na 0.3 | ✅ Done · aceita na conta mirror · falhas do critério 4 só em testes | `██████████` |
-| ↳　Fase 4 · Estável | 🟡 Planned · 4c · Core no main · falta o release v0.39.0 | `█████░░░░░` |
+| ↳　Fase 4 · Estável | 🟡 Planned · 4c · Core v0.39.0 publicado e fixado · falta o alpha.1 | `██████░░░░` |
 | ↳　Fase 5 · Migração da produção | 🟡 Candidate · só com sua palavra · backup ensaiado · fim do web console | `░░░░░░░░░░` |
 | **Linha 0.2 · Mirror Desktop · `release/0.2`** | ⏸️ congelada na alpha.58 · em produção e no download público · só dano grave · canal `alpha` | — |
 | ↳　Candidatos a levar para a 0.2 | 🟡 5 candidatos · 1 pronto: tela preta em instalação nova (B1) · nenhum autorizado | — |
