@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | ✅ Done | — (alpha.1 and alpha.2 published on `/mirror-desktop/ts/`; the installed app updated itself, checked by the Navigator 2026-10-31; 4d waived) |
-| 5 · Migration | 🟡 Candidate | Extensions ported; 5a specified with failing tests; owed before 5c: the 0.2 app data decision and the two-Mirrors rule (Explorer Mode) |
+| 5 · Migration | 🟡 Candidate | Extensions ported; 5a built, awaiting the Navigator's check; owed before 5c: the 0.2 app data decision and the two-Mirrors rule (Explorer Mode) |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -3337,3 +3337,27 @@ screen's on the missing component; the other 2408 tests stay green. They are kep
 
 Adopting a 0.2 app's data (owed item above); the two-Mirrors rule; any change to Core; anything
 touching the production home.
+
+## 5a Built (2026-10-31)
+
+Code commit `eebe0f8`. The two spec files entered `src/tests/` with it and pass unchanged but for one
+type narrowing in the screen test's helper and a 60 s test timeout (under the full suite's parallel
+load a test that starts two hosts passes 5 s).
+
+- **Host:** `inspectHomeForAdoption` and `adoptHome`, the only methods outside the marker gate besides
+  `createMarkedHome` (`UNMARKED_METHODS`); `HomeAdoptionRefusedError`. A home carrying a
+  `.mirror-desktop` folder that is not a valid marker is refused rather than overwritten.
+- **App:** `inspect_home_for_adoption` and `adopt_mirror_home` (census 102 → 104), the development
+  guard `adoption_channel_refusal` before the host, `describe_home_adoption`; `adoptHome` gets
+  `migrateHome`'s 300 s deadline. The bind after adoption is the existing `bind_marked_home`.
+- **Screen:** `MirrorHomeAdoption`, shown in the setup screen and in Settings › Mirror home.
+- **Gates:** vitest 292 files, 2432 tests; cargo 432 passed, 10 ignored; `npm run build`; clippy with
+  the same warnings per file as before. The `privateAlphaPreflight` failure on the way was the stale
+  materialized host, fixed by `materialize --replace`.
+- **Controls** (each restored, then 12/12): no marker gate → 1 fails; no repository check → 1; marker
+  before the migration → 4; a pending home only marked → 3; inspection writing a marker → 2; the Rust
+  guard off → its test fails.
+- **For the Navigator's check:** a Dev build (`target/release/bundle/macos/Mirror Desktop TS Dev.app`)
+  and a scratch home `~/Mirror Homes/adopt-check`, made by `.tmp/5a-controls/make_016_home.mjs`: at
+  016, unmarked, 4 Journeys, 5 Conversations, 12 personas.
+- Production unchanged (database at 016, 0.2 binary `303ede287de3`).
