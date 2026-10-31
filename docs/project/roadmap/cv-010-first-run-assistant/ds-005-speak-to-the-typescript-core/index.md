@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | 🟡 Planned | 4a and 4b checked; 4c: `0.3.0-alpha.1` published and installed, a second release owed to prove the update; 4d waived by the Navigator 2026-10-31 |
-| 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
+| 5 · Migration | 🟡 Candidate | Plan written 2026-10-31 (5a adopt in the app, 5b rehearsed way back, 5c cutover, 5d window); four decisions owed, first the Python extensions |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -3040,3 +3040,96 @@ remains. Production unchanged (binary `303ede287de3`, database at 016).
   `hook_injected`, which migration 018 drops (`ts/src/db/migrations.ts`), so 0.2 and the terminal's
   Python runtime cannot run on a migrated home. Going back to 0.2 therefore means restoring the
   pre-migration backup, and whatever was written after the migration is lost unless carried back.
+
+## 4c — `0.3.0-alpha.2` Prepared (2026-10-31)
+
+Version and note only ("The First Update"), so a failed first update cannot be confused with a
+change in behavior. `release:deploy prepare` at candidate `7c6a676`: all gates passed. DMG sha256
+`0b852a2c…`, updater sha256 `42c66616…`; inside, 0.3.0-alpha.2 with `mirror-mind` 0.39.0. The
+publication would also rewrite the `0.3.0-alpha.1` manifests to name alpha.2, which is how the
+installed app finds it. Nothing published.
+
+## Phase 5 Plan — Production Moves to the 0.3 Line (2026-10-31)
+
+**Outcome.** The Navigator's production home `~/.mirror-minds/alisson-vale` runs on the TypeScript
+core, from Mirror Desktop TS and from the terminal, behind a verified backup and a rehearsed way
+back to Mirror Desktop 0.2 and Python Mirror 0.31.14.
+
+### Measured before planning (read-only)
+
+- **The home.** `memory.db` 114 MB at migration 016, 46 tables, 81 Journeys, 28 personas. 017 and 018
+  pending. 018 drops `hook_injected`, which Python 0.31.14 reads and writes: **after the migration no
+  Python runtime can use the home, so the way back is a restore, not a downgrade.**
+- **Who reaches it today.** Mirror Desktop 0.2 (`ai.mirrormind.desktop`, its data 1.2 GB, separate
+  from 0.3's); Pi, through `~/mirror/.pi/extensions/mirror-logger.ts` and the skills, both calling
+  `uv run python -m memory`; any runtime reading `~/mirror/AGENTS.md`; the web console
+  (`launchd` `com.alissonvale.mirror-web-console`, `~/scripts/mirror-web-console.sh`, keep-alive).
+  Claude Code has no Mirror hook. No `mirror` bin is on `PATH`; `~/.config/mirror/env` does not exist.
+- **Four personal extensions are Python and import the Python core.** `finances` (a context provider;
+  `ext_finances_*` tables hold data), `testimonials` (`ext_testimonials_records`), `atelier-drafts`,
+  and `nautilus-synthesis` (three subcommands; serves another Journey). 27 imports of `memory`; none
+  declares the per-capability runtime the TypeScript core requires (Core v0.32.0 cutoff "the Python
+  extension API"). On the TypeScript core each goes dark: a context provider is skipped with a
+  warning, a subcommand refuses in one line. **Their tables are kept intact by the migration.**
+- **Journey projections are retired** in the TypeScript core (CV22.DS10.TS1). Anything reading
+  them through Python stops with the cutover.
+- **Desktop 0.3 cannot open this home yet.** It refuses an unmarked home, and no screen offers the
+  migration: the host has `migrateHome`, the app does not call it.
+- **Machine-local policy** (`~/.pi/agent/AGENTS.md`) forbids any TypeScript process on this home and
+  any global `mirror-mind` install "until the Navigator explicitly decides to migrate that home". The
+  cutover is that decision; the file is the Navigator's and changes only then.
+
+### Slices
+
+**5a · Adopt an existing home in the app.** *Open an existing Mirror home* on an unmarked home at
+016 shows what it found (Journeys, Conversations, memories), the pending migrations, and that Mirror
+Desktop 0.2 and the Python terminal will no longer run on it. On the person's word: `migrateHome`
+with exactly that list (its verified, retained backup), then the 0.3 marker, then bind. Refusals in
+plain words. Built and checked on copies only.
+
+**5b · The way back, written and rehearsed.** `scripts/phase5_rollback.mjs` (dry run by default):
+
+1. stop Mirror Desktop TS and the TypeScript terminal wiring;
+2. restore `memory.db` from the pre-migration backup, checked against its recorded SHA-256, the
+   migrated file kept beside it, never deleted;
+3. remove the 0.3 marker; restore `~/.config/mirror/env` to absent; uninstall the global
+   `mirror-mind`;
+4. restart the web console; reopen `Mirror Desktop.app` 0.2;
+5. verify: migration 016, Python `uv run python -m memory journeys` answers, 0.2 lists the Journeys.
+
+**Rehearsal** on a scratch copy of production's database (a SQLite `.backup`, a read the line's
+decision reserved for this phase): migrate through 5a, write a Conversation, roll back, and run
+Python 0.31.14 and 0.2's reads against the restored copy. Timed. Production untouched.
+
+**5c · Cutover**, one sitting, at the Navigator's word:
+
+1. full copy of the home beside it, without `backups/` (identity, extensions, local-routing,
+   `conversas`), hashed;
+2. web console stopped and disabled; 0.2 quit; no Pi session open on `~/mirror`;
+3. Desktop TS: *Open an existing Mirror home* → migrate → bound (5a);
+4. terminal: `npm install -g mirror-mind@0.39.0`, `mirror init alisson-vale` (adopts the home),
+   the runtime wiring for Pi; `~/mirror` stays installed and untouched for the way back;
+5. machine-local policy updated to say production is on the TypeScript core;
+6. checks: a turn in Desktop TS, a turn in Pi, both recorded; the doorman routes to a real Journey.
+
+**5d · The window back.** Fix forward on inconvenience; roll back on a lost turn, a home Mirror
+refuses to open, or a day without a working Desktop. Whatever is written after the cutover is lost by
+a rollback unless carried back by hand.
+
+### Decisions for the Navigator
+
+1. **The four Python extensions.** Recommendation: before the cutover, mark which ones you use; port
+   only those to a declared runtime, without the Python core (`finances` and `testimonials` first,
+   their data stays where it is); the others go dark with their tables intact. `nautilus-synthesis`
+   belongs to the Nautilus Journeys and is ported, or accepted dark, there. Alternative: cut over now
+   and port afterwards, living without them meanwhile.
+2. **The web console** ends with the cutover (it is Python). Recommendation: accept.
+3. **The window back.** Recommendation: 3 days, after which the backups stay but a rollback is no
+   longer planned.
+4. **5a in the app, not a script.** Recommendation: in the app, because it is the path every 0.2 user
+   will take; it costs one slice.
+
+### Order and authority
+
+alpha.2 published and the update checked (closes phase 4) → decisions → 5a → 5b with its rehearsal
+→ 5c at the Navigator's word → 5d. Each act on production needs its own word.
