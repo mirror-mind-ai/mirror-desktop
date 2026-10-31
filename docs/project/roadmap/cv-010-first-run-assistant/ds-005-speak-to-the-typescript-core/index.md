@@ -2988,3 +2988,7 @@ remains. Production unchanged (binary `303ede287de3`, database at 016).
   approve with two pre-merge adjustments, both applied in `c858cf67` (the smoke script's lost
   executable bit; the top-level roadmap row said DS1 to DS6). Owed at release: a note naming
   `mirror-mind/desktop` and that the new `exports` field closes every other deep import.
+- **Merged at the Navigator's word (2026-10-31):** #52 into Core `main` as merge commit
+  `307cb937` (the repository's PR style), tree identical to the reviewed head `c858cf67`. CI on
+  `main` green (Tests: all four jobs; Docs). Not released: no tag, `stable` unmoved; the pin stays
+  on the branch tarball until the release.
