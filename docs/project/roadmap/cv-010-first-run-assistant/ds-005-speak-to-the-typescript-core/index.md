@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | ✅ Done | — (alpha.1 and alpha.2 published on `/mirror-desktop/ts/`; the installed app updated itself, checked by the Navigator 2026-10-31; 4d waived) |
-| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; owed before 5c: slice 5a-2 carrying the 0.2 conversation surface into the home's state, and the two-Mirrors rule (Explorer Mode) |
+| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; owed before 5c: slice 5a-2 (specified, 47/47 0.2 Pi sessions open in 0.3's Pi) and the two-Mirrors rule (Explorer Mode) |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -3428,3 +3428,69 @@ and the agent's output — exactly as 0.2 does, and let him continue, not restar
 
 With this, the "empty list" finding resolves itself for every Journey 0.2 had started; listing Mirror
 history without a root thread remains a separate, smaller question.
+
+## 5a-2 Plan — Carry the 0.2 Conversation Surface (2026-10-31)
+
+### Measured first
+
+- **Every 0.2 Pi session opens in 0.3's Pi.** The 47 files of `pi-sessions` (650 MB), copied to a
+  sandbox and opened by the bundled `pi-1.4.0-d36b5fc72875` (`--mode rpc --offline --session <copy>`,
+  no tools, extensions or skills, isolated `HOME` and agent dir): 47 of 47 answered `get_state` naming
+  the same file and `get_messages`. All are format `version: 3`. 19 carry compactions, so Pi shows
+  their summary plus the kept tail. In 4 uncompacted sessions Pi shows 1 to 6 fewer messages than the
+  file's leaf path holds; the difference is only assistant replies that ended in `error`, which Pi
+  keeps out of the model's context and the file keeps. Opening an empty session (header only)
+  appends one `thinking_level_change` line; nothing else was written to any file.
+- **0.3 accepts a 0.2 session where 0.2 did**: `validate_pi_session_file_at` requires the file under
+  the home folder's `pi-sessions` and the header id to match; the recorded `cwd` is not checked.
+- **0.3 appends with the same `sourceInterface` (`nautilus-harness`)** and the core does not compare
+  interfaces, so a continued 0.2 Conversation lands in the same Mirror Conversation.
+- **Where the 0.2 records name a path** (structural JSON only, never transcript text): the keys
+  `piSessionFile` and `sessionFile`, always under `<0.2 folder>/pi-sessions/` — in `journey-threads`,
+  `dedicated-journey-conversations`, `conversation-spaces`, `conversation-segments` and
+  `mirror-append-conflicts.jsonl`. The same folder also appears inside tool arguments (`path`,
+  `command`) and outputs; those are what the agent did and said, and must not change. So 3a-2's
+  substring rewrite is wrong here: it would edit the transcript.
+- **After 5a the app writes into the home's folder at once** (`adopt-check`: `journey-registry.json`,
+  `journey-preferences.json`, and a thread once a Journey is started). The carry must accept that
+  bind-time state and refuse anything started in 0.3.
+
+### The slice
+
+`scripts/carry_02_state.mjs` — `carry02State({ sourceRoot, targetAppDataRoot, homePath, dryRun })`,
+run by hand in 5c with both apps closed:
+
+1. The home must be marked (5a ran); its `homeId` names `homes/<homeId>/` in the 0.3 folder.
+2. Refuse while the 0.2 outbox holds items ("N turns not yet in Mirror; open 0.2 until it delivers").
+3. Refuse unless every `mirrorConversationId` the 0.2 state names is in the home's database.
+4. Refuse when the target already holds conversation state (any `journey-threads`,
+   `dedicated-journey-conversations`, `conversation-segments` or `pi-sessions` file, or the receipt).
+5. Copy `CARRIED_ENTRIES` — `HOME_STATE_ENTRIES` minus `journey-registry.json`, a cache 0.3 rebuilds
+   from Mirror — into a staging folder beside the target, together with the target's bind-time files;
+   carried files win (`journey-preferences.json`). App-level 0.2 state (`agent-settings.json`, voice,
+   avatar, window) stays behind.
+6. Rewrite only the string values of `piSessionFile` and `sessionFile` that start with
+   `<0.2 folder>/pi-sessions/`; any other value under `<0.2 folder>/` in those keys refuses. Files
+   with nothing to rewrite are copied byte for byte; JSON and JSONL are parsed, so a malformed file
+   refuses by name.
+7. Swap staging into place (two renames), write `carried-from-0.2.json` (0600:
+   `{carriedAt, source, carried, files, rewritten:{files,values}, conversations}`).
+   Any refusal leaves the target and the 0.2 folder as they were and no staging folder behind.
+8. `--dry-run` reports the same counts and writes nothing; the CLI defaults to dry run and needs
+   `--write`.
+
+Spec: `.tmp/5a2-spec/cv010Carry02State.test.mjs.pending` (6 tests), failing on the missing script.
+
+### Acceptance, after the tests
+
+- **Rehearsal on a copy of production, outside `.mirror-minds`**: SQLite `.backup` of the production
+  database into `~/Mirror Homes/`, adopted by a Dev build; the 0.2 state carried from a *copy* of
+  `ai.mirrormind.desktop` into the Dev app's folder; the Navigator opens three Journeys he knows and
+  sees their 0.2 exchanges, then sends one turn in one of them, which must reach the same Mirror
+  Conversation. Timed, because 5c repeats it.
+- **5c gains a step**, between adoption and the first use of the bound app: close the app, run the
+  carry with `--write`, reopen. To keep "the first use" honest, 5c adopts with the app then quits it
+  before choosing any Journey.
+
+Open and not part of this slice: 0.2's `agent-settings.json` per-Journey model choices (its provider
+entries reference the Python runtime), and listing Mirror history for Journeys 0.2 never started.
