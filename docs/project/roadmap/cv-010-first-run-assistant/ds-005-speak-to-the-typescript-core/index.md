@@ -2974,3 +2974,13 @@ working". Read-only, ana's database holds one Journey row again, `personal-growt
 content byte-unchanged; its metadata gained `sibling_position: 0` and its `updated_at` moved to
 10:25:50Z, the renumbering of the root set the new Journey joined and left. No other Journey row
 remains. Production unchanged (binary `303ede287de3`, database at 016).
+
+## Slice 4c Started — the Core Pull Request (2026-10-31)
+
+- `desktop/library-seam-1a` merged `origin/main` at v0.38.1 (`f04551e3`). One conflict: CR180 moved
+  `resolveUserName` to `conversation/userName.ts`; main's side kept, DS7 imports it from there.
+  Local suite 3,725 tests (only the known Node 24.6.0 FTS5 failure); CI green on all four jobs.
+- [mirror-mind-ai/mirror#52](https://github.com/mirror-mind-ai/mirror/pull/52) opened at the
+  Navigator's word: CV24 DS1 to DS8, suggested v0.39.0. Mergeable, all five checks green.
+- The merge and the Core release are a separate step; the Navigator holds authority for both.
+  The Desktop pin stays on the branch tarball (`36ec8cf3`) until then.
