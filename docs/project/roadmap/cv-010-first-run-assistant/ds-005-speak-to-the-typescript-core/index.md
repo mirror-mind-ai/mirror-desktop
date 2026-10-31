@@ -3361,3 +3361,17 @@ load a test that starts two hosts passes 5 s).
   and a scratch home `~/Mirror Homes/adopt-check`, made by `.tmp/5a-controls/make_016_home.mjs`: at
   016, unmarked, 4 Journeys, 5 Conversations, 12 personas.
 - Production unchanged (database at 016, 0.2 binary `303ede287de3`).
+
+## 5a Checked by the Navigator; One Finding for 5c (2026-10-31)
+
+The Navigator adopted `~/Mirror Homes/adopt-check` in the Dev build: "deu tudo certo". Read afterwards:
+ledger through 018, 4 Journeys and 5 Conversations intact, marker and `adoption.json` present, the
+backup's SHA-256 (`db786d9d…`) equal to the receipt's.
+
+**Finding: the adopted Conversations do not show until a Journey is started.** The list loads Mirror
+history only after the Journey has a Desktop root thread (`App.tsx`, the catalog load throws "Start
+this Journey before creating additional conversations." without one), so an adopted Journey shows
+*0* and *This Journey has not started*. Not a 5a defect: the same rule as 0.2. But production arrives
+with 81 Journeys and no 0.3 root threads (the 0.2 app data is not carried), so after the cutover
+every Journey would look empty until started, one by one. To decide with the 0.2 app data item,
+before 5c: list Mirror history without a root thread, start threads on adoption, or accept it.
