@@ -3011,3 +3011,11 @@ remains. Production unchanged (binary `303ede287de3`, database at 016).
   (`vendor/mirror-host/mirror-mind-0.39.0.tgz`, sha256 `946f59da…`, sha512 integrity equal to the
   registry's). The pin names `release: v0.39.0` instead of a branch; `validatePin` now also checks
   the registry's integrity for a released core. The branch tarball `36ec8cf3` is removed.
+- **Phase 1 done**, with Core CV24 released and pinned.
+- **`0.3.0-alpha.1` prepared (2026-10-31)** through `release:deploy prepare` at candidate revision
+  `77a7644`: preflight, npm tests, frontend build, cargo tests and the alpha build passed. DMG
+  `Mirror Desktop TS_0.3.0-alpha.1_x64.dmg` sha256 `21f2c262…`, updater `Mirror Desktop TS.app.tar.gz`
+  sha256 `b031663c…`, signed with the updater key. Inside: version 0.3.0-alpha.1, bundle id
+  `ai.mirrormind.desktop.ts`, x86_64, code unsigned, `mirror-mind` 0.39.0 from `ca7295a4`. Release
+  note "A Mirror of Its Own". Evidence: `docs/update/v0.3.0-alpha.1-release-preparation-2026-10-31.md`.
+  Nothing published; `/mirror-desktop/ts/` still answers 404.
