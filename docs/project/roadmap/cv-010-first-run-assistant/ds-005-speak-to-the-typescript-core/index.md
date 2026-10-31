@@ -3514,3 +3514,28 @@ Code commit `9bc67cf`: `scripts/carry_02_state.mjs` and `src/tests/cv010Carry02S
 - Production unchanged (database at 016, 0.2 binary `303ede287de3`).
 
 Next: the rehearsal on a copy of production (its own word), as planned above.
+
+## 5a-2 Rehearsal, First Half (2026-10-31)
+
+- **Copy of production:** SQLite `.backup` (read only) into `~/Mirror Homes/ensaio-alisson-vale`, 1 s:
+  integrity ok, 016, 81 Journeys, 1,122 Conversations, 51,249 messages; production's database file
+  hash unchanged.
+- **Adoption (the Navigator, Dev build):** ledger through 018, all 1,122 Conversations, backup
+  present. The app selected *Vida Biográfica* on opening without starting it; the home's folder held
+  only `journey-preferences.json` and `journey-registry.json`, so the carry was not refused.
+- **0.2 could not be closed:** the Navigator talks to the agent through it. The carry read an APFS
+  clone (`cp -cRp`, instant) in `/private/tmp/5a2-ensaio`, outbox empty.
+- **Defect found by the dry run:** 0 paths rewritten, because the records name the original folder.
+  A write would have left the threads pointing into 0.2. Fixed in `e0fbe7e`:
+  `--recorded-as` (the CLI defaults it to the real 0.2 folder) and a refusal when sessions would be
+  carried but no path moves. One test added (7); controls: refusal removed → 1 fails; records' folder
+  ignored → 5 fail. Vitest 2439.
+- **Carry with `--write`:** 595 files, 6,789 paths in 314 files, 15 s; all 38 thread session paths
+  point into the home's `pi-sessions` and exist; receipt 0600. `journey-thread-operations` is
+  empty in 0.2 and so arrives as no folder.
+- **For 5c:** 0.2 must be quiet during the carry, and the Navigator's conversation with the agent
+  runs in 0.2. Either the cutover is driven from a terminal agent, or the carry reads a clone taken
+  between turns, as here, and the last turn of that conversation stays in 0.2's state only (its text
+  reaches Mirror through the outbox).
+
+Next: the Navigator opens three Journeys and sends one turn.
