@@ -3025,4 +3025,10 @@ remains. Production unchanged (binary `303ede287de3`, database at 016).
   `21f2c262…`, as confirmed). Evidence: `docs/update/v0.3.0-alpha.1-release-publication-2026-10-31.md`.
   **Guard checked on the published manifests:** every `alpha` manifest polled by 0.2.0-alpha.57 and
   alpha.58, and the `alpha` download alias, still name 0.2.0-alpha.58. Production unchanged.
+- **Installed (2026-10-31):** the Navigator installed `Mirror Desktop TS.app` 0.3.0-alpha.1 beside
+  production's `Mirror Desktop.app` and created the daily home `~/Mirror Homes/fred-soares` from the
+  first screen (decision 2). Read read-only: marked, 18/18 migrations (`018_drop_hook_injected`), 20
+  identity rows (12 personas, the template Journey `personal-growth`), 0 Conversations, 0 memories.
+  The app is bound to it; Pi 1.4.0 installed in the app's folder; no key text in the app's files.
+  Production unchanged.
 - Owed for 4c: a second 0.3 release, so the installed app updates itself once. Then 4d.
