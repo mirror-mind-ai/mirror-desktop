@@ -188,7 +188,7 @@ including any Navigator check, is met.
 | 1 · A library seam in Core | ✅ Done | — (CV24.DS1–DS8 merged as Core PR #52 and released as `mirror-mind` 0.39.0, 2026-10-31; the pin is on it) |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
-| 4 · Stable | 🟡 Planned | Decisions accepted 2026-10-30. 4a and 4b checked by the Navigator; 4c: `0.3.0-alpha.1` published on `/mirror-desktop/ts/`, a second release owed to prove the update; then 4d |
+| 4 · Stable | 🟡 Planned | 4a and 4b checked; 4c: `0.3.0-alpha.1` published and installed, a second release owed to prove the update; 4d waived by the Navigator 2026-10-31 |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
@@ -3031,4 +3031,12 @@ remains. Production unchanged (binary `303ede287de3`, database at 016).
   identity rows (12 personas, the template Journey `personal-growth`), 0 Conversations, 0 memories.
   The app is bound to it; Pi 1.4.0 installed in the app's folder; no key text in the app's files.
   Production unchanged.
-- Owed for 4c: a second 0.3 release, so the installed app updates itself once. Then 4d.
+- Owed for 4c: a second 0.3 release, so the installed app updates itself once.
+- **Decision 4 amended (2026-10-31, Navigator):** the 7-day daily-use period (4d) is waived. The
+  Navigator has no concrete scenarios to exercise on a template home and will not wait; real use
+  moves into phase 5, on production's own home, guarded by a backup and a restore back to 0.2 if
+  0.3 stops working. Phase 4 closes on 4c (the update proven) instead of 4d.
+- **Measured for that rollback:** production's Python Mirror 0.31.14 reads and writes
+  `hook_injected`, which migration 018 drops (`ts/src/db/migrations.ts`), so 0.2 and the terminal's
+  Python runtime cannot run on a migrated home. Going back to 0.2 therefore means restoring the
+  pre-migration backup, and whatever was written after the migration is lost unless carried back.
