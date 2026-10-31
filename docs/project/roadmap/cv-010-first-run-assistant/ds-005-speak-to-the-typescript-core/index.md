@@ -188,7 +188,7 @@ including any Navigator check, is met.
 | 1 · A library seam in Core | 🟠 Implemented | All five slices (CV24.DS1–DS5) are built on `mirror-ts` branch `desktop/library-seam-1a`, with Core CI green on `c7b4bf40`. Owed for Done: merge into Core `main` and a Core release, each at the Navigator's word. |
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
-| 4 · Stable | 🟡 Planned | Decisions accepted 2026-10-30. 4a (learn; CV24.DS7) checked by the Navigator; 4b (Journeys in the app; CV24.DS8) built, awaiting the Navigator check; then 4c, 4d |
+| 4 · Stable | 🟡 Planned | Decisions accepted 2026-10-30. 4a (learn; CV24.DS7) and 4b (Journeys in the app; CV24.DS8) built and checked by the Navigator; then 4c, 4d |
 | 5 · Migration | 🟡 Candidate | An Explorer pass on the two-Mirrors version rule, then a full plan |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
@@ -2968,3 +2968,9 @@ phase-4 exclusion "Journey edit, archive and paths" is lifted for edit and paths
 4. **Move and delete:** move it under Personal Growth, then delete it (it has no Conversations yet).
 
 I will then read ana's database read-only: the Journey rows, their content and metadata.
+
+**Checked 2026-10-31.** The Navigator created, edited, moved and deleted a Journey on ana: "all
+working". Read-only, ana's database holds one Journey row again, `personal-growth`, with its
+content byte-unchanged; its metadata gained `sibling_position: 0` and its `updated_at` moved to
+10:25:50Z, the renumbering of the root set the new Journey joined and left. No other Journey row
+remains. Production unchanged (binary `303ede287de3`, database at 016).
