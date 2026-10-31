@@ -90,6 +90,8 @@ export function validatePin(pin, root) {
   const tarball = core.tarball ? join(root, core.tarball) : "";
   if (!tarball || !existsSync(tarball)) problems.push("core tarball is missing");
   else if (sha256File(tarball) !== core.sha256) problems.push("core tarball sha256 does not match the pin");
+  // A released core also carries the registry's integrity for its version: the file is what npm serves.
+  else if (core.release && sha512Integrity(tarball) !== core.integrity) problems.push("core tarball integrity does not match the registry's");
   const yaml = core.dependencies?.yaml;
   const yamlTarball = yaml?.tarball ? join(root, yaml.tarball) : "";
   if (!yamlTarball || !existsSync(yamlTarball)) problems.push("yaml tarball is missing");

@@ -57,7 +57,7 @@ describe("the Mirror host", () => {
       type: "ready",
       hostProtocol: HOST_PROTOCOL_VERSION,
       desktopApiVersion: 1,
-      coreVersion: "0.37.0",
+      coreVersion: readPin(root).core.version,
       node: process.version,
       methods: HOST_METHODS,
     });
@@ -345,6 +345,6 @@ describe("the Mirror host", () => {
     const receipt = JSON.parse(readFileSync(join(hostDir, "pin-receipt.json"), "utf8"));
     expect(receipt.core.commit).toBe(readPin(root).core.commit);
     expect(receipt.host.sha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(readFileSync(join(hostDir, "node_modules", "mirror-mind", "package.json"), "utf8")).toContain('"version": "0.37.0"');
+    expect(readFileSync(join(hostDir, "node_modules", "mirror-mind", "package.json"), "utf8")).toContain(`"version": "${readPin(root).core.version}"`);
   });
 });

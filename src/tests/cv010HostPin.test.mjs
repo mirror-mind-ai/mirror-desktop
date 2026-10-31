@@ -67,10 +67,16 @@ describe("the 0.3 runtime pin", () => {
     }
   });
 
-  it("pins the core to a full Core commit and a vendored tarball whose hash it records", () => {
+  it("pins the core to a released version: its tag's commit and the npm tarball, by both hashes", () => {
     expect(pin.core.commit).toMatch(/^[0-9a-f]{40}$/);
-    expect(pin.core.branch).toBe("desktop/library-seam-1a");
+    expect(pin.core.release).toBe(`v${pin.core.version}`);
+    expect(pin.core.branch).toBeUndefined();
+    expect(pin.core.tarball).toBe(`vendor/mirror-host/mirror-mind-${pin.core.version}.tgz`);
     expect(sha256File(join(root, pin.core.tarball))).toBe(pin.core.sha256);
+    // The registry's own integrity for the published version: the vendored file is what npm serves.
+    expect(sha512Integrity(join(root, pin.core.tarball))).toBe(pin.core.integrity);
+    const manifest = JSON.parse(execFileSync("tar", ["-xzOf", join(root, pin.core.tarball), "package/package.json"], { encoding: "utf8" }));
+    expect(manifest.version).toBe(pin.core.version);
     expect(sha512Integrity(join(root, pin.core.dependencies.yaml.tarball))).toBe(pin.core.dependencies.yaml.integrity);
     const listing = execFileSync("tar", ["-tzf", join(root, pin.core.tarball)], { encoding: "utf8" });
     expect(listing).toContain("package/lib/desktop.js");
@@ -84,6 +90,7 @@ describe("the 0.3 runtime pin", () => {
     const bad = { ...pin.node.platforms, "darwin-arm64": { ...pin.node.platforms["darwin-arm64"], sha256: "abc" } };
     expect(validatePin({ ...pin, node: { ...pin.node, platforms: bad } }, root).join(" ")).toMatch(/sha256/);
     expect(validatePin({ ...pin, core: { ...pin.core, sha256: "0".repeat(64) } }, root).join(" ")).toMatch(/core tarball/);
+    expect(validatePin({ ...pin, core: { ...pin.core, integrity: "sha512-x" } }, root).join(" ")).toMatch(/registry's/);
   });
 
   it("materializes Node and the core into one directory, all or nothing", async () => {
