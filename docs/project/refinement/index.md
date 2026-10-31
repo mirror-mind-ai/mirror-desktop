@@ -75,7 +75,9 @@ referent when the plan was re-based on 0.3. DS-001's field check was retired, no
   recovery was leaving the form to reload and retype. The form now reloads the tree itself, keeps a
   create whose parent still exists and whose id is still free, and asks for one more Confirm under a
   new request id; a real conflict names what changed. Nothing is retried on its own
-- Change Request: CR100 is `parked` as a Mirror core debt, recorded in RS022's register. Its title
+- Change Request: CR100 is `done` on the 0.3 line (2026-10-31): Core CV24.DS8 `updateJourney`, wired
+  into Edit Journey by CV-010.DS-005 slice 4b and checked by the Navigator; 0.2 keeps CR130's
+  containment. Earlier record: CR100 was `parked` as a Mirror core debt, recorded in RS022's register. Its title
   is inaccurate and kept for traceability: Journey images are device-local and work. What fails is the
   Edit Journey dialog's Save changes, which submits `update_journey` — an operation no Mirror core
   accepts, so renaming a Journey from the Desktop has never worked. Revisit trigger recorded;
@@ -280,7 +282,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 
 | 4 | [CR099](rs021-ux-pre-beta-evolution/cr099-allow-safe-editing-during-another-journeys-work.md) | RS021 | Allow Safe Editing During Another Journey's Work | captured | — | — |
 | 5 | [CR098](rs021-ux-pre-beta-evolution/cr098-allow-a-journey-to-be-reparented.md) | RS021 | Allow a Journey to Be Reparented | captured | — | — |
-| 6 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | parked | — | — |
+| 6 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | done | @alissonvale | CV-010.DS-005 slice 4b |
 | 7 | [CR113](rs021-ux-pre-beta-evolution/cr113-make-composer-typing-responsive-in-large-journeys.md) | RS021 | Make Composer Typing Responsive in Large Journeys | done | @alissonvale | `refinement/rs021-cr113-rs016-cr115-typing-responsiveness` |
 | 8 | [CR114](rs021-ux-pre-beta-evolution/cr114-make-the-current-segment-the-default-working-set.md) | RS021 | Make the Current Segment the Default Working Set | done | @alissonvale | `refinement/rs021-cr114-current-segment-working-set` |
 | 9 | [CR115](rs016-ongoing-product-improvements-and-adjustments/cr115-stop-the-idle-post-terminal-recovery-loop.md) | RS016 | Stop the Idle Post-Terminal Recovery Loop | done | @alissonvale | `refinement/rs021-cr113-rs016-cr115-typing-responsiveness` |

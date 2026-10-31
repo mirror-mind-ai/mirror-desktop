@@ -110,7 +110,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR092: Float the Recenter Control Over the Conversation](cr092-float-the-recenter-control-over-the-conversation.md) — done
 - [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md)
 - [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md)
-- [CR100: Make Journey Image Updates Supported](cr100-make-journey-image-updates-supported.md) — parked
+- [CR100: Make Journey Image Updates Supported](cr100-make-journey-image-updates-supported.md) — done (0.3 line)
 - [CR101: Restore Window Geometry](cr101-restore-window-geometry.md) — done
 - [CR102: Make Sidebar Progress Signals Legible](cr102-make-sidebar-progress-signals-legible.md) — done
 - [CR103: Give the Composer Model Status a Human Register](cr103-give-the-composer-model-status-a-human-register.md) — done

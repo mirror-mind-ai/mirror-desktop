@@ -5,7 +5,7 @@
 **Status:** done
 **Driver:** @alissonvale
 **Delivery:** `refinement/rs021-cr130-stop-offering-an-edit-that-cannot-succeed`
-**Contains:** [CR100](cr100-make-journey-image-updates-supported.md) — Mirror core debt, parked
+**Contains:** [CR100](cr100-make-journey-image-updates-supported.md) — Mirror core debt, closed on the 0.3 line 2026-10-31; this containment remains on 0.2
 
 ## Friction
 

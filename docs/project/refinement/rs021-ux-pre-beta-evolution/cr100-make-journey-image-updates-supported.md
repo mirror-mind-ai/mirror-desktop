@@ -2,16 +2,17 @@
 
 # CR100: Make Journey Image Updates Supported
 
-**Status:** parked
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** CV-010.DS-005 slice 4b on `main` (0.3 line); Mirror Core CV24.DS8
 **Debt location:** Mirror core — `memory/services/journey_admin.py:145` (the `journey mutate` accepted-operation set). Not a missing capability: `JourneyService.update_identity_fields` and `update_metadata_fields` already do this work, but only through `memory/web/server.py:514`/`:519`, bypassing the digest and the receipt ledger. Description has no update path anywhere
 **Containment:** [CR130](cr130-stop-offering-a-journey-edit-that-cannot-succeed.md) — Desktop-side, captured
 **Revisit trigger:** ~~a Mirror core release whose `journey mutate` accepts a metadata update operation~~ **— already satisfied in source, not in any release. See Premise corrected again, 2026-10-07.**
 **Register:** recorded in [RS022 — Mirror Core Debts](../rs022-mirror-core-debts/index.md)
-**0.3 line (2026-10-30):** Core CV24.DS8 `updateJourney` edits name, description and status, and
-CV-010.DS-005 slice 4b wires it into Edit Journey. The 0.2 line is unchanged; this CR's status is
-the Navigator's to decide after the 4b check.
+**Closed (2026-10-31, Navigator):** on the 0.3 line Core CV24.DS8 `updateJourney` edits name,
+description and status, and CV-010.DS-005 slice 4b wires it into Edit Journey; the Navigator checked
+create, edit, move and delete on a development home. Images stay device-local, as they always
+worked. The 0.2 line is unchanged and keeps CR130's containment.
 
 ## Friction
 
