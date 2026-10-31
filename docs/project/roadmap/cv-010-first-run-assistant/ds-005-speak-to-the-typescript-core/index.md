@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | ✅ Done | — (alpha.1 and alpha.2 published on `/mirror-desktop/ts/`; the installed app updated itself, checked by the Navigator 2026-10-31; 4d waived) |
-| 5 · Migration | 🟡 Candidate | Plan written and its four decisions accepted 2026-10-31 (port `finances` and `atelier-drafts`; console ends; 3-day window; 5a in the app) |
+| 5 · Migration | 🟡 Candidate | Extensions ported; 5a specified with failing tests; owed before 5c: the 0.2 app data decision and the two-Mirrors rule (Explorer Mode) |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -3229,3 +3229,111 @@ updated once, `alpha` manifests never offered it; 4 waived by the Navigator (the
 moves to phase 5, on the real home); 5 production unchanged throughout. **Phase 4 is ✅ Done and the
 Refinement Suspension ends:** CR work resumes from the queue (CR159, CR163, then the captured ones)
 alongside phase 5.
+
+## Phase 5 Plan, Corrected: Two Owed Items (2026-10-31)
+
+The plan above missed two items the line's decision (condition c) requires before production moves:
+
+- **The 0.2 app data** under `ai.mirrormind.desktop` (turn journals, outbox, drafts, preferences;
+  1.2 GB measured) is imported or explicitly abandoned. Recommendation to bring to the Navigator:
+  abandon, kept on disk untouched (0.2 stays installed for the way back), after checking the outbox
+  holds nothing unsettled.
+- **The rule for two Mirrors on one database** (Desktop's embedded core beside the terminal's
+  `mirror`, including a database a newer core already migrated) is decided in an Explorer Mode pass,
+  among the three options the decision lists. What the code does today, for that pass: the host binds
+  only a `current` home and refuses an `ahead` one, so a terminal `mirror` newer than the app's pin
+  that migrates the home stops Desktop until Desktop updates.
+
+Both precede 5c. Neither blocks building 5a.
+
+## 5a Plan — Adopt an Existing Home (2026-10-31)
+
+**Outcome.** *Open an existing Mirror home…* on a home Mirror Desktop TS did not create shows what it
+found and what will change, and only on the person's word migrates it behind the core's verified
+backup, marks it, and binds it. It is the one door through condition (b), and it is narrow: every
+other host method still refuses an unmarked home.
+
+### Host (`mirror-host/host.mjs`)
+
+Two methods, the only ones that take an unmarked home. Both take `{request: {homePath}}`, never a
+`dbPath`, and both check the path as `createMarkedHome` does: absolute and normalized, a real
+directory reached through no symlink, not inside a git repository (a Mirror checkout is one), holding
+`memory.db` as a regular file. Unlike `createMarkedHome`, a `.mirror-minds` component is allowed: that
+is where the homes being adopted live.
+
+- **`inspectHomeForAdoption`** changes nothing. It answers `{homePath, dbPath, marked, report,
+  contents}`: `marked: true` alone for a home that already carries the 0.3 marker (the app then binds
+  it as today); otherwise the core's `inspectMigrationState` report, and for a `pending` or `current`
+  home the counts `{journeys, conversations, memories, personas}`, read through a read-only
+  `node:sqlite` open (counts only, no content). The database file's bytes are unchanged afterwards.
+- **`adoptHome`** takes `{homePath, expectedPending}` and repeats every check:
+  - already marked → refused `already_marked`;
+  - `pending` → the core's `migrateHome(dbPath, {expectedPending})`, whose refusals pass through
+    unchanged (`pending_changed`, `backup_failed`, …) and leave no marker; then the marker;
+  - `current`, with `expectedPending: []` → the marker only, no migration and no backup;
+  - `missing`, `not_mirror`, `ahead` → refused `not_adoptable`;
+  - on success it also writes `<home>/.mirror-desktop/adoption.json` (0600): `{adoptedAt, coreVersion,
+    appliedIds, backup: {path, sha256, sizeBytes} | null}`, the receipt the way back (5b) reads.
+    Migration precedes marking, so a failure between them leaves a migrated, unmarked home, which a
+    second adoption marks.
+- Refusals are `HomeAdoptionRefusedError` with a reason: `invalid_home_path`, `inside_repository`,
+  `no_database`, `already_marked`, `not_adoptable`.
+
+### App (Rust)
+
+- `inspect_home_for_adoption(home_path)` and `adopt_mirror_home(home_path, expected_pending)`, both
+  serialized and off the main thread (the native command count moves by two). `adopt_mirror_home`
+  refuses while Desktop is busy (`home_switch_refusal`), as creating a home does, then binds through
+  `bind_marked_home`, which still requires the marker and a `current` home.
+- **Development guard.** Only the user-channel build may adopt a path with a `.mirror-minds`
+  component; the development and evaluation builds refuse it before the host is asked, so building
+  and checking 5a can never reach the production home. The installed app receives 5a only through a
+  release, which the cutover is.
+- The refusals in plain words (`describe_home_adoption`), as `describe_home_creation` does.
+
+### Screen
+
+*Open an existing Mirror home…* inspects the chosen folder first. A marked home binds as today. Any
+other shows the review (`MirrorHomeAdoption`):
+
+- the folder, and what it holds: Journeys, Conversations, memories, personas;
+- **pending:** that Mirror Desktop TS updates the home first, with the changes named; that afterwards
+  Mirror Desktop 0.2 and the terminal's Python Mirror can no longer open it, and going back means
+  restoring the copy taken first; that the copy is taken, checked and kept in `<home>/backups`.
+  *Update and open*, or *Choose another home*;
+- **current:** that the home is already up to date and will be marked as Mirror Desktop TS's. *Open
+  this home*;
+- **not adoptable:** why, in words (a newer core's home: update Mirror Desktop TS first; not a Mirror
+  database), and no action but choosing another.
+
+*Update and open* sends exactly the pending list shown.
+
+### Acceptance
+
+1. A home at 016 with Journeys and Conversations: the review shows its counts and the two pending
+   migrations; *Update and open* leaves it `current`, marked, bound, with the same counts, a backup
+   whose SHA-256 matches the receipt, and `adoption.json`.
+2. The database is byte-identical after inspection alone, and after cancelling.
+3. A stale pending list, an `ahead`, `not_mirror` or marked home, a symlinked path, a folder in a git
+   repository, a folder without `memory.db`: each refused in words, with nothing changed.
+4. Every other host method still refuses an unmarked home, including one just inspected.
+5. A development build refuses a `.mirror-minds` path before the host is asked.
+6. Production unchanged throughout; checked only on scratch homes and copies.
+
+### Validation
+
+Spec first: `src/tests/cv010AdoptHome.test.mjs` (the host, spawned, on an unmarked home regressed to
+016 the way the core's `regressTo016` does) and `src/tests/cv010HomeAdoptionReview.test.tsx` (the
+domain parser, the review screen, and the app wiring) fail before the implementation. Rust unit tests
+come with the commands. Then the full gates, a dev build, and the Navigator's check on a scratch copy
+of a 016 home.
+
+**Spec written and measured failing (2026-10-31).** Both files exist and fail for the right reason
+before any implementation: the host's 12 tests on `unknown_method` (so the 016 fixture is sound), the
+screen's on the missing component; the other 2408 tests stay green. They are kept in
+`.tmp/5a-spec/` and enter `src/tests/` with the implementation's commit, so `main` stays green.
+
+### Excluded
+
+Adopting a 0.2 app's data (owed item above); the two-Mirrors rule; any change to Core; anything
+touching the production home.
