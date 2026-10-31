@@ -3555,3 +3555,13 @@ Two lessons: the rehearsal must run a User-channel build of `main` (data folder
 untouched); and the screen should name a channel refusal instead of `invalid_record` (captured).
 Rewriting `runtimeChannel` in the carry for a Dev rehearsal is declined: activation receipts compare
 it, and the rehearsal would then prove a different file set from the one 5c carries.
+
+## 5a-2 Rehearsal, in the User Channel (2026-10-31)
+
+- User-channel build of `main` (`npm run tauri:build:user`, signed with the local updater key,
+  nothing published): `target/release/bundle/macos/Mirror Desktop TS.app`, `ai.mirrormind.desktop.ts`,
+  0.3.0-alpha.2 by version, run from the build folder; the installed alpha.2 is not replaced.
+- Carried before binding, from the same clone, into `ai.mirrormind.desktop.ts/homes/<ensaio homeId>`:
+  595 files, 6,789 paths, 15 s; 30 threads, all `user`; 38 session paths in place. The `fred-soares`
+  home's state folder was fingerprinted before and after: unchanged. The app is still bound to
+  `fred-soares` until the Navigator chooses the rehearsal home.
