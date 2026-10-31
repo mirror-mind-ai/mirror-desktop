@@ -3118,6 +3118,12 @@ Python 0.31.14 and 0.2's reads against the restored copy. Timed. Production unto
    the runtime wiring for Pi; `~/mirror` stays installed and untouched for the way back;
 5. machine-local policy updated to say production is on the TypeScript core;
 6. checks: a turn in Desktop TS, a turn in Pi, both recorded; the doorman routes to a real Journey.
+7. **bind the finances summary to `tesoureira`** (asked by the Navigator 2026-10-31; the persona
+   exists in production, the summary has no binding today): after the ported `finances` is installed
+   (`mirror extensions install finances --extensions-root ~/Code/mirror-extensions`),
+   `mirror ext finances bind financial_summary --persona tesoureira`, then check with
+   `mirror ext finances bindings` and a `mirror load --persona tesoureira` that carries the
+   `=== extension/finances/financial_summary ===` section.
 
 **5d · The window back.** Fix forward on inconvenience; roll back on a lost turn, a home Mirror
 refuses to open, or a day without a working Desktop. Whatever is written after the cutover is lost by
