@@ -10,7 +10,7 @@
 | ↳　Fase 2 · Host embutido | ✅ Done · build empacotada testada por você em 29/10 · Node e Core dentro do app · sem Python | `██████████` |
 | ↳　Fase 3 · Assistente de primeiro uso na 0.3 | ✅ Done · aceita na conta mirror · falhas do critério 4 só em testes | `██████████` |
 | ↳　Fase 4 · Estável | ✅ Done · atualização testada por você · 4d dispensada | `██████████` |
-| ↳　Fase 5 · Migração da produção | 🟡 Candidate · 5a conferida · 5a-2 especificada: as 47 sessões da 0.2 abrem no Pi da 0.3 · antes da virada: 5a-2 e regra dos dois Mirrors | `███░░░░░░░` |
+| ↳　Fase 5 · Migração da produção | 🟡 Candidate · 5a conferida · 5a-2 construída, simulação na 0.2 real sem recusas · antes da virada: ensaio da 5a-2 e regra dos dois Mirrors | `████░░░░░░` |
 | **Linha 0.2 · Mirror Desktop · `release/0.2`** | ⏸️ congelada na alpha.58 · em produção e no download público · só dano grave · canal `alpha` | — |
 | ↳　Candidatos a levar para a 0.2 | 🟡 5 candidatos · 1 pronto: tela preta em instalação nova (B1) · nenhum autorizado | — |
 | **Corte de CRs · desde 2026-10-27** | ✅ encerrado em 31/10 com a fase 4 · CRs voltam junto da fase 5 · primeiro CR159 e CR163 | — |

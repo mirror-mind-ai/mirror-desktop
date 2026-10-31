@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | ✅ Done | — (alpha.1 and alpha.2 published on `/mirror-desktop/ts/`; the installed app updated itself, checked by the Navigator 2026-10-31; 4d waived) |
-| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; owed before 5c: slice 5a-2 (specified, 47/47 0.2 Pi sessions open in 0.3's Pi) and the two-Mirrors rule (Explorer Mode) |
+| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; owed before 5c: the 5a-2 rehearsal on a copy of production (5a-2 built; dry run on the real 0.2 folder clean) and the two-Mirrors rule (Explorer Mode) |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -3494,3 +3494,23 @@ Spec: `.tmp/5a2-spec/cv010Carry02State.test.mjs.pending` (6 tests), failing on t
 
 Open and not part of this slice: 0.2's `agent-settings.json` per-Journey model choices (its provider
 entries reference the Python runtime), and listing Mirror history for Journeys 0.2 never started.
+
+## 5a-2 Built (2026-10-31)
+
+Code commit `9bc67cf`: `scripts/carry_02_state.mjs` and `src/tests/cv010Carry02State.test.mjs`.
+
+- The spec entered with two additions found while measuring the controls. First, a Pi transcript line
+  naming a session file inside a tool call, so that parsing Pi's transcripts would fail a test.
+  Second, a failure *during* the write (an unreadable bind-time file in the target): every earlier
+  refusal happened before staging existed, so removing the cleanup went unnoticed.
+- **Gates:** vitest 293 files, 2438 tests; `tsc --noEmit` clean. No Rust or app change.
+- **Controls** (each restored, then 6/6): any key rewritten → 2 fail; Pi transcripts parsed → 2;
+  a stray 0.2 path accepted → 1; outbox ignored → 1; carried twice → 1; dry run writes → 1; staging
+  left on failure → 1; bind-time files dropped → 1; no Conversation gate → 1; registry carried → 2.
+- **Dry run on the real 0.2 folder** (read only; scratch home in `/private/tmp/5a2-dry` holding only
+  the 47 Conversation ids; target in `/private/tmp`): no refusal; 595 files, 6,785 session paths
+  in 314 files, 15 entries, 6 s. The 0.2 folder's file list, sizes and times were identical before
+  and after.
+- Production unchanged (database at 016, 0.2 binary `303ede287de3`).
+
+Next: the rehearsal on a copy of production (its own word), as planned above.
