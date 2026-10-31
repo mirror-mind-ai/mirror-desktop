@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
@@ -141,6 +141,22 @@ describe("carrying the 0.2 conversation surface into an adopted home", () => {
     expect(receipt).toMatchObject({ source: sourceRoot, carried: result.carried, conversations: ["a14439c8"], rewritten: { files: 4, values: 6 } });
     expect(Date.parse(receipt.carriedAt)).not.toBeNaN();
     expect(receipt.files).toBe(Object.keys(before).filter((path) => CARRIED_ENTRIES.includes(path.split("/")[0])).length);
+  });
+
+  it("carries from a snapshot of the 0.2 folder, rewriting the paths its records name, and refuses when none would move", async () => {
+    const { parent, sourceRoot, session, homePath, targetAppDataRoot, target } = fixture();
+    const snapshot = join(parent, "snapshot", "ai.mirrormind.desktop");
+    mkdirSync(join(snapshot, ".."), { recursive: true });
+    cpSync(sourceRoot, snapshot, { recursive: true });
+    await expect(carry02State({ sourceRoot: snapshot, targetAppDataRoot, homePath })).rejects.toThrow(/name no Pi session in .*pi-sessions.*recorded/);
+    expect(readdirSync(target).sort()).toEqual(["journey-preferences.json", "journey-registry.json", "pi-sessions"]);
+
+    const result = await carry02State({ sourceRoot: snapshot, recordedRoot: sourceRoot, targetAppDataRoot, homePath });
+    expect(result.rewritten).toEqual({ files: 4, values: 6 });
+    const moved = join(target, "pi-sessions", "2026-09-07T11-54-27-692Z_nautilus-personal-growth-g1-18d3.jsonl");
+    expect(JSON.parse(readFileSync(join(target, "journey-threads", "personal-growth.json"), "utf8")).thread.generations[0].piSessionFile).toBe(moved);
+    expect(readFileSync(moved)).toEqual(readFileSync(session));
+    expect(JSON.parse(readFileSync(join(target, "carried-from-0.2.json"), "utf8"))).toMatchObject({ source: snapshot, recordedAs: sourceRoot });
   });
 
   it("says what it would do and writes nothing when asked for a dry run", async () => {

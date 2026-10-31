@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CV-010.DS-005 slice 5a-2: the 0.2 conversation surface continues in 0.3.
 //
-//   node scripts/carry_02_state.mjs <home path> [--from <0.2 app data>] [--to <0.3 app data>] [--write]
+//   node scripts/carry_02_state.mjs <home path> [--from <0.2 app data>] [--recorded-as <folder>] [--to <0.3 app data>] [--write]
 //
 // After 5a adopts the production home, this copies the 0.2 app's per-Journey state (threads, Pi
 // sessions, segments, catalogs) into that home's folder in the 0.3 app, so each Journey opens on its
@@ -13,6 +13,10 @@
 // structural `piSessionFile` and `sessionFile` values that point into the 0.2 `pi-sessions` folder
 // are rewritten; the same path inside a tool's arguments or output is what the agent did and said,
 // and is left alone. Pi's own session files are copied byte for byte.
+//
+// --from may be a snapshot of the 0.2 folder (a clone taken while 0.2 runs); --recorded-as then names
+// the folder its records were written in. If there are sessions to carry and no record would move,
+// the carry refuses, since the records would keep pointing into the 0.2 folder.
 
 import { randomBytes } from "node:crypto";
 import { accessSync, constants, cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -45,9 +49,9 @@ function structural(sourceRoot, file) {
 }
 
 /** The file's text with its session paths moved, or undefined when it has none to move. */
-function rewritten(file, sourceRoot, target, counts) {
+function rewritten(file, recordedRoot, target, counts) {
   const text = readFileSync(file, "utf8");
-  const from = `${sourceRoot}/pi-sessions/`;
+  const from = `${recordedRoot}/pi-sessions/`;
   const to = `${target}/pi-sessions/`;
   let values = 0;
   const move = (value) => {
@@ -55,7 +59,7 @@ function rewritten(file, sourceRoot, target, counts) {
     if (value === null || typeof value !== "object") return value;
     const next = {};
     for (const [key, item] of Object.entries(value)) {
-      if (PATH_KEYS.has(key) && typeof item === "string" && item.startsWith(`${sourceRoot}/`)) {
+      if (PATH_KEYS.has(key) && typeof item === "string" && item.startsWith(`${recordedRoot}/`)) {
         if (!item.startsWith(from)) throw new Error(`${file}: ${key} names a file outside pi-sessions: ${item}`);
         next[key] = to + item.slice(from.length);
         values += 1;
@@ -94,7 +98,7 @@ function outboxItems(sourceRoot) {
   return items.length;
 }
 
-export async function carry02State({ sourceRoot, targetAppDataRoot, homePath, dryRun = false }) {
+export async function carry02State({ sourceRoot, recordedRoot = sourceRoot, targetAppDataRoot, homePath, dryRun = false }) {
   const dbPath = join(homePath, "memory.db");
   assertMarkedHome(dbPath);
   const { homeId } = JSON.parse(readFileSync(join(homePath, ".mirror-desktop", "home.json"), "utf8"));
@@ -120,8 +124,11 @@ export async function carry02State({ sourceRoot, targetAppDataRoot, homePath, dr
   const files = carried.flatMap((entry) => filesUnder(join(sourceRoot, entry)));
   const counts = { files: 0, values: 0 };
   for (const file of files) {
-    if (structural(sourceRoot, file)) rewritten(file, sourceRoot, target, counts);
+    if (structural(sourceRoot, file)) rewritten(file, recordedRoot, target, counts);
     else accessSync(file, constants.R_OK);
+  }
+  if (counts.values === 0 && files.some((file) => relative(sourceRoot, file).startsWith("pi-sessions/"))) {
+    throw new Error(`the records name no Pi session in ${recordedRoot}/pi-sessions; if ${sourceRoot} is a snapshot, pass the folder they were recorded in with --recorded-as`);
   }
   const plan = { homeId, target, carried, files: files.length, rewritten: counts, conversations };
   if (dryRun) return { dryRun: true, ...plan };
@@ -140,11 +147,11 @@ export async function carry02State({ sourceRoot, targetAppDataRoot, homePath, dr
       const destination = join(staging, relative(sourceRoot, file));
       mkdirSync(dirname(destination), { recursive: true, mode: 0o700 });
       rmSync(destination, { force: true });
-      const text = structural(sourceRoot, file) ? rewritten(file, sourceRoot, target, written) : undefined;
+      const text = structural(sourceRoot, file) ? rewritten(file, recordedRoot, target, written) : undefined;
       if (text === undefined) cpSync(file, destination, { preserveTimestamps: true });
       else writeFileSync(destination, text, { mode: statSync(file).mode & 0o777 });
     }
-    const receipt = { carriedAt: new Date().toISOString(), source: sourceRoot, carried, files: files.length, rewritten: written, conversations };
+    const receipt = { carriedAt: new Date().toISOString(), source: sourceRoot, recordedAs: recordedRoot, carried, files: files.length, rewritten: written, conversations };
     writeFileSync(join(staging, RECEIPT), `${JSON.stringify(receipt, null, 2)}\n`, { flag: "wx", mode: 0o600 });
     if (existsSync(target)) renameSync(target, previous);
     renameSync(staging, target);
@@ -160,17 +167,18 @@ export async function carry02State({ sourceRoot, targetAppDataRoot, homePath, dr
 async function main(argv) {
   const homePath = argv[0];
   if (!homePath || homePath.startsWith("-")) {
-    console.error("Usage: carry_02_state.mjs <home path> [--from <0.2 app data>] [--to <0.3 app data>] [--write]");
+    console.error("Usage: carry_02_state.mjs <home path> [--from <0.2 app data>] [--recorded-as <folder>] [--to <0.3 app data>] [--write]");
     return 2;
   }
   const option = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
   const support = join(homedir(), "Library", "Application Support");
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const identifier = JSON.parse(readFileSync(join(root, "src-tauri", "tauri.conf.json"), "utf8")).identifier;
-  const sourceRoot = resolve(option("--from") ?? join(support, "ai.mirrormind.desktop"));
+  const recordedRoot = join(support, "ai.mirrormind.desktop");
+  const sourceRoot = resolve(option("--from") ?? recordedRoot);
   const targetAppDataRoot = resolve(option("--to") ?? join(support, identifier));
   const dryRun = !argv.includes("--write");
-  const result = await carry02State({ sourceRoot, targetAppDataRoot, homePath: resolve(homePath), dryRun });
+  const result = await carry02State({ sourceRoot, recordedRoot: resolve(option("--recorded-as") ?? recordedRoot), targetAppDataRoot, homePath: resolve(homePath), dryRun });
   console.log(`${dryRun ? "Would carry" : "Carried"} ${result.files} file(s) from ${sourceRoot} into ${result.target}`);
   console.log(`Entries: ${result.carried.join(", ")}`);
   console.log(`Session paths rewritten: ${result.rewritten.values} in ${result.rewritten.files} file(s); Conversations checked: ${result.conversations.length}`);
