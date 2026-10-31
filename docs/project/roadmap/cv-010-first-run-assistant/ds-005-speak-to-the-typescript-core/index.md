@@ -2992,3 +2992,8 @@ remains. Production unchanged (binary `303ede287de3`, database at 016).
   `307cb937` (the repository's PR style), tree identical to the reviewed head `c858cf67`. CI on
   `main` green (Tests: all four jobs; Docs). Not released: no tag, `stable` unmoved; the pin stays
   on the branch tarball until the release.
+- **Release commit (2026-10-31):** `ca7295a4` "v0.39.0: The Core as a Library" on Core `main`
+  (release note, version in `package.json` and both plugin manifests, index, worklog, CV24 DS1 to
+  DS8 marked done; CV24 stays open). CI green (Tests: four jobs; Docs). `release:doctor`: ready
+  with warnings (no tag yet, `stable` behind). Not published: no tag, `stable` at `a7d11f34`
+  (v0.38.1), nothing on npm. Publication waits on the Navigator's separate word.
