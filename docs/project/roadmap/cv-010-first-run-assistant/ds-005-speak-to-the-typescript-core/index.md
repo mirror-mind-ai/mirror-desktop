@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | ✅ Done | — (alpha.1 and alpha.2 published on `/mirror-desktop/ts/`; the installed app updated itself, checked by the Navigator 2026-10-31; 4d waived) |
-| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; owed before 5c: carrying the 0.2 Conversations into the list (measured, all in Mirror) and the two-Mirrors rule (Explorer Mode) |
+| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; owed before 5c: slice 5a-2 carrying the 0.2 conversation surface into the home's state, and the two-Mirrors rule (Explorer Mode) |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -3395,3 +3395,36 @@ Asked by the Navigator: are the long 0.2 Conversations lost in the cutover? Read
 5c: (1) list Mirror history without a started Journey; (2) import each 0.2 Journey's thread mapping, so
 a Journey opens on its own 0.2 Conversations. Whether a 0.2 Pi session can be continued in 0.3 is not
 yet measured. The 0.2 app data stays on disk untouched in every case, for the way back.
+
+## Strategy: the 0.2 Conversation Surface Continues in 0.3 (2026-10-31)
+
+The Navigator set the bar: opening 0.3 must show each Journey's conversation surface — his prompts
+and the agent's output — exactly as 0.2 does, and let him continue, not restart. Measured:
+
+- **The surface lives in the app state, and 0.3 keeps the same 17 entries** (`HOME_STATE_ENTRIES`),
+  only moved from the app-data root to `homes/<homeId>/`. The schema markers in `main.rs` are
+  identical between `release/0.2` and `main`; the conversation surface reads `conversation-segments`
+  and `journey-threads` the same way. One divergence to re-check in the slice: the journey-registry
+  mutation schema changed in `src/domain`.
+- **The bridge is half-built.** `scripts/dev_adopt_unscoped_state.mjs` (slice 3a-2) already moves
+  root-level state into a home's folder: symlink refusal, every named `mirrorConversationId` checked
+  against the home's database, absolute paths rewritten, all-or-nothing rename. All 47 ids are in
+  production's database, so its gate passes. What it does not do today: copy from *another app's*
+  data folder (the 0.2 one) while leaving the originals untouched for the way back.
+- **Pi sessions should resume.** 0.2 sessions are format `version: 3`, written by the machine's Pi
+  1.4.0; 0.3 bundles the same `pi-1.4.0-d36b5fc72875`. To be measured on a copied session file.
+
+**Strategy, replacing the "abandon the 0.2 app data" recommendation — a new slice 5a-2:**
+
+1. Extend the 3a-2 script (or a sibling, `carry_02_state.mjs`) to **copy** the 17 entries from
+   `ai.mirrormind.desktop` into `ai.mirrormind.desktop.ts/homes/<homeId>/` after 5a adopts the
+   production home: same id gate, same path rewriting, same all-or-nothing landing; the 0.2 folder
+   is never written. 0.2 keeps working against its own state during the 3-day window back.
+2. Measure Pi session resume with the bundled Pi on a copied session; if it refuses, the surface
+   still shows every exchange and the next turn opens a fresh session behind it.
+3. Rehearse end to end on a scratch copy of the production home (outside `.mirror-minds`, so the Dev
+   build may adopt it): adopt, carry, open, see the surfaces, send one turn.
+4. 5c gains a step: run the carry right after 5a, before the first launch of the bound app.
+
+With this, the "empty list" finding resolves itself for every Journey 0.2 had started; listing Mirror
+history without a root thread remains a separate, smaller question.
