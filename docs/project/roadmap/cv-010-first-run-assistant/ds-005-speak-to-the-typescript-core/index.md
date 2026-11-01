@@ -3977,3 +3977,8 @@ agent). Next: B4, Pi wiring.
 A second diagnose then reported `front_door_errors`: the two lines in `front-door.log` are the
 diagnose runs themselves, which exit 1 while anything needs attention (the missing key), and log
 that exit as an error. Not a fault in the home.
+
+**B4 done (2026-11-01, Navigator's word):** `pi install "$(npm root -g)/mirror-mind"` from
+`/private/tmp`. The only change to `~/.pi/agent/settings.json` is one package entry, which Pi stored
+as a relative path (`../../../../usr/local/lib/node_modules/mirror-mind`). It is not an `npm:`
+source, so 0.3's `pi_global_extensions.rs` refuses it on two counts. B5 proves that in the field.
