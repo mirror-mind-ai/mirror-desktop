@@ -38,8 +38,9 @@ Q() { sqlite3 "file:$1/memory.db?mode=ro" "select (select id from _migrations or
 
 ## Before the Day (Can Be Done Any Time)
 
-1. **Bring the installed 0.3 app to alpha.3.** Open `/Applications/Mirror Desktop TS.app`. It is
-   bound to `fred-soares`, so this is harmless. Go to Settings › Check for updates and install.
+1. **Bring the installed 0.3 app to alpha.3.** Open `/Applications/Mirror Desktop TS.app`. It
+   shares its data folder with the User builds made for the rehearsals, so it opens on the last home
+   one of them chose (`ensaio-5c-2` on 2026-11-01), a rehearsal copy, so this is harmless. Go to Settings › Check for updates and install.
    Confirm that Settings shows 0.3.0-alpha.3, then quit it.
 2. **Quit the User build left in the repository**
    (`src-tauri/target/release/bundle/macos/Mirror Desktop TS.app`, bound to `ensaio-5c-2`). It
