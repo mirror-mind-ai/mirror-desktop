@@ -3655,3 +3655,35 @@ To be settled after the cutover and its window back, not before:
 3. The worktree `~/Code/worktrees/alissonvale-com-atelier-ts` and the branches
    `finances-ts-runtime` and `atelier-drafts-ts-runtime`, now merged locally; remove once the ports
    are confirmed in production.
+
+### 5c Reshaped: One Home Path, One Core (Navigator, 2026-11-01)
+
+Promoted from Explorer Mode (`docs/project/explorations/phase-5c-one-home-path-one-core/`). It
+replaces migrating the production home in place.
+
+- **The day:** quit 0.2 for good (moved to a backup folder); rename `~/.mirror-minds/alisson-vale`
+  aside (`alisson-vale.pre-0.3`); copy it back to the same path; install the 0.3 bundle (an
+  alpha.3 through the release route, so it updates itself afterwards) and adopt the copy; carry the
+  0.2 state; wire the terminal (Pi, Claude Code, Codex) to Mirror TypeScript on that home; update
+  the machine policy that today forbids TypeScript there. The copy runs from Terminal with 0.2
+  closed; a terminal agent without Mirror stands by in case 0.3 cannot run a turn.
+- **Why the same path:** nothing that names the home needs editing, and a forgotten Python writer
+  meets the migrated database and fails (`KeyError: 'hook_injected'`, measured in 5b) instead of
+  splitting memory. The way back is renaming the home back and reopening the saved 0.2; 5b becomes
+  the last resort, not the plan.
+- **No return to 0.2:** fixes go forward inside 0.3, which is why the agent must work there first.
+- **Accepted loss:** `testimonials` and `nautilus-synthesis` stop until ported; their tables stay.
+
+Owed before the day, in order:
+
+1. The `mirror-desktop` Journey proven in 0.3 with a real task, same model and tools.
+2. The TypeScript terminal wiring (`mirror init`, Pi, Claude Code, Codex) rehearsed on a
+   throwaway home.
+3. A list of every writer to the home path today.
+
+**Item 1 prepared (2026-11-01):** a fresh read-only copy of production in
+`~/Mirror Homes/ensaio-5c` (database by SQLite backup, integrity ok, ledger 016, 81 Journeys, 1,124
+Conversations, 51,275 messages; plus `identity`, `extensions`, `local-routing`, `conversas`, as on
+the day; mode 700/600) and an APFS clone of the 0.2 app data in `/private/tmp/5c1-ensaio` (outbox
+0). Production's database hash was unchanged across the copy. To observe: the 0.3 agent's working
+folder is the bound home (`runtime_channel.rs`), where 0.2's was `~/mirror`.
