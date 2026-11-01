@@ -3954,3 +3954,10 @@ Owed for A9: this turn settling on its own, and two other Journeys showing their
 **A9 met (2026-11-01, Navigator):** the first 0.3 turn on production ("Chegamos?") settled on its
 own, and two other Journeys showed their 0.2 conversation. The cutover's bar holds; 0.2 stays set
 aside. 0.3's outbox empty at 19:17:54Z. Next: Part B, one step per word, B1 (machine policy) first.
+
+**B1 done (2026-11-01, Navigator's word, diff shown first):** `~/.pi/agent/AGENTS.md` now says the
+production home is on the TypeScript Core (018), forbids Python against it and sessions in
+`~/mirror`, keeps `~/mirror`, `alisson-vale.pre-0.3`, `~/Mirror Backups` and 0.2's data folder
+untouched until the window back closes, records the unlinked Claude plugin (CR167) and Dev builds
+off production, and loads Mirror Mode for book writing through `mirror mirror load`. Previous file:
+`~/.pi/agent/AGENTS.md.pre-0.3`. Next: B2, the global Core.
