@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | ✅ Done | — (alpha.1 and alpha.2 published on `/mirror-desktop/ts/`; the installed app updated itself, checked by the Navigator 2026-10-31; 4d waived) |
-| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; owed before 5c: the 5a-2 rehearsal on a copy of production (5a-2 built; dry run on the real 0.2 folder clean) and the two-Mirrors rule (Explorer Mode) |
+| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; 5a-2 rehearsed on a copy of production (three Journeys continued their Conversations); 5b written and rehearsed (4 s, Python reads the restored copy); owed before 5c: the two-Mirrors rule (Explorer Mode) |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -3589,3 +3589,50 @@ Conversation 0.2 had been writing, not a restart. Production stayed at 016.
 *alissonvale-com* had a `running` record in the snapshot and still continued cleanly.
 
 Timings: copy of production 1 s, adoption seconds, clone of the 0.2 folder instant, carry 15 s.
+
+## 5b Built and Rehearsed (2026-11-01)
+
+`scripts/phase5_rollback.mjs <home> [--write]` (`b831cdf`), dry run by default.
+
+- **Reads** `.mirror-desktop/adoption.json`. **Refuses** a home 5a never adopted; a backup that is
+  missing, outside the home's `backups/`, not matching its recorded SHA-256, failing `quick_check`,
+  or already holding a migration it is meant to undo; and, on `--write`, a database any process
+  holds open (`lsof`) or a running Mirror Desktop TS.
+- **Does**: stages a copy of the backup beside the database and checks its hash; moves
+  `memory.db`, `-wal`, `-shm` and `.mirror-desktop/` into `backups/rolled-back-<stamp>/`; renames
+  the staged copy in; writes `rollback.json` (0600). Nothing is deleted. A home adopted without a
+  migration (`backup: null`) only loses its marker.
+- **Says** what stays only in the migrated database: Conversations and messages not in the backup,
+  by Journey, counts only. The backup's ledger and ids are read from a temporary copy so its folder
+  gains no `-wal`/`-shm`.
+- **Machine steps are printed, not done** (a change from the plan's list): uninstalling the global
+  `mirror-mind` and the terminal wiring, restarting the web console, reopening 0.2. They act on the
+  machine, are each one command, and cannot be rehearsed on a copy.
+- Spec `cv010Phase5Rollback.test.mjs`, 9 tests, written first and failing. Nine controls, each
+  failing at least one test: hash, folder and undo-id checks removed; WAL left beside; open-database
+  refusal removed; dry run writing; loss not compared with the backup; marker not removed; receipt
+  0644. Vitest 294 files / 2448 tests; `tsc` clean.
+
+**Rehearsal** on `~/Mirror Homes/ensaio-alisson-vale` (the 5a-2 rehearsal home: adopted through 018,
+three turns since): dry run 3 s, then `--write` 4 s. It reported 0 Conversations and 6 messages
+written since the adoption (2 each in *89-livros*, *alissonvale-com*, *suporte-softwarezen*: exactly
+the Navigator's three turns). After: `memory.db` bytes equal the backup's (`16fa977b…`), integrity
+ok, ledger at 016, `runtime_sessions.hook_injected` present, 1,122 Conversations and 51,249
+messages, as production had at the copy.
+
+**The check that tells the two apart.** Production's Python 0.31.14, pointed at copies only
+(`MIRROR_HOME`, `MIRROR_USER` and `DB_PATH` explicit, `uv run --no-sync`):
+
+| Command | Migrated database | Restored database |
+|---|---|---|
+| `python -m memory journeys` | exit 0 | exit 0 |
+| `python -m memory mirror load --persona tesoureira` | exit 1, `KeyError: 'hook_injected'` | exit 0 |
+
+The plan's check (`journeys` answers) passes on the migrated database too, so it proves nothing;
+the script now names `mirror load`. 0.2's own reads were not rehearsed: 0.2 is running on
+production and cannot be pointed at a copy; it reads through the same Python runtime.
+
+Also seen: the rehearsal home's `backups/` holds `frontdoor-pre-write-backup.db`, written by the
+TypeScript core during the 0.3 turns; the rollback leaves it where it is.
+
+Production: database file hash and ledger (016) unchanged throughout; `~/mirror` untouched.
