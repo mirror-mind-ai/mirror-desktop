@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.3.0-alpha.3 — Ready for the Mirror You Already Have](v0.3.0-alpha.3.md) — Mirror Desktop TS can now adopt an existing Mirror home behind a verified backup, and a turn that follows one interrupted mid-answer now finishes instead of hanging at *Finishing*. The release production moves to. Intel only, not signed.
 - [v0.3.0-alpha.2 — The First Update](v0.3.0-alpha.2.md) — No visible change: the version that proves Mirror Desktop TS updates itself from its own channel, leaving the Mirror home, settings, Pi and key untouched. Intel only, not signed.
 - [v0.3.0-alpha.1 — A Mirror of Its Own](v0.3.0-alpha.1.md) — The first release of the 0.3 line, Mirror Desktop TS: a separate application that carries its own Mirror, creates it on the first screen, keeps Mirror in every Conversation from the first turn, learns from idle Conversations, and manages Journeys. Intel only, not signed.
 - [v0.2.0-alpha.58 — Your Mirror, Found](v0.2.0-alpha.58.md) — If you already use Mirror, Mirror Desktop now finds it for you. Instead of a form asking for three
