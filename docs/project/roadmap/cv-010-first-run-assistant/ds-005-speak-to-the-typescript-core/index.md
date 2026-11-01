@@ -3643,3 +3643,15 @@ fast-forwarded into `~/Code/mirror-extensions` `main` (`c4383cb`); `atelier-draf
 as they were (no file in common). Production is unaffected: its home runs installed copies under
 `~/.mirror-minds/alisson-vale/extensions/`, not these checkouts. The rehearsal's scratch folders in
 `/private/tmp` were removed at the same word.
+
+### Owed at the End of Phase 5 (recorded 2026-11-01, Navigator)
+
+To be settled after the cutover and its window back, not before:
+
+1. `/tmp/finances-nested-git-mistake-20261031`: left over from the finances port; delete at the
+   Navigator's word.
+2. `~/Code/mirror-extensions` `main` is 64 commits ahead of `origin/main` (2 from the finances
+   port, 62 older); pushing them is a separate decision.
+3. The worktree `~/Code/worktrees/alissonvale-com-atelier-ts` and the branches
+   `finances-ts-runtime` and `atelier-drafts-ts-runtime`, now merged locally; remove once the ports
+   are confirmed in production.
