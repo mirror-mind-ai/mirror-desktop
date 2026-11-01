@@ -3897,3 +3897,10 @@ Day-of steps this adds to 5c: `npm install -g mirror-mind`; write `~/.config/mir
 `MIRROR_USER=alisson-vale` (not `mirror init`, since the home exists); `pi install`; the Claude
 link (as decided above); `chmod 700` the home if diagnose asks; remove or rewire the Python hooks and
 the Python `mirror-logger` in `~/mirror`.
+
+**Decided the same day (Navigator): no Claude Code wiring.** The Navigator does not use Claude Code,
+so the Claude plugin is not linked on the day and the Core change proposed above is not needed. The
+`claude-bridge` models are reached only through Pi. With no plugin under `~/.claude/skills`, and
+with 0.3's Pi running in the bound home, which has no `.claude/` folder, a bridged turn finds no
+Mirror hook to fire. The Python project hooks in `~/mirror/.claude` stay a writer only while 0.2 runs
+there, and step 1 of the day quits 0.2. The terminal wiring on the day is Pi only.
