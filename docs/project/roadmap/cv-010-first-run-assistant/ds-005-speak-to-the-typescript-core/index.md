@@ -3729,3 +3729,22 @@ loads its `AGENTS.md`, and places its Claude sessions in the production Python c
 app spawns Pi in the bound home. Proposed fix: the carry rewrites the header `cwd` to the bound
 home, the same structural class as `piSessionFile`, so carried and new sessions work in one place.
 After the cutover `~/mirror/AGENTS.md` teaches Python commands that the migrated database refuses.
+
+**The carry fixed for findings 1 and 2 (2026-11-01, `scripts/carry_02_state.mjs`):**
+
+- **Working folder:** each carried Pi session's header `cwd` is rewritten to the bound home; every
+  other line is copied byte for byte. Carried and new sessions now work in one place.
+- **Model choices:** 0.2's `agent-settings.json` is merged into the 0.3 app's (app-wide in both
+  lines): 0.2's global profile and every Journey and conversation override it names win; 0.3
+  overrides 0.2 does not name stay; the previous 0.3 file is kept as
+  `homes/<id>/agent-settings-before-carry.json`. Settings the app could not read are refused before
+  anything is written. Taking 0.2's global profile is deliberate: on the day the app serves the
+  production home, and Journeys without an override must run as they did in 0.2.
+- **Tests:** 9 in the spec (5 failing first); nine mutation controls each failed at least one (A
+  was malformed at first and E uncovered, so a listed-override refusal case was added). Vitest 294
+  files / 2,450 tests; `tsc` clean.
+- **Dry run on real data** (clone of today's 0.2 into an empty target): 47 headers moved; global
+  profile, 16 Journey and 14 conversation overrides carried.
+
+Next: redo item 1's rehearsal from a fresh copy and clone, and look again at the turn that never
+settled.
