@@ -3801,3 +3801,8 @@ and again after Pi exits. The record stays `running` for good.
 Proposed: a CR on the 0.3 line making the baseline the session's actual leaf before the run, with
 the rehearsal shape as its failing test, and the Recover offer either acting on this shape or not
 being made. It blocks 5c: fixing forward needs `mirror-desktop` to settle its turns in 0.3.
+
+**Finding 3 fixed on `main` as CR165 (2026-11-01):** the run baseline is the session's actual leaf.
+Spec first (failed as measured), negative healthy-session case, four mutation controls, `cargo test`
+434 passed. The silent **Recover this turn** is captured as CR166. Owed for item 1: a User build
+carrying CR165 and a fresh rehearsal in which the `mirror-desktop` turn settles on its own.
