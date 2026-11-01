@@ -3687,3 +3687,12 @@ Conversations, 51,275 messages; plus `identity`, `extensions`, `local-routing`, 
 the day; mode 700/600) and an APFS clone of the 0.2 app data in `/private/tmp/5c1-ensaio` (outbox
 0). Production's database hash was unchanged across the copy. To observe: the 0.3 agent's working
 folder is the bound home (`runtime_channel.rs`), where 0.2's was `~/mirror`.
+
+**Item 1 adopted and carried (2026-11-01):** the Navigator adopted `~/Mirror Homes/ensaio-5c` in the
+User-channel build (homeId `home-51041a07-fdba-4702-9e5a-e0cb995703f4`; ledger 018; backup
+`pre-migration-016_builder_workbench_display_codes-20261101T141308Z-c709c6033723.db`) and quit
+before choosing a Journey. The carry from the clone (`--recorded-as` the real 0.2 folder) moved 597
+files and rewrote 6,826 session paths in 316 files in 15 s; all 38 session paths point into the home
+and exist, every thread is on the `user` channel, and the `mirror-desktop` thread's 4 session paths
+are present. Production stayed at 016 (its database hash moves only because 0.2 keeps writing this
+Conversation). Next: the Navigator opens `mirror-desktop` there and asks for a real task.
