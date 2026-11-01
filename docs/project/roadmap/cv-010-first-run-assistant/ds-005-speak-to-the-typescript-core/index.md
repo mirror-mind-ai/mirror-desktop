@@ -3762,3 +3762,15 @@ home (24 s). The 0.3 app settings now hold 0.2's global profile (`openai-codex/g
 `mirror-desktop` on `claude-bridge/claude-opus-5` and its conversation on
 `claude-bridge/claude-opus-5-5`; the previous file is kept as `agent-settings-before-carry.json`.
 Production stayed at 016.
+
+**Item 1, second rehearsal turn (2026-11-01, 11:55):** findings 1 and 2 are closed in the field:
+the Journey opened on `claude-bridge/claude-opus-5-5` without a choice, and `pwd` answered
+`/Users/alissonvale/Mirror Homes/ensaio-5c-2`. Finding 3 reproduced: Pi wrote `stopReason: stop` at
+14:55:42Z and exited, yet the record stayed `running` (`admitted → running` only) and the app offered
+"Recover this turn". What is known: no app thread is blocked (stack sample idle), no orphan holds the
+Pi pipes, the session is well formed (20,294 entries, no duplicate ids, unbroken ancestry), the
+journal is within its bounds (64 records, 434 KB at most), and the refused turn of the first
+rehearsal did reach `terminal_durable/process_died`. Only completed turns on this Journey fail;
+the three Journeys of the 5a-2 rehearsal settled. This Journey's session is 145 MB (20,294
+entries), and the closing path reads and parses it whole, more than once. Cause not yet proven;
+the state is kept in `/private/tmp/5c2-stuck-finishing` for a reproduction against copies.
