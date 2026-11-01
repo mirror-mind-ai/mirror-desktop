@@ -3847,3 +3847,53 @@ binary.
    Desktop's own legacy interface label, kept when the Harness was renamed Mirror Desktop. Not a
    separate writer.
 3. Codex is not installed here, so item 2 is Pi, Claude Code and Gemini, not Codex.
+
+### 5c Item 2: The Terminal Wiring, Rehearsed in a Sandbox (2026-11-01)
+
+Sandbox `/private/tmp/5c-item2`: `mirror-mind@0.39.0` installed locally (`npm install --prefix`, no
+`-g`, no link), every command run through `env -i` with a fake `HOME` and `XDG_CONFIG_HOME`. That
+wrapper was needed: the agent's own process inherits `MIRROR_HOME` and `MIRROR_USER` naming the
+production home from 0.2. Afterwards `~/.claude/skills`, `~/.config/mirror` and the real
+`~/.pi/agent/settings.json` were checked unchanged, and production stayed at 016 with no new rows.
+
+What `mirror init ensaio-terminal` did and printed:
+
+- created the home (ledger `018_drop_hook_injected`) and wrote `~/.config/mirror/env` with
+  `MIRROR_USER=ensaio-terminal`; that file is where every hook finds the home when the runtime sets
+  no variable;
+- printed one line per runtime found: Pi, `pi install "<pkg>"`; Claude Code, a link from
+  `~/.claude/skills/mirror-mind` to `<pkg>/plugins/mirror-mind`. Gemini CLI is retired in the Core
+  (CV21.DS8.US1), and Codex is not installed here, so nothing else is wired.
+
+Proven:
+
+- `claude plugin list` shows `mirror-mind@skills-dir 0.39.0 ✔ loaded`; `pi list` shows the package.
+- The five Claude hooks, fed the events Claude Code sends, exit 0. SessionStart returns the
+  Operating Instructions (9 KB). A turn lands as a `claude_code` conversation with the user's prompt
+  and the reply (`last_assistant_message`) in the sandbox home.
+- `mirror runtime diagnose` reports only the home's mode (755) and the missing OpenRouter key.
+
+Not run: a live Pi turn and a live Claude Code turn in the sandbox. Both need credentials inside the
+fake home and provider usage.
+
+**Finding for the day: the Claude plugin would fire inside 0.3's own turns.** Read in code, not
+run. `pi-claude-bridge` starts its Claude child with `settingSources: ["user","project"]`
+(`src/index.ts:2317`), and a plugin under `~/.claude/skills` is user scope. 0.3 removes
+`MIRROR_HOME` and `MIRROR_USER` from its Pi (`runtime_channel.rs:392`), so the hooks would fall back
+to `~/.config/mirror/env`, which on the day names `alisson-vale`. Every 0.3 turn on a
+`claude-bridge` model would then be logged a second time as a `claude_code` conversation, and every
+Claude session would also receive the Operating Instructions. The Core has no variable that turns the hooks off. 0.2 does
+the same today through the project hooks in `~/mirror` (conversation `c912ef55`). The Pi side is
+safe: 0.3 refuses Mirror's own package and any non-`npm:` source (`pi_global_extensions.rs`).
+
+Before the day, one of these must hold:
+
+1. **(recommended)** the Core's hooks skip a session the Desktop marks as its own (a Core change
+   that only extends: a variable the Desktop's Pi sets and the hooks honour);
+2. or the Claude plugin is linked only into the projects where the Navigator runs Claude Code,
+   not under `~/.claude/skills`.
+
+Day-of steps this adds to 5c: `npm install -g mirror-mind`; write `~/.config/mirror/env` with
+`MIRROR_USER=alisson-vale` (not `mirror init`, since the home exists); `pi install`; the Claude
+link (as decided above); `chmod 700` the home if diagnose asks; remove or rewire the Python hooks and
+the Python `mirror-logger` in `~/mirror`.
