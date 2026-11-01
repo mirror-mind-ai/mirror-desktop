@@ -3754,3 +3754,11 @@ settled.
 `extensions`, `local-routing`, `conversas`; mode 700/600) and a clone of the 0.2 app data in
 `/private/tmp/5c2-ensaio` (outbox 0). Production stayed at 016. The first rehearsal's home
 (`ensaio-5c`) and clone (`/private/tmp/5c1-ensaio`) remain until the Navigator's word.
+
+**Item 1, second rehearsal adopted and carried with the fixed carry (2026-11-01):** the Navigator
+adopted `ensaio-5c-2` (homeId `home-811623e8-1135-4c9c-9912-f9d74e09653e`, ledger 018) and quit.
+The carry rewrote 6,840 session paths in 316 files and moved all 47 Pi session headers to the
+home (24 s). The 0.3 app settings now hold 0.2's global profile (`openai-codex/gpt-5.6-terra`),
+`mirror-desktop` on `claude-bridge/claude-opus-5` and its conversation on
+`claude-bridge/claude-opus-5-5`; the previous file is kept as `agent-settings-before-carry.json`.
+Production stayed at 016.
