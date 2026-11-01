@@ -3950,3 +3950,7 @@ The Navigator ran A1–A8 from Terminal with the lifeboat Pi. Measured by the ag
   Mirror Desktop TS runs, bound to the production home.
 
 Owed for A9: this turn settling on its own, and two other Journeys showing their 0.2 conversation.
+
+**A9 met (2026-11-01, Navigator):** the first 0.3 turn on production ("Chegamos?") settled on its
+own, and two other Journeys showed their 0.2 conversation. The cutover's bar holds; 0.2 stays set
+aside. 0.3's outbox empty at 19:17:54Z. Next: Part B, one step per word, B1 (machine policy) first.
