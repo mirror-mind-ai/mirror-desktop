@@ -3826,7 +3826,7 @@ opened `?mode=ro` for counts only.
 | `pi-claude-bridge` | loads `settingSources: ["user","project"]`, so every Claude turn of a Pi running in `~/mirror` fires the hooks above | `src/index.ts:2317` | in 0.3, Pi runs in the bound home, so it reaches the TypeScript hooks only if `mirror init` puts them there |
 | Pi `mirror-logger` (`~/mirror/.pi/extensions`) | project-local; Pi started in `~/mirror` | `mirror-logger.log`, last 2026-10-22; 5 `pi` conversations since 10-01 | replaced by the TypeScript logger (item 2) |
 | Gemini CLI project hooks in `~/mirror/.gemini` | four hooks, Python | `gemini` installed at `/usr/local/bin` | replaced or removed (item 2) |
-| Nautilus Harness | its own Mirror calls | 44 `nautilus_harness` conversations since 10-01, last 13:59Z today | **not yet traced; needs its own check before the day** |
+| Mirror Desktop under its old interface name | `nautilus_harness` is the conversation interface the Desktop writes: `release/0.2` `scripts/log_mirror_conversation.py` and `provision_mirror_conversation.py`, and on 0.3 `CONVERSATION_INTERFACE` in `mirror_host_bridge.rs` | the 44 conversations since 10-01 span the Navigator's Journeys; no Harness process runs; the `nautilus` checkout holds the method docs, last commit 2026-09-04 | the same writer as the first row; nothing extra on the day |
 | Python extensions in the home (`finances`, `atelier-drafts`, `testimonials`, `nautilus-synthesis`) | skills calling Python | `extensions/` | the first two are ported; the other two stop (accepted loss) |
 | Backups, runtime updater | `backups/`, `runtime/update-check.json` | files present | the Python updater must not run against the migrated home |
 | `local-routing/resolve_journey_writing.py` | reads only (`?mode=ro`) | line 28 | not a writer |
@@ -3843,5 +3843,7 @@ binary.
    session opened in `~/mirror` would call the Python Core against the migrated DB. It fails
    loudly, as the reshape intends, but each prompt would fail. The day needs a step that either
    rewires those hooks to the TypeScript Core or tells the Navigator not to work from `~/mirror`.
-2. Nautilus Harness is a live writer this plan did not name. It must be traced before the day.
+2. ~~Nautilus Harness is a live writer this plan did not name.~~ Corrected the same day: it is the
+   Desktop's own legacy interface label, kept when the Harness was renamed Mirror Desktop. Not a
+   separate writer.
 3. Codex is not installed here, so item 2 is Pi, Claude Code and Gemini, not Codex.
