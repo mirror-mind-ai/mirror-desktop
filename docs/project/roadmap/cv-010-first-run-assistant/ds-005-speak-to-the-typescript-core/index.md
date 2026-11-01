@@ -4010,3 +4010,17 @@ runs. The web console is declared deprecated. It is stopped, but its LaunchAgent
 (`RunAtLoad`, `KeepAlive`) would start it again at the next login.
 At the Navigator's word the LaunchAgent plist was moved (not deleted) to
 `~/Mirror Backups/com.alissonvale.mirror-web-console.plist`; the console no longer starts at login.
+
+### 0.3.0-alpha.4 Published (2026-11-01, Navigator's word)
+
+"An Exit That Says What It Did", carrying CR166's first half (`11f8b96`). Prepared at `bbb2a92`
+(all gates passed), published through `release:deploy publish --yes`: tag `v0.3.0-alpha.4`, GitHub
+prerelease, 12 `/ts/` manifests verified. DMG sha256 `5ff1ea7c…`, updater `43a4c3e9…`. Checked from
+outside: the alpha.1 and alpha.3 manifests and the `/ts/` alias name alpha.4, the full DMG served
+there hashes `5ff1ea7c…`, and every `alpha` manifest still names 0.2.0-alpha.58.
+
+**First release built from inside 0.3.** The DMG step (`bundle_dmg.sh`) runs AppleScript against
+Finder to lay out the window. Run by an agent inside Mirror Desktop TS, it hung until the Navigator
+granted that app Automation › Finder (Privacy & Security); 0.2 already held that grant. A
+forgotten mounted installer with the same volume name (`/Volumes/Mirror Desktop TS`) was ejected
+first, but it was not the cause.
