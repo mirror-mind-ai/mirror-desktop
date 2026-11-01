@@ -2,7 +2,7 @@
 
 # CR165: A Turn After an Unanswered Request Never Settles
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Line:** 0.3 (`main`); the same code is on `release/0.2`
 **Criterion half:** neither directly; it removes a cause of a *Finishing* with no working exit
@@ -53,5 +53,8 @@ baseline it had.
 - Mutation controls: the old baseline (A) fails the field test only; the entry before the leaf (B),
   none (C) and the first entry (D) fail both.
 - `cargo test --locked`: 434 passed, 10 ignored.
-- **Field check owed:** a fresh rehearsal in a User build carrying this change, where the
-  `mirror-desktop` turn settles on its own.
+- **Field check passed (2026-11-01, 12:31):** a User build of `ebac6c1` on the same rehearsal
+  home (`ensaio-5c-2`), same session shape. The Navigator's new `mirror-desktop` turn settled on its
+  own (`agent-run-2026-11-01T15:31:00.101Z`: `settled / completed`, started 15:31:36Z after the
+  record's 15:31:00Z). The turn stranded at 11:55 also reached `settled / completed` after the
+  relaunch, evidenced from its own request (14:55:27Z).

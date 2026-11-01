@@ -3806,3 +3806,10 @@ being made. It blocks 5c: fixing forward needs `mirror-desktop` to settle its tu
 Spec first (failed as measured), negative healthy-session case, four mutation controls, `cargo test`
 434 passed. The silent **Recover this turn** is captured as CR166. Owed for item 1: a User build
 carrying CR165 and a fresh rehearsal in which the `mirror-desktop` turn settles on its own.
+
+**Item 1 done (2026-11-01, 12:31):** in a User build of `ebac6c1` on `ensaio-5c-2`, the Navigator's
+`mirror-desktop` turn settled on its own, on `claude-bridge/claude-opus-5-5`, working in the home.
+The turn stranded at 11:55 was recovered after the relaunch, from its own request. CR165 is done.
+The premise of the reshaped 5c holds: the agent works in 0.3 on this Journey and its turns settle.
+Production stayed at 016. Owed before the day: item 2 (the TypeScript terminal wiring on a
+throwaway home) and item 3 (every writer to the home path); CR165 must ship in the alpha.3 bundle.
