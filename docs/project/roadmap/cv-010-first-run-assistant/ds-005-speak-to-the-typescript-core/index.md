@@ -4002,3 +4002,9 @@ open until the Navigator closes it. Open: the terminal has no OpenRouter key (th
 choice); the web console stays stopped; after the window closes, the Navigator decides on the
 Python hooks and `mirror-logger` in `~/mirror`, "Owed at the End of Phase 5", the rehearsal
 leftovers, and RS026.
+
+**After 5c (2026-11-01, Navigator):** the Navigator added the terminal's OpenRouter key to
+`~/.config/mirror/env` himself (file 0600; the agent checked only that the line exists).
+`mirror runtime diagnose` now reports only the three `front_door_errors` left by its own earlier
+runs. The web console is declared deprecated. It is stopped, but its LaunchAgent
+(`RunAtLoad`, `KeepAlive`) would start it again at the next login.
