@@ -3774,3 +3774,30 @@ rehearsal did reach `terminal_durable/process_died`. Only completed turns on thi
 the three Journeys of the 5a-2 rehearsal settled. This Journey's session is 145 MB (20,294
 entries), and the closing path reads and parses it whole, more than once. Cause not yet proven;
 the state is kept in `/private/tmp/5c2-stuck-finishing` for a reproduction against copies.
+
+**Finding 3 reproduced and explained (2026-11-01):** not size, not CR163/CR155/CR161. The pre-run
+baseline (`latest_pi_leaf_entry_id`) is the assistant entry of the last *complete* turn, not the
+session's actual leaf. The 0.2 clone was taken mid-turn, so this session held a request with no
+answer (`a75e55a8`, "vai", 14:48:39Z) after the last complete turn (`ed72dc21`). The run projection
+starts after the baseline and takes the first request it meets, so the 0.3 turn was attributed to
+that older request: `started_at` 14:48:39Z precedes the record's `created_at` 14:54:49Z, and
+`has_current_completion_evidence` refuses with `turn_journal_transition_invalid`, on the settle path
+and again after Pi exits. The record stays `running` for good.
+
+- **Reproduced** in a throwaway `#[ignore]` test (not committed) on copies in
+  `/private/tmp/5c2-repro`: the transition fails exactly so. With the baseline taken as the actual
+  leaf before the run (`ee0f4769`) the run starts at the 0.3 request (`257d9bee`, 14:55:27Z) and the
+  same transition succeeds (`TerminalDurable`).
+- **Reach:** of the 47 carried sessions only this one ends with an unanswered request, an artifact of
+  cloning mid-turn; with 0.2 closed on the day there would be none. But the code is the same on
+  `release/0.2`, so any turn interrupted after Pi recorded its request (a quit, a crash) leaves that
+  Journey unable to settle its next turn, in either line.
+- **"Recover this turn" did nothing:** it runs post-terminal recovery, which has nothing to do for a
+  record still `running`. The offer is made for a state it cannot act on.
+- The preserved state is in `/private/tmp/5c2-stuck-finishing` (the turn journal now under
+  `turn-journal-mirror-desktop.json`; a first copy was overwritten by the thread file of the same
+  name, then retaken from the untouched rehearsal home).
+
+Proposed: a CR on the 0.3 line making the baseline the session's actual leaf before the run, with
+the rehearsal shape as its failing test, and the Recover offer either acting on this shape or not
+being made. It blocks 5c: fixing forward needs `mirror-desktop` to settle its turns in 0.3.
