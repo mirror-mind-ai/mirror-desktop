@@ -3904,3 +3904,20 @@ so the Claude plugin is not linked on the day and the Core change proposed above
 with 0.3's Pi running in the bound home, which has no `.claude/` folder, a bridged turn finds no
 Mirror hook to fire. The Python project hooks in `~/mirror/.claude` stay a writer only while 0.2 runs
 there, and step 1 of the day quits 0.2. The terminal wiring on the day is Pi only.
+
+### RS026 and 0.3.0-alpha.3 (2026-11-01, Navigator, one instruction with publication pre-authorized)
+
+- **RS026 "After the 0.3 Cutover"** opened (`3807533`): CR167–CR171 captured from the phase 5
+  rehearsals (the Claude Code plugin inside bridged turns, the channel refusal shown as
+  `invalid_record`, Dev vs User build, the invocation directory for the Core, the `nautilus_harness`
+  label), and the open CRs of RS016, RS021, RS022 and RS025 ordered by reference, not moved.
+- **0.3.0-alpha.3 "Ready for the Mirror You Already Have"** prepared at `cc84187` (all gates passed)
+  and published through `release:deploy publish --yes`: tag `v0.3.0-alpha.3`, GitHub prerelease,
+  nine `/ts/` manifests verified by the route. Carries 5a (adopting a home) and CR165. DMG sha256
+  `cd4d7253…`, updater `a19dd2ec…`. Evidence: `docs/update/v0.3.0-alpha.3-release-*-2026-11-01.md`.
+- Checked from outside afterwards: the alpha.1 and alpha.2 manifests and the `/ts/` download alias
+  name 0.3.0-alpha.3, and the full DMG served there hashes `cd4d7253…`; every `alpha` manifest and
+  the `alpha` alias still name 0.2.0-alpha.58. Production unchanged, at 016.
+- The installed `/Applications/Mirror Desktop TS.app` (alpha.2, bound to `fred-soares`) will be
+  offered alpha.3; that is the app the day of 5c uses.
+- Remaining before the day: the day-of script, run only at the Navigator's word.
