@@ -3716,3 +3716,16 @@ usage") and shown legibly, which is the real refusal CR159 was waiting for. Thre
    to the rehearsal Mirror, and the Pi process is gone; the app offered "Recover this turn". This is
    before any append, so it is not CR163 (hung append) nor CR155/CR161 (a finishing holding a
    lease). Cause not yet known.
+
+**Correction to finding 2 (same day, after reading `pi-claude-bridge` 0.9.3 and Pi 1.4.0):** the
+0.3 turn did **not** share 0.2's Claude session. The `claude --resume=6d119c40…` process was a child
+of 0.2 (pid 30000), serving the live 0.2 Conversation, and the prompt text matched there only because
+the 0.2 agent had quoted it. The bridge keeps its Pi-to-Claude session map in memory, so a fresh Pi
+process rebuilds a new Claude session: the 0.3 turn wrote `e8681e54…` (14:26:21–14:26:41Z). Isolation
+from 0.2 holds. The working folder is a different matter, and it is not about the bridge: Pi's
+`SessionManager.open` takes the cwd from the session file's header unless a cwd override is passed,
+so every carried session (all 47 headers say `"cwd":"/Users/alissonvale/mirror"`) runs its tools,
+loads its `AGENTS.md`, and places its Claude sessions in the production Python checkout, while the
+app spawns Pi in the bound home. Proposed fix: the carry rewrites the header `cwd` to the bound
+home, the same structural class as `piSessionFile`, so carried and new sessions work in one place.
+After the cutover `~/mirror/AGENTS.md` teaches Python commands that the migrated database refuses.
