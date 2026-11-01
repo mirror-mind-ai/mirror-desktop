@@ -4008,3 +4008,5 @@ leftovers, and RS026.
 `mirror runtime diagnose` now reports only the three `front_door_errors` left by its own earlier
 runs. The web console is declared deprecated. It is stopped, but its LaunchAgent
 (`RunAtLoad`, `KeepAlive`) would start it again at the next login.
+At the Navigator's word the LaunchAgent plist was moved (not deleted) to
+`~/Mirror Backups/com.alissonvale.mirror-web-console.plist`; the console no longer starts at login.
