@@ -193,7 +193,7 @@ not exist), then:
 ### B2. Install the Core Globally
 
 ```bash
-npm install -g mirror-mind@0.39.0 && mirror --version
+npm install -g mirror-mind@0.39.0 && npm ls -g mirror-mind
 ```
 
 ### B3. Name the Home for the Terminal

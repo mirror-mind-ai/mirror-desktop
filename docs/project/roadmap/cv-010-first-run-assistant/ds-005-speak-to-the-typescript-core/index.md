@@ -3961,3 +3961,8 @@ production home is on the TypeScript Core (018), forbids Python against it and s
 untouched until the window back closes, records the unlinked Claude plugin (CR167) and Dev builds
 off production, and loads Mirror Mode for book writing through `mirror mirror load`. Previous file:
 `~/.pi/agent/AGENTS.md.pre-0.3`. Next: B2, the global Core.
+
+**B2 done (2026-11-01, Navigator's word):** `npm install -g mirror-mind@0.39.0` (gitHead
+`ca7295a4`, the Core the app embeds; no install script), `/usr/local/bin/mirror`. The home was not
+opened: `~/.config/mirror` does not exist yet and no `mirror` command was run against it. The CLI
+has no `--version`; the runbook now checks with `npm ls -g`. Next: B3.
