@@ -3571,3 +3571,21 @@ it, and the rehearsal would then prove a different file set from the one 5c carr
   Journey. Not a defect: the registry re-synced from Mirror (81 Journeys, 13 roots), the 30 carried
   threads are intact, and the Tree tab and search list everything. 5c's order — adopt, quit, carry,
   reopen — keeps the carried preferences, since the carry lets carried files win over bind-time ones.
+
+### 5a-2 Rehearsal Result: the Navigator's Bar Met (2026-11-01)
+
+The Navigator opened *suporte-softwarezen*, *alissonvale-com* and *89-livros* in the User-channel
+build bound to the rehearsal home: each showed its 0.2 conversation, and he sent one turn in each
+("funcionou perfeitamente"). Measured read-only, counts only:
+
+| Journey | Mirror Conversation | Production | Rehearsal | New |
+|---|---|---|---|---|
+| suporte-softwarezen | `b584397a…` (gen 1) | 16 | 18 | 1 user, 1 assistant |
+| alissonvale-com | `ebb70221…` (gen 1) | 1,230 | 1,232 | 1 user, 1 assistant |
+| 89-livros | `01934e1b…` (gen 1) | 444 | 446 | 1 user, 1 assistant |
+
+The rehearsal home still holds 1,122 Conversations (no new one): each turn continued the
+Conversation 0.2 had been writing, not a restart. Production stayed at 016.
+*alissonvale-com* had a `running` record in the snapshot and still continued cleanly.
+
+Timings: copy of production 1 s, adoption seconds, clone of the 0.2 folder instant, carry 15 s.
