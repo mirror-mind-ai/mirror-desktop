@@ -3813,3 +3813,35 @@ The turn stranded at 11:55 was recovered after the relaunch, from its own reques
 The premise of the reshaped 5c holds: the agent works in 0.3 on this Journey and its turns settle.
 Production stayed at 016. Owed before the day: item 2 (the TypeScript terminal wiring on a
 throwaway home) and item 3 (every writer to the home path); CR165 must ship in the alpha.3 bundle.
+
+### 5c Item 3: Every Writer to the Home Path (2026-11-01)
+
+Read-only survey of this machine. No file, service or database was changed; the production DB was
+opened `?mode=ro` for counts only.
+
+| Writer | How it reaches `~/.mirror-minds/alisson-vale` | Evidence | On the day |
+|---|---|---|---|
+| Mirror Desktop 0.2 | Python `memory` from `~/mirror` (`.env`: `MIRROR_USER=alisson-vale`) | the 0.2 conversations | quit and moved aside (step 1) |
+| Claude Code project hooks in `~/mirror/.claude` | `session-start`, `mirror-inject`, `log-user-prompt`, `log-session-end`, Python | conversation `c912ef55`, `claude_code`, 14:26Z today, one message | **unplanned writer, see below** |
+| `pi-claude-bridge` | loads `settingSources: ["user","project"]`, so every Claude turn of a Pi running in `~/mirror` fires the hooks above | `src/index.ts:2317` | in 0.3, Pi runs in the bound home, so it reaches the TypeScript hooks only if `mirror init` puts them there |
+| Pi `mirror-logger` (`~/mirror/.pi/extensions`) | project-local; Pi started in `~/mirror` | `mirror-logger.log`, last 2026-10-22; 5 `pi` conversations since 10-01 | replaced by the TypeScript logger (item 2) |
+| Gemini CLI project hooks in `~/mirror/.gemini` | four hooks, Python | `gemini` installed at `/usr/local/bin` | replaced or removed (item 2) |
+| Nautilus Harness | its own Mirror calls | 44 `nautilus_harness` conversations since 10-01, last 13:59Z today | **not yet traced; needs its own check before the day** |
+| Python extensions in the home (`finances`, `atelier-drafts`, `testimonials`, `nautilus-synthesis`) | skills calling Python | `extensions/` | the first two are ported; the other two stop (accepted loss) |
+| Backups, runtime updater | `backups/`, `runtime/update-check.json` | files present | the Python updater must not run against the migrated home |
+| `local-routing/resolve_journey_writing.py` | reads only (`?mode=ro`) | line 28 | not a writer |
+| Web console `com.alissonvale.mirror-web-console` | runs from the stale `~/Code/mirror-dev`, whose `.env` names the `mirror-dev` home; the launch script sets no home and no `.env` loader was found | process 936, nothing under `.mirror-minds` open | **probably not production, not proven**; stop it on the day anyway |
+
+Not present: no Mirror hooks in `~/.claude/settings.json` (only `herdr-agent-state.sh`), no Codex
+(`~/.codex` absent, no binary), no Grok, no cron entry, no shell profile entry, no global `mirror`
+binary.
+
+**What the list changes.**
+
+1. The project hooks in `~/mirror` are the most active Python writer after 0.2 itself, because the
+   bridge fires them on every Claude turn started there. After the copy, a Claude Code or Pi
+   session opened in `~/mirror` would call the Python Core against the migrated DB. It fails
+   loudly, as the reshape intends, but each prompt would fail. The day needs a step that either
+   rewires those hooks to the TypeScript Core or tells the Navigator not to work from `~/mirror`.
+2. Nautilus Harness is a live writer this plan did not name. It must be traced before the day.
+3. Codex is not installed here, so item 2 is Pi, Claude Code and Gemini, not Codex.
