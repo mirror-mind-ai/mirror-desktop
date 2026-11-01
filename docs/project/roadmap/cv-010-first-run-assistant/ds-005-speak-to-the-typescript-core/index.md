@@ -3974,3 +3974,6 @@ and the env file `chmod 600` (its folder 700). The third stays: no `OPENROUTER_A
 terminal, so terminal embeddings, memory extraction and consult are off. The Desktop keeps its own
 key; giving the terminal one is the Navigator's decision (the key is never read or copied by the
 agent). Next: B4, Pi wiring.
+A second diagnose then reported `front_door_errors`: the two lines in `front-door.log` are the
+diagnose runs themselves, which exit 1 while anything needs attention (the missing key), and log
+that exit as an error. Not a fault in the home.
