@@ -3934,3 +3934,19 @@ and cloned back, alpha.3 adopts the copy and quits before any Journey, the carry
 the terminal logs. The way back renames the homes back and also moves the 0.3 app aside, so it
 cannot reopen the restored 016 home. Measured for it: production at 016, 81 Journeys, 1,125
 Conversations, 51,316 messages, 675 MB; 88 GB free. Nothing ran.
+
+### 5c Day: Part A Run by the Navigator (2026-11-01)
+
+The Navigator ran A1–A8 from Terminal with the lifeboat Pi. Measured by the agent from inside 0.3
+(the first turn, "Chegamos?", in `mirror-desktop`; the agent's working folder is the bound home):
+
+- `alisson-vale.pre-0.3`: ledger 016, 1,125 Conversations, 51,326 messages, 81 Journeys; nothing
+  holds it open.
+- `alisson-vale` (read from an APFS clone, since a read-only open cannot create the WAL index):
+  integrity ok, ledger `018_drop_hook_injected`, the same counts; marked `home-77eb45ba…`
+  (19:09:08Z); backup `pre-migration-016_…-20261101T190905Z-b251ec6e8699.db`.
+- Carry receipt `carried-from-0.2.json` at 19:11:37Z, from the real 0.2 folder.
+- 0.2 is in `~/Mirror Backups/Mirror Desktop 0.2.0-alpha.58.app`; the web console is stopped; only
+  Mirror Desktop TS runs, bound to the production home.
+
+Owed for A9: this turn settling on its own, and two other Journeys showing their 0.2 conversation.
