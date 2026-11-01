@@ -250,7 +250,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR161](rs025-legible-endings-for-a-turn-that-ends-badly/cr161-give-every-finishing-the-same-exits.md) | RS025 | Give Every Finishing the Same Exits | parked | @alissonvale | `refinement/cr161-unify-finishing` |
 | — | [CR163](rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md) | RS025 | A Hung Mirror Append Freezes Every Exit | in_progress | @alissonvale | `refinement/cr163-bound-the-mirror-append` |
 | — | [CR164](rs025-legible-endings-for-a-turn-that-ends-badly/cr164-the-hung-append-test-races-its-own-stderr.md) | RS025 | The Hung-Append Test Races Its Own Stderr | captured | — | — |
-| — | [CR166](rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | Recover This Turn Does Nothing on a Turn Still Running | captured | — | — |
+| — | [CR166](rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | Recover This Turn Does Nothing on a Turn Still Running | in_progress | @alissonvale | `main` |
 | — | [CR167](rs026-after-the-0-3-cutover/cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) | RS026 | Keep a User's Claude Code Plugin Out of the Desktop's Own Turns | captured | — | — |
 | — | [CR168](rs026-after-the-0-3-cutover/cr168-name-a-channel-refusal-instead-of-invalid-record.md) | RS026 | Name a Channel Refusal Instead of invalid_record | captured | — | — |
 | — | [CR169](rs026-after-the-0-3-cutover/cr169-tell-a-dev-build-apart-from-the-user-build.md) | RS026 | Tell a Dev Build Apart From the User Build | captured | — | — |

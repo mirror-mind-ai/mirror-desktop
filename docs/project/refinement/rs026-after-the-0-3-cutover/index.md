@@ -38,7 +38,7 @@ The proposed order. The Navigator can reorder it; the index's status column stay
 
 | Order | CR | Home RS | Status | Why here |
 |------:|----|---------|--------|----------|
-| 1 | [CR166](../rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | captured | an exit offered that does nothing; seen in the field on 0.3 |
+| 1 | [CR166](../rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | in_progress | an exit offered that does nothing; seen in the field on 0.3. First half on `main` (`11f8b96`): the exit now says which guard held it |
 | 2 | [CR167](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) | RS026 | captured | duplicated or misplaced memory for a new user, silently |
 | 3 | [CR159](../rs025-legible-endings-for-a-turn-that-ends-badly/cr159-say-why-the-provider-refused-a-turn.md) | RS025 | in_progress | the real refusal arrived on 2026-11-01 ("Third-party apps now draw from your extra usage"); attach it and read it on 0.3 |
 | 4 | [CR163](../rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md) | RS025 | in_progress | field check owed, now on the TypeScript append |
