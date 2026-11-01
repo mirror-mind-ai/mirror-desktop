@@ -3696,3 +3696,23 @@ files and rewrote 6,826 session paths in 316 files in 15 s; all 38 session paths
 and exist, every thread is on the `user` channel, and the `mirror-desktop` thread's 4 session paths
 are present. Production stayed at 016 (its database hash moves only because 0.2 keeps writing this
 Conversation). Next: the Navigator opens `mirror-desktop` there and asks for a real task.
+
+**Item 1, first real turn (2026-11-01, 11:25):** the agent answered in 0.3 on
+`claude-bridge/claude-opus-5-5` and ran the read-only task, after a first try on
+`anthropic/claude-opus-5-5` was refused by the provider ("Third-party apps now draw from your extra
+usage") and shown legibly, which is the real refusal CR159 was waiting for. Three findings:
+
+1. **0.2's per-Journey models must be carried.** 0.3 opened on its own default; 0.2's
+   `agent-settings.json` names `claude-bridge` for this Journey. Add provider and model per Journey
+   to the 5c carry.
+2. **`claude-bridge` keeps its own state outside both app folders.** The carried Pi session resumes
+   the Claude session `6d119c40…` under `~/.claude/projects/-Users-alissonvale-mirror/`, the same
+   file the live 0.2 Conversation uses, and in that session's folder: the 0.3 turn was appended to
+   it, and `pwd` answered `~/mirror`, not the bound home. The carry cannot isolate a rehearsal from
+   0.2 for bridged Journeys, and on the day the bridged agent works in the production Python
+   checkout, whose `AGENTS.md` speaks of the Python Mirror. Both need a decision before 5c.
+3. **The turn never settled.** Pi wrote the answer and `stopReason: stop` at 14:26:41Z, but the
+   turn journal stayed `running` (receipt `admitted → running` only), nothing was queued or appended
+   to the rehearsal Mirror, and the Pi process is gone; the app offered "Recover this turn". This is
+   before any append, so it is not CR163 (hung append) nor CR155/CR161 (a finishing holding a
+   lease). Cause not yet known.
