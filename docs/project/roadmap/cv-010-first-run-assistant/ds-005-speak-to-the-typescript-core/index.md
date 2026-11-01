@@ -3565,3 +3565,9 @@ it, and the rehearsal would then prove a different file set from the one 5c carr
   595 files, 6,789 paths, 15 s; 30 threads, all `user`; 38 session paths in place. The `fred-soares`
   home's state folder was fingerprinted before and after: unchanged. The app is still bound to
   `fred-soares` until the Navigator chooses the rehearsal home.
+
+- Binding after the carry (the rehearsal's inverted order) rewrote `journey-preferences.json` and
+  `journey-registry.json` over the carried ones, so Recent opened empty with only the active
+  Journey. Not a defect: the registry re-synced from Mirror (81 Journeys, 13 roots), the 30 carried
+  threads are intact, and the Tree tab and search list everything. 5c's order — adopt, quit, carry,
+  reopen — keeps the carried preferences, since the carry lets carried files win over bind-time ones.
