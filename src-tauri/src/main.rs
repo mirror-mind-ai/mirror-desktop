@@ -5343,9 +5343,14 @@ fn project_pi_turn_spanning(
 /// CR126: the leaf recorded before an invocation begins. The pre-run baseline needs only this, and
 /// taking it from the run projection would span the whole session, because `None` there means "this
 /// session has no earlier run" rather than "tell me where the last one ended".
+///
+/// CR165: the session's actual leaf, not the last complete turn's answer. The two differ when a turn
+/// was interrupted after Pi recorded its request; the run then started at that unanswered request,
+/// its `started_at` preceded the journal record's `created_at`, and the journal refused the
+/// completion for good. On a healthy session the leaf is that answer, so nothing else moves.
 fn latest_pi_leaf_entry_id(run_authority: &RunAuthority) -> Option<String> {
     let content = fs::read_to_string(&run_authority.pi_session_file).ok()?;
-    project_complete_pi_transcript(&content).ok()?.pop().map(|turn| turn.assistant_entry_id)
+    project_active_pi_branch(&content).ok()?.pop().map(|entry| entry.id)
 }
 
 fn project_dedicated_user_text(value: &str) -> String {
@@ -10395,7 +10400,7 @@ mod tests {
         parse_pi_session_state,
         inspect_complete_pi_transcript, inspect_pi_transcript_with_scope, parse_pi_transcript_scope,
         PiTranscriptScope,
-        project_complete_pi_transcript, project_conversation_segment_manifest,
+        latest_pi_leaf_entry_id, project_complete_pi_transcript, project_conversation_segment_manifest,
         project_active_pi_branch, project_pi_turn_spanning,
         PiChapterClosure,
         publish_conversation_segment_manifest_at,
@@ -13329,6 +13334,63 @@ mod tests {
         let authority = test_run_authority(&root);
         write_session(&authority, &corrected_run_session());
         assert!(terminal_pi_execution_evidence(&authority, Some("pi-asst-2")).is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// CR165: a session whose last request never got an answer, as a turn interrupted after Pi
+    /// recorded it leaves one. The field shape: the 0.2 state was cloned mid-turn, so the carried
+    /// session ended on the Navigator's request and the agent's first tool call.
+    fn session_ending_on_an_unanswered_request() -> Vec<String> {
+        vec![
+            json!({"type":"session","id":"session-one","timestamp":"2026-11-01T10:00:00.000Z"}).to_string(),
+            json!({"type":"message","id":"pi-user-0","parentId":null,"timestamp":"2026-11-01T10:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"earlier question"}]}}).to_string(),
+            json!({"type":"message","id":"pi-asst-0","parentId":"pi-user-0","timestamp":"2026-11-01T10:00:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"earlier answer"}],"stopReason":"stop"}}).to_string(),
+            json!({"type":"message","id":"pi-unanswered","parentId":"pi-asst-0","timestamp":"2026-11-01T14:48:39.424Z","message":{"role":"user","content":[{"type":"text","text":"vai"}]}}).to_string(),
+            json!({"type":"message","id":"pi-cut","parentId":"pi-unanswered","timestamp":"2026-11-01T14:48:51.641Z","message":{"role":"assistant","content":[{"type":"text","text":"checking"}],"stopReason":"toolUse"}}).to_string(),
+        ]
+    }
+
+    #[test]
+    fn a_run_after_an_unanswered_request_is_evidenced_from_its_own_request() {
+        // Field, 2026-11-01, item 1 of CV-010 phase 5c: the run was attributed to the unanswered
+        // "vai", so its `started_at` preceded the record's `created_at`, the journal refused the
+        // completion as `turn_journal_transition_invalid` on both terminal paths, and the turn sat
+        // at *Finishing* with its answer in the session.
+        let root = test_root("cr165-unanswered-request");
+        let authority = test_run_authority(&root);
+        let mut session = session_ending_on_an_unanswered_request();
+        write_session(&authority, &session.join("\n"));
+        let baseline = latest_pi_leaf_entry_id(&authority);
+        assert_eq!(baseline.as_deref(), Some("pi-cut"));
+
+        session.extend([
+            json!({"type":"message","id":"pi-system","parentId":"pi-cut","timestamp":"2026-11-01T14:55:27.534Z","message":{"role":"system","content":[{"type":"text","text":"resumed"}]}}).to_string(),
+            json!({"type":"message","id":"pi-request","parentId":"pi-system","timestamp":"2026-11-01T14:55:27.536Z","message":{"role":"user","content":[{"type":"text","text":"run pwd"}]}}).to_string(),
+            json!({"type":"custom_message","id":"pi-context","parentId":"pi-request","timestamp":"2026-11-01T14:55:27.537Z","customType":"mirror_context"}).to_string(),
+            json!({"type":"message","id":"pi-asst-1","parentId":"pi-context","timestamp":"2026-11-01T14:55:35.470Z","message":{"role":"assistant","content":[{"type":"text","text":"running"}],"stopReason":"toolUse"}}).to_string(),
+            json!({"type":"message","id":"pi-tool-1","parentId":"pi-asst-1","timestamp":"2026-11-01T14:55:36.300Z","message":{"role":"toolResult","content":[{"type":"text","text":"/home"}],"toolCallId":"call-1"}}).to_string(),
+            json!({"type":"message","id":"pi-asst-2","parentId":"pi-tool-1","timestamp":"2026-11-01T14:55:42.903Z","message":{"role":"assistant","content":[{"type":"text","text":"done"}],"stopReason":"stop"}}).to_string(),
+        ]);
+        write_session(&authority, &session.join("\n"));
+
+        let evidence = terminal_pi_execution_evidence(&authority, baseline.as_deref()).unwrap();
+        assert_eq!(evidence.user_entry_id, "pi-request");
+        assert_eq!(evidence.started_at, "2026-11-01T14:55:27.536Z");
+        assert_eq!(evidence.assistant_entry_id, "pi-asst-2");
+        assert_eq!(evidence.assistant_text, "running\n\ndone");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_healthy_session_keeps_the_baseline_it_always_had() {
+        // CR165's negative case: when the last entry closes an answer, the session's leaf and the
+        // last complete turn's answer are the same entry, so every healthy turn is unchanged.
+        let root = test_root("cr165-healthy-baseline");
+        let authority = test_run_authority(&root);
+        let session = corrected_run_session();
+        write_session(&authority, &session);
+        let legacy = project_complete_pi_transcript(&session).unwrap().pop().unwrap();
+        assert_eq!(latest_pi_leaf_entry_id(&authority), Some(legacy.assistant_entry_id));
         fs::remove_dir_all(root).unwrap();
     }
 
