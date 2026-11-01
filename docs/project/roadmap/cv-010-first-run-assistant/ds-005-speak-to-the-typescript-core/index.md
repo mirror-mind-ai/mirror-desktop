@@ -3966,3 +3966,11 @@ off production, and loads Mirror Mode for book writing through `mirror mirror lo
 `ca7295a4`, the Core the app embeds; no install script), `/usr/local/bin/mirror`. The home was not
 opened: `~/.config/mirror` does not exist yet and no `mirror` command was run against it. The CLI
 has no `--version`; the runbook now checks with `npm ls -g`. Next: B3.
+
+**B3 done (2026-11-01, Navigator's word):** `~/.config/mirror/env` holds `MIRROR_USER=alisson-vale`
+(run from `/private/tmp`, no inherited `MIRROR_HOME`/`MIRROR_USER`, no `.env` on the way). The first
+`mirror runtime diagnose` named three findings; two repaired as it routed them: the home `chmod 700`
+and the env file `chmod 600` (its folder 700). The third stays: no `OPENROUTER_API_KEY` for the
+terminal, so terminal embeddings, memory extraction and consult are off. The Desktop keeps its own
+key; giving the terminal one is the Navigator's decision (the key is never read or copied by the
+agent). Next: B4, Pi wiring.
