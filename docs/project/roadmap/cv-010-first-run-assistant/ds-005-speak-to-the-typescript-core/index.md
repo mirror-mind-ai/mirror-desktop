@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | ✅ Done | — (alpha.1 and alpha.2 published on `/mirror-desktop/ts/`; the installed app updated itself, checked by the Navigator 2026-10-31; 4d waived) |
-| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; 5a-2 rehearsed on a copy of production (three Journeys continued their Conversations); 5b written and rehearsed (4 s, Python reads the restored copy); owed before 5c: the two-Mirrors rule (Explorer Mode) |
+| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; 5a-2 rehearsed on a copy of production (three Journeys continued their Conversations); 5b written and rehearsed (4 s, Python reads the restored copy); 5c run on 2026-11-01: production on 0.3.0-alpha.3 at 018, terminal on the TypeScript Core (Pi); closes when the Navigator closes the window back |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -3982,3 +3982,23 @@ that exit as an error. Not a fault in the home.
 `/private/tmp`. The only change to `~/.pi/agent/settings.json` is one package entry, which Pi stored
 as a relative path (`../../../../usr/local/lib/node_modules/mirror-mind`). It is not an `npm:`
 source, so 0.3's `pi_global_extensions.rs` refuses it on two counts. B5 proves that in the field.
+
+**B5 done (2026-11-01, Navigator's turns, measured read-only from an APFS clone):**
+
+- **0.3 logs once:** the turn "Teste B5" (19:49:35Z) landed as exactly two messages in the
+  `mirror-desktop` Conversation `20f40b74…` (`nautilus_harness`, see CR171); no `pi` or
+  `claude_code` Conversation holds it. The Desktop's Pi (pid 1753, child of Mirror Desktop TS, cwd
+  the bound home) did not load the global `mirror-mind` package. Its turn settled
+  (`settled/completed`), outbox 0.
+- **The terminal logs:** a `pi` started in `/private/tmp` wrote Conversation `8e87b317…` (19:49:23Z,
+  user and assistant) into the production home through the TypeScript Core.
+- Home: integrity ok, `018_drop_hook_injected`, 1,126 Conversations, 51,344 messages.
+
+## 5c Done: Production Runs on the 0.3 Line (2026-11-01)
+
+Parts A and B of the [runbook](phase-5c-day-runbook.md) ran in one afternoon. 0.2 is set aside in
+`~/Mirror Backups`, the 0.2-era home is kept as `alisson-vale.pre-0.3` (016), and the way back stays
+open until the Navigator closes it. Open: the terminal has no OpenRouter key (the Navigator's
+choice); the web console stays stopped; after the window closes, the Navigator decides on the
+Python hooks and `mirror-logger` in `~/mirror`, "Owed at the End of Phase 5", the rehearsal
+leftovers, and RS026.
