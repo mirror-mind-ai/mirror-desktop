@@ -3748,3 +3748,9 @@ After the cutover `~/mirror/AGENTS.md` teaches Python commands that the migrated
 
 Next: redo item 1's rehearsal from a fresh copy and clone, and look again at the turn that never
 settled.
+
+**Item 1, second rehearsal prepared (2026-11-01):** `~/Mirror Homes/ensaio-5c-2` (SQLite backup in
+0.9 s, integrity ok, ledger 016, 81 Journeys, 1,125 Conversations, 51,290 messages; plus `identity`,
+`extensions`, `local-routing`, `conversas`; mode 700/600) and a clone of the 0.2 app data in
+`/private/tmp/5c2-ensaio` (outbox 0). Production stayed at 016. The first rehearsal's home
+(`ensaio-5c`) and clone (`/private/tmp/5c1-ensaio`) remain until the Navigator's word.
