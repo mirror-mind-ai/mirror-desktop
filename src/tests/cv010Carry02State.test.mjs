@@ -32,6 +32,18 @@ const write = (path, value) => {
   writeFileSync(path, typeof value === "string" ? value : JSON.stringify(value, null, 2));
 };
 
+const profile = (provider, model) => ({ model: { provider, model }, thinkingLevel: "medium" });
+const settings02 = {
+  schemaVersion: "1.1.0",
+  globalProfile: { ...profile("claude-bridge", "claude-opus-5"), invocationMode: "builder" },
+  journeyOverrides: { "personal-growth": profile("claude-bridge", "claude-opus-5"), casa: profile("openai-codex", "gpt-5.5") },
+  conversationOverrides: { "personal-growth|": profile("claude-bridge", "claude-opus-5-5") },
+};
+
+/** The session's own lines: everything after Pi's header, which names the folder it works in. */
+const body = (path) => readFileSync(path, "utf8").split("\n").slice(1).join("\n");
+const header = (path) => JSON.parse(readFileSync(path, "utf8").split("\n")[0]);
+
 /** A 0.2 app data folder as production holds it, reduced to one Journey with one Pi session. */
 function source02(parent, conversationId = "a14439c8") {
   const root = join(parent, "Application Support", "ai.mirrormind.desktop");
@@ -59,9 +71,10 @@ function source02(parent, conversationId = "a14439c8") {
   write(join(root, "composer-drafts.json"), { drafts: {} });
   write(join(root, "mirror-append-outbox.json"), { schemaVersion: "1.0.0", savedAt: "2026-10-31T00:00:00Z", items: [] });
   write(join(root, "mirror-append-conflicts.jsonl"), `${JSON.stringify({ existing: { piSessionFile: session } })}\n`);
-  // Not carried: a cache 0.3 rebuilds from Mirror, and app-level state.
+  // Not carried: a cache 0.3 rebuilds from Mirror, and app-level state (the model choices are
+  // merged into 0.3's app-wide settings instead).
   write(join(root, "journey-registry.json"), { schemaVersion: "0.2.0", roots: [] });
-  write(join(root, "agent-settings.json"), { providers: [] });
+  write(join(root, "agent-settings.json"), settings02);
   write(join(root, "voice-transcription", "model.bin"), "weights");
   return { root, session };
 }
@@ -127,8 +140,12 @@ describe("carrying the 0.2 conversation surface into an adopted home", () => {
     expect(segment.other.pi.sessionFile).toBe("/Users/ana/.pi/agent/sessions/x.jsonl");
     expect(JSON.parse(readFileSync(join(target, "mirror-append-conflicts.jsonl"), "utf8").trim()).existing.piSessionFile).toBe(moved);
 
-    // A file with nothing to rewrite arrives byte for byte, the Pi session included.
-    expect(readFileSync(moved)).toEqual(readFileSync(session));
+    // Pi's session keeps every line but its header, which now names the bound home as the folder
+    // the agent works in: Pi takes a resumed session's folder from there, not from where it runs.
+    expect(header(moved)).toEqual({ type: "session", version: 3, id: "18d3", cwd: homePath });
+    expect(body(moved)).toBe(body(session));
+    expect(result.headers).toBe(1);
+    // A file with nothing to rewrite arrives byte for byte.
     expect(readFileSync(join(target, "composer-drafts.json"))).toEqual(readFileSync(join(sourceRoot, "composer-drafts.json")));
     // The 0.2 preferences replace the ones written on bind; the 0.3 registry stays; app state stays behind.
     expect(read("journey-preferences.json")).toEqual({ preferences: { activeJourneyId: "personal-growth" } });
@@ -138,7 +155,7 @@ describe("carrying the 0.2 conversation surface into an adopted home", () => {
 
     const receipt = JSON.parse(readFileSync(join(target, "carried-from-0.2.json"), "utf8"));
     expect(statSync(join(target, "carried-from-0.2.json")).mode & 0o777).toBe(0o600);
-    expect(receipt).toMatchObject({ source: sourceRoot, carried: result.carried, conversations: ["a14439c8"], rewritten: { files: 4, values: 6 } });
+    expect(receipt).toMatchObject({ source: sourceRoot, carried: result.carried, conversations: ["a14439c8"], rewritten: { files: 4, values: 6 }, headers: 1 });
     expect(Date.parse(receipt.carriedAt)).not.toBeNaN();
     expect(receipt.files).toBe(Object.keys(before).filter((path) => CARRIED_ENTRIES.includes(path.split("/")[0])).length);
   });
@@ -155,7 +172,8 @@ describe("carrying the 0.2 conversation surface into an adopted home", () => {
     expect(result.rewritten).toEqual({ files: 4, values: 6 });
     const moved = join(target, "pi-sessions", "2026-09-07T11-54-27-692Z_nautilus-personal-growth-g1-18d3.jsonl");
     expect(JSON.parse(readFileSync(join(target, "journey-threads", "personal-growth.json"), "utf8")).thread.generations[0].piSessionFile).toBe(moved);
-    expect(readFileSync(moved)).toEqual(readFileSync(session));
+    expect(header(moved).cwd).toBe(homePath);
+    expect(body(moved)).toBe(body(session));
     expect(JSON.parse(readFileSync(join(target, "carried-from-0.2.json"), "utf8"))).toMatchObject({ source: snapshot, recordedAs: sourceRoot });
   });
 
@@ -163,9 +181,49 @@ describe("carrying the 0.2 conversation surface into an adopted home", () => {
     const { sourceRoot, homePath, targetAppDataRoot } = fixture();
     const before = fingerprint(targetAppDataRoot);
     const plan = await carry02State({ sourceRoot, targetAppDataRoot, homePath, dryRun: true });
-    expect(plan).toMatchObject({ dryRun: true, homeId: "home-prod-0001", conversations: ["a14439c8"], rewritten: { files: 4, values: 6 } });
+    expect(plan).toMatchObject({ dryRun: true, homeId: "home-prod-0001", conversations: ["a14439c8"], rewritten: { files: 4, values: 6 }, headers: 1,
+      settings: { journeys: 2, conversations: 1, replaced: 0 } });
     expect(plan.files).toBeGreaterThan(0);
     expect(fingerprint(targetAppDataRoot)).toEqual(before);
+  });
+
+  it("brings 0.2's model choices into 0.3's app-wide settings, the 0.2 choice winning where both name one", async () => {
+    const { sourceRoot, homePath, targetAppDataRoot, target } = fixture();
+    const settings03 = {
+      schemaVersion: "1.1.0",
+      globalProfile: { ...profile("openai-codex", "gpt-5.6-luna"), invocationMode: "builder" },
+      journeyOverrides: { "fred-casa": profile("openai-codex", "gpt-5.5") },
+      conversationOverrides: { "personal-growth|": profile("anthropic", "claude-opus-5-5") },
+    };
+    const path = join(targetAppDataRoot, "agent-settings.json");
+    write(path, settings03);
+    const previous = readFileSync(path);
+
+    const result = await carry02State({ sourceRoot, targetAppDataRoot, homePath });
+    expect(result.settings).toEqual({ journeys: 2, conversations: 1, replaced: 1 });
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
+      schemaVersion: "1.1.0",
+      globalProfile: settings02.globalProfile,
+      journeyOverrides: { "fred-casa": settings03.journeyOverrides["fred-casa"], ...settings02.journeyOverrides },
+      conversationOverrides: settings02.conversationOverrides,
+    });
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+    // What 0.3 held before is kept beside the receipt, so the merge can be undone by hand.
+    expect(readFileSync(join(target, "agent-settings-before-carry.json"))).toEqual(previous);
+    expect(JSON.parse(readFileSync(join(target, "carried-from-0.2.json"), "utf8")).settings).toEqual(result.settings);
+    expect(readdirSync(targetAppDataRoot).filter((name) => name.startsWith("agent-settings"))).toEqual(["agent-settings.json"]);
+  });
+
+  it("refuses 0.2 model choices it cannot read as settings, leaving 0.3's untouched", async () => {
+    const odd = fixture();
+    write(join(odd.sourceRoot, "agent-settings.json"), { providers: [] });
+    const before = fingerprint(odd.targetAppDataRoot);
+    await expect(carry02State(odd)).rejects.toThrow(/agent-settings\.json/);
+    expect(fingerprint(odd.targetAppDataRoot)).toEqual(before);
+
+    const listed = fixture();
+    write(join(listed.sourceRoot, "agent-settings.json"), { ...settings02, journeyOverrides: [] });
+    await expect(carry02State(listed)).rejects.toThrow(/agent-settings\.json/);
   });
 
   it("carries once: a home already carried, or with a Journey started in 0.3, is refused untouched", async () => {

@@ -12,7 +12,13 @@
 // everything is validated first, then staged beside the target and swapped in by rename. Only the
 // structural `piSessionFile` and `sessionFile` values that point into the 0.2 `pi-sessions` folder
 // are rewritten; the same path inside a tool's arguments or output is what the agent did and said,
-// and is left alone. Pi's own session files are copied byte for byte.
+// and is left alone. Pi's own session files keep every line but their header, whose `cwd` moves to
+// the bound home: Pi takes a resumed session's working folder from that header, so a carried session
+// would otherwise run its tools and load its instructions where 0.2 ran (the Python checkout).
+//
+// 0.2's model choices (agent-settings.json) are app-wide in both lines. They are merged into the 0.3
+// app's settings: the 0.2 global profile and every override 0.2 names win; 0.3 overrides 0.2 does
+// not name stay. What 0.3 held before is kept beside the receipt.
 //
 // --from may be a snapshot of the 0.2 folder (a clone taken while 0.2 runs); --recorded-as then names
 // the folder its records were written in. If there are sessions to carry and no record would move,
@@ -33,6 +39,10 @@ export const CARRIED_ENTRIES = HOME_STATE_ENTRIES.filter((entry) => entry !== "j
 const CONVERSATION_ENTRIES = ["conversation-segments", "dedicated-journey-conversations", "journey-threads", "pi-sessions"];
 const RECEIPT = "carried-from-0.2.json";
 const PATH_KEYS = new Set(["piSessionFile", "sessionFile"]);
+const SETTINGS = "agent-settings.json";
+const SETTINGS_BEFORE = "agent-settings-before-carry.json";
+const SETTINGS_KEYS = ["schemaVersion", "globalProfile", "journeyOverrides", "conversationOverrides"];
+const OVERRIDES = ["journeyOverrides", "conversationOverrides"];
 
 /** Every regular file under `path`; a symbolic link anywhere is refused. */
 function filesUnder(path) {
@@ -90,6 +100,65 @@ function rewritten(file, recordedRoot, target, counts) {
   return next;
 }
 
+/** A Pi session's text with its header naming `cwd`, or undefined when it has no header to move. */
+function movedHeader(file, cwd) {
+  const text = readFileSync(file, "utf8");
+  const end = text.indexOf("\n");
+  const first = end === -1 ? text : text.slice(0, end);
+  let header;
+  try {
+    header = JSON.parse(first);
+  } catch {
+    return undefined;
+  }
+  if (header?.type !== "session" || typeof header.cwd !== "string" || header.cwd === cwd) return undefined;
+  return JSON.stringify({ ...header, cwd }) + (end === -1 ? "" : text.slice(end));
+}
+
+const piSession = (sourceRoot, file) => relative(sourceRoot, file).startsWith("pi-sessions/") && file.endsWith(".jsonl");
+
+/** Agent settings read as the app reads them, or undefined when there are none. */
+function readSettings(path) {
+  if (!existsSync(path)) return undefined;
+  let value;
+  try {
+    value = JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    throw new Error(`${path} is not valid JSON: ${error.message}`);
+  }
+  const object = (item) => item !== null && typeof item === "object" && !Array.isArray(item);
+  if (!object(value) || Object.keys(value).some((key) => !SETTINGS_KEYS.includes(key))
+    || !["1.0.0", "1.1.0"].includes(value.schemaVersion) || !object(value.globalProfile)
+    || OVERRIDES.some((key) => value[key] !== undefined && !object(value[key]))) {
+    throw new Error(`${path} is not agent settings this app can read`);
+  }
+  return value;
+}
+
+/** 0.3's settings with 0.2's choices laid over them, and what the merge did. */
+function mergedSettings(source, target) {
+  if (source === undefined) return undefined;
+  const merged = {
+    schemaVersion: [source.schemaVersion, target?.schemaVersion ?? "1.0.0"].sort().at(-1),
+    globalProfile: source.globalProfile,
+  };
+  let replaced = 0;
+  for (const key of OVERRIDES) {
+    const before = target?.[key] ?? {};
+    const carried = source[key] ?? {};
+    for (const [name, value] of Object.entries(carried)) {
+      if (name in before && JSON.stringify(before[name]) !== JSON.stringify(value)) replaced += 1;
+    }
+    merged[key] = { ...before, ...carried };
+  }
+  const summary = {
+    journeys: Object.keys(source.journeyOverrides ?? {}).length,
+    conversations: Object.keys(source.conversationOverrides ?? {}).length,
+    replaced,
+  };
+  return { merged, summary };
+}
+
 function outboxItems(sourceRoot) {
   const path = join(sourceRoot, "mirror-append-outbox.json");
   if (!existsSync(path)) return 0;
@@ -123,20 +192,27 @@ export async function carry02State({ sourceRoot, recordedRoot = sourceRoot, targ
   const carried = CARRIED_ENTRIES.filter((entry) => existsSync(join(sourceRoot, entry)));
   const files = carried.flatMap((entry) => filesUnder(join(sourceRoot, entry)));
   const counts = { files: 0, values: 0 };
+  let headers = 0;
   for (const file of files) {
     if (structural(sourceRoot, file)) rewritten(file, recordedRoot, target, counts);
+    else if (piSession(sourceRoot, file)) headers += movedHeader(file, homePath) === undefined ? 0 : 1;
     else accessSync(file, constants.R_OK);
   }
+  const settingsPath = join(targetAppDataRoot, SETTINGS);
+  const settings = mergedSettings(readSettings(join(sourceRoot, SETTINGS)), readSettings(settingsPath));
   if (counts.values === 0 && files.some((file) => relative(sourceRoot, file).startsWith("pi-sessions/"))) {
     throw new Error(`the records name no Pi session in ${recordedRoot}/pi-sessions; if ${sourceRoot} is a snapshot, pass the folder they were recorded in with --recorded-as`);
   }
-  const plan = { homeId, target, carried, files: files.length, rewritten: counts, conversations };
+  const plan = { homeId, target, carried, files: files.length, rewritten: counts, headers, settings: settings?.summary ?? null, conversations };
   if (dryRun) return { dryRun: true, ...plan };
 
   mkdirSync(homes, { recursive: true, mode: 0o700 });
   const tag = randomBytes(6).toString("hex");
   const staging = join(homes, `.${homeId}.carrying-${tag}`);
   const previous = join(homes, `.${homeId}.before-carry-${tag}`);
+  const stagedSettings = `${settingsPath}.carrying-${tag}`;
+  const settingsBefore = existsSync(settingsPath) ? readFileSync(settingsPath) : undefined;
+  let settingsSwapped = false;
   mkdirSync(staging, { mode: 0o700 });
   try {
     if (existsSync(target)) {
@@ -147,16 +223,28 @@ export async function carry02State({ sourceRoot, recordedRoot = sourceRoot, targ
       const destination = join(staging, relative(sourceRoot, file));
       mkdirSync(dirname(destination), { recursive: true, mode: 0o700 });
       rmSync(destination, { force: true });
-      const text = structural(sourceRoot, file) ? rewritten(file, recordedRoot, target, written) : undefined;
+      const text = structural(sourceRoot, file) ? rewritten(file, recordedRoot, target, written)
+        : piSession(sourceRoot, file) ? movedHeader(file, homePath) : undefined;
       if (text === undefined) cpSync(file, destination, { preserveTimestamps: true });
       else writeFileSync(destination, text, { mode: statSync(file).mode & 0o777 });
     }
-    const receipt = { carriedAt: new Date().toISOString(), source: sourceRoot, recordedAs: recordedRoot, carried, files: files.length, rewritten: written, conversations };
+    const receipt = { carriedAt: new Date().toISOString(), source: sourceRoot, recordedAs: recordedRoot, carried, files: files.length, rewritten: written, headers, settings: plan.settings, conversations };
     writeFileSync(join(staging, RECEIPT), `${JSON.stringify(receipt, null, 2)}\n`, { flag: "wx", mode: 0o600 });
+    if (settings !== undefined) {
+      if (settingsBefore !== undefined) writeFileSync(join(staging, SETTINGS_BEFORE), settingsBefore, { flag: "wx", mode: 0o600 });
+      writeFileSync(stagedSettings, `${JSON.stringify(settings.merged, null, 2)}\n`, { flag: "wx", mode: 0o600 });
+      renameSync(stagedSettings, settingsPath);
+      settingsSwapped = true;
+    }
     if (existsSync(target)) renameSync(target, previous);
     renameSync(staging, target);
   } catch (error) {
     rmSync(staging, { recursive: true, force: true });
+    rmSync(stagedSettings, { force: true });
+    if (settingsSwapped) {
+      if (settingsBefore === undefined) rmSync(settingsPath, { force: true });
+      else writeFileSync(settingsPath, settingsBefore, { mode: 0o600 });
+    }
     if (existsSync(previous) && !existsSync(target)) renameSync(previous, target);
     throw error;
   }
@@ -182,6 +270,9 @@ async function main(argv) {
   console.log(`${dryRun ? "Would carry" : "Carried"} ${result.files} file(s) from ${sourceRoot} into ${result.target}`);
   console.log(`Entries: ${result.carried.join(", ")}`);
   console.log(`Session paths rewritten: ${result.rewritten.values} in ${result.rewritten.files} file(s); Conversations checked: ${result.conversations.length}`);
+  console.log(`Pi session headers moved to work in the home: ${result.headers}`);
+  const s = result.settings;
+  console.log(s ? `Model choices from 0.2: global profile, ${s.journeys} Journey and ${s.conversations} conversation override(s); ${s.replaced} 0.3 choice(s) replaced` : "Model choices: 0.2 has none");
   if (dryRun) console.log("Dry run: nothing was written. Add --write to carry.");
   return 0;
 }
