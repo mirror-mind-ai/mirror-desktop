@@ -3636,3 +3636,10 @@ Also seen: the rehearsal home's `backups/` holds `frontdoor-pre-write-backup.db`
 TypeScript core during the 0.3 turns; the rollback leaves it where it is.
 
 Production: database file hash and ledger (016) unchanged throughout; `~/mirror` untouched.
+
+**Extension ports merged (2026-11-01, Navigator's word), locally, not pushed:** `finances-ts-runtime`
+fast-forwarded into `~/Code/mirror-extensions` `main` (`c4383cb`); `atelier-drafts-ts-runtime` into
+`alissonvale-com` `main` (`1fa282f`), whose 7 uncommitted files of that Journey's own work were left
+as they were (no file in common). Production is unaffected: its home runs installed copies under
+`~/.mirror-minds/alisson-vale/extensions/`, not these checkouts. The rehearsal's scratch folders in
+`/private/tmp` were removed at the same word.
