@@ -3921,3 +3921,16 @@ there, and step 1 of the day quits 0.2. The terminal wiring on the day is Pi onl
 - The installed `/Applications/Mirror Desktop TS.app` (alpha.2, bound to `fred-soares`) will be
   offered alpha.3; that is the app the day of 5c uses.
 - Remaining before the day: the day-of script, run only at the Navigator's word.
+
+### 5c Day-of Runbook Written (2026-11-01)
+
+[Phase 5c — The Day: Runbook](phase-5c-day-runbook.md). Part A (the Navigator, in Terminal, with a
+Mirror-free Pi in the repository as lifeboat): 0.2 quit with its outbox empty, the web console
+stopped, `lsof` empty, 0.2 moved to `~/Mirror Backups`, the home renamed to `alisson-vale.pre-0.3`
+and cloned back, alpha.3 adopts the copy and quits before any Journey, the carry, then the bar in
+`mirror-desktop`. Part B (the agent in 0.3, one step per word): the machine policy first (its
+`mirror load` line moves from Python to `mirror mirror load`; the writing resolver was checked on
+018), the global Core, `~/.config/mirror/env`, Pi wiring only, and two checks: 0.3 still logs once,
+the terminal logs. The way back renames the homes back and also moves the 0.3 app aside, so it
+cannot reopen the restored 016 home. Measured for it: production at 016, 81 Journeys, 1,125
+Conversations, 51,316 messages, 675 MB; 88 GB free. Nothing ran.
