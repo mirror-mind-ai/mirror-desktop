@@ -2,7 +2,8 @@
 
 # CR172: Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3
 
-**Status:** captured
+**Status:** in_progress
+**Delivery:** `mirrormind-site` `main` (`0a68a5d`, local, not pushed)
 **Line:** 0.3 · the public site (`mirrormind-site`, Journey *Mirror Mind Website*)
 **Raised by:** the Navigator, 2026-11-01, to be done before the rest of this queue
 
@@ -131,3 +132,34 @@ catalogue, how Ariad relates) belongs to the rebrand and to the *Mirror Mind Web
 - Signing and notarization (CV-009), an Apple Silicon build, a Windows or Linux Desktop.
 - Rewriting the landing pages or *What is Mirror* beyond the links that point to the guides.
 - Any change to Core's own Getting Started.
+
+## Built (2026-11-01, Navigator's word "vai no mirrormind-site")
+
+Commit `0a68a5d` in `mirrormind-site`, local only. Not pushed and not deployed; each needs its own word.
+
+- **macOS (en, pt-br):** "Install your mirror. Then choose how you talk to it." Prepare (Node.js 24+,
+  OpenRouter, a subscription), `npm install -g mirror-mind`, `mirror init` + the key in
+  `~/.config/mirror/env` + `mirror seed`; then, under "choose how you talk to it", Pi
+  (`pi install "$(npm root -g)/mirror-mind"`, other runtimes by link to Core's Getting Started) and
+  Mirror Desktop as one self-contained block marked with an HTML comment, linking the `/ts/` alias.
+- **The Desktop block** says the assistant creates a mirror without a terminal (used from the app),
+  that the mirror created above is chosen in Settings › Choose Mirror home… (the app does not find it
+  on its own; alpha.3's notes), what adoption does, to use Pi rather than a Claude Code link (CR167),
+  Intel only with Apple Silicon untested, and *Open Anyway* in Privacy & Security for the first open.
+  That wording follows macOS 15+ behaviour for an app that is not notarized; it was not tried with a
+  quarantined download here (this machine runs macOS 26.6.2).
+- **Linux:** the same Core steps and Pi; Mirror Desktop not released for Linux.
+- **Windows:** "There is no Windows release today", why the installer is gone, and a link to Core.
+  The npm package on Windows is not mentioned.
+- **Landing pages:** only the line under the install buttons, which said "Install Mirror Mind first …
+  after Mirror Core is configured".
+- **README:** the harness-block structure and the `/ts/` download contract; `/alpha/` not to be linked.
+- **Checks:** no page mentions `uv`, `git clone`, `python -m memory`, `.env.example`, `/alpha/` or
+  the `v0.31.8` installer; all eight pages parse; all served 200 in the local preview; the English
+  macOS page was screenshotted.
+
+### Still owed
+
+- **The clean-account run** (acceptance): the commands were taken from Core 0.39's Getting Started,
+  not yet run on the `mirror` account.
+- The Navigator's review of the preview, then the push and the deploy, each with its own word.
