@@ -279,7 +279,9 @@ describe("Journey runtime integration guardrails", () => {
       "function publishSteeringConversation",
     );
     expect(postTerminalRecovery).toContain("postTerminalRecoveryRef.current");
-    expect(postTerminalRecovery).toContain('piInvocationOccupancy.status !== "known"');
+    // CR166: re-aimed, not relaxed. The guards now go through `postTerminalRecoveryRefusal` so each
+    // one is named; recovery still runs only while occupancy is known.
+    expect(postTerminalRecovery).toContain('occupancyKnown: piInvocationOccupancy.status === "known"');
     expect(postTerminalRecovery).toContain("turnFinalizationCoordinator.convergeDelivery(ownerJourneyId, convergenceDeps)");
     expect(postTerminalRecovery).not.toContain("provider(");
     expect(postTerminalRecovery).not.toContain("generatePacket(");

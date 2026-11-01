@@ -173,6 +173,11 @@ import {
   newestJournalRecordForThread,
   type PiSessionLeaf,
 } from "./strandedTurn";
+import {
+  describePostTerminalRecoveryOutcome,
+  postTerminalRecoveryRefusal,
+  type PostTerminalRecoveryOutcome,
+} from "./postTerminalRecoveryGate";
 import { deriveDeadChildRelease, describeDeadChildRelease } from "./deadChildRelease";
 import { FocusedSidebarResizeHandle } from "./FocusedSidebarResizeHandle";
 import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "./focusedSidebarWidthStorage";
@@ -743,6 +748,9 @@ export function App({ model }: AppProps) {
   const [piContextState, setPiContextState] = useState<PiContextState>("checking");
   const [isRetryingMirrorCommit, setIsRetryingMirrorCommit] = useState(false);
   const postTerminalRecoveryRef = useRef(false);
+  const [strandedRecoveryOutcome, setStrandedRecoveryOutcome] = useState<
+    { readonly runId: string; readonly outcome: PostTerminalRecoveryOutcome } | undefined
+  >(undefined);
   // CR086: synchronization attention derives from a per-Journey ledger of convergence
   // attempts, never from the first error string. A single transient failure stays internal.
   const [syncLedgers, setSyncLedgers] = useState<Record<string, JourneySynchronizationLedger | undefined>>({});
@@ -1505,6 +1513,12 @@ export function App({ model }: AppProps) {
     piLeaf: strandedPiLeaf,
   });
   const strandedTurnNotice = strandedTurn.stranded ? describeStrandedTurn(strandedTurn.record, strandedTurn.shape) : undefined;
+  // CR166: what the exit said when it was last pressed, for as long as the same turn is still
+  // stranded. A turn that is still stranded after a convergence is a turn whose record stayed open.
+  const strandedRecoveryMessage = strandedTurn.stranded
+    && strandedRecoveryOutcome?.runId === strandedTurn.record.authority.runId
+    ? describePostTerminalRecoveryOutcome(strandedRecoveryOutcome.outcome, true)
+    : undefined;
   // CR145: one measured fact — the OS says this workspace's child exited while its lease still says
   // running. Read from the native inspection, never from elapsed time or the renderer's belief.
   const deadChildRelease = deriveDeadChildRelease(piInvocationOccupancy, selectedWorkspace);
@@ -4178,8 +4192,7 @@ export function App({ model }: AppProps) {
     }
   }
 
-  async function recoverPostTerminalPersistence(ownerJourneyId: string) {
-    if (postTerminalRecoveryRef.current || piInvocationOccupancy.status !== "known") return;
+  async function recoverPostTerminalPersistence(ownerJourneyId: string): Promise<PostTerminalRecoveryOutcome> {
     // CR116: refuse only while Pi is really executing for this Journey. The previous guard used
     // the renderer's active-or-finalizing flag, which a settlement that stopped leaves set
     // forever — so the repair route declined exactly the state it exists to heal, and the
@@ -4188,10 +4201,18 @@ export function App({ model }: AppProps) {
     // CR138: Journey-grained deliberately. This repair touches the Journey's durable bookkeeping,
     // so any workspace in it that is still executing must hold it off, not only the one that
     // stalled.
-    if (hasActiveNativeExecutionInJourney(piInvocationOccupancy, ownerJourneyId)) return;
-    if (selectJourneyRuntimeEntries(journeyRuntimeStateRef.current, ownerJourneyId)
-      .some(isJourneyRuntimeStreaming)) return;
+    // CR166: the same guards in the same order, each now named, so an exit that is offered and
+    // held off says which guard held it instead of doing nothing.
+    const refusal = postTerminalRecoveryRefusal({
+      inFlight: postTerminalRecoveryRef.current,
+      occupancyKnown: piInvocationOccupancy.status === "known",
+      nativeExecutionActive: hasActiveNativeExecutionInJourney(piInvocationOccupancy, ownerJourneyId),
+      rendererStreaming: selectJourneyRuntimeEntries(journeyRuntimeStateRef.current, ownerJourneyId)
+        .some(isJourneyRuntimeStreaming),
+    });
+    if (refusal) return { kind: "refused", reason: refusal };
     postTerminalRecoveryRef.current = true;
+    let outcome: PostTerminalRecoveryOutcome = { kind: "converged" };
     setIsRetryingMirrorCommit(true);
     beginSyncAttempt(ownerJourneyId);
     try {
@@ -4207,11 +4228,13 @@ export function App({ model }: AppProps) {
       ));
     } catch (error) {
       recordSyncFailureOrDeferral(ownerJourneyId, error);
+      outcome = { kind: "failed", message: error instanceof Error ? error.message : String(error) };
     } finally {
       postTerminalRecoveryRef.current = false;
       setIsRetryingMirrorCommit(false);
       await refreshTurnJournalEvidence(ownerJourneyId);
     }
+    return outcome;
   }
 
   function publishSteeringConversation(next: JourneyConversation, identity: JourneyRunIdentity) {
@@ -6809,7 +6832,10 @@ export function App({ model }: AppProps) {
                   // The recovery that already exists and that a restart runs automatically. It is
                   // offered rather than taken: doing it unasked would be the braver heuristic this
                   // programme has repeatedly declined.
-                  void recoverPostTerminalPersistence(selectedJourney);
+                  const strandedRunId = strandedTurn.stranded ? strandedTurn.record.authority.runId : undefined;
+                  void recoverPostTerminalPersistence(selectedJourney).then((outcome) => {
+                    if (strandedRunId) setStrandedRecoveryOutcome({ runId: strandedRunId, outcome });
+                  });
                   // CR142's third recorded defect: recovery projects the answer and leaves the
                   // prompt sitting in the Composer, one Send away from asking it a second time.
                   updateComposerDrafts((current) => updateComposerDraft(
@@ -6825,6 +6851,7 @@ export function App({ model }: AppProps) {
                   setVisibleComposerDraft("");
                 }}
               >Recover this turn</button>
+              {strandedRecoveryMessage ? <p role="status">{strandedRecoveryMessage}</p> : null}
             </section>
           ) : null}
           {showBlockingTurnRecoveryNotice ? (

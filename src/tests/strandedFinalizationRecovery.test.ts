@@ -113,7 +113,9 @@ describe("CR116 — the repair route is reachable while finalization is stranded
     // repair refuses while Pi is really executing — and it is now explicitly Journey-wide,
     // because the repair touches the Journey's durable bookkeeping, not one workspace's.
     expect(recovery).toContain("hasActiveNativeExecutionInJourney(piInvocationOccupancy, ownerJourneyId)");
-    expect(recovery).toContain('piInvocationOccupancy.status !== "known"');
+    // CR166: re-aimed, not relaxed. The guards now go through `postTerminalRecoveryRefusal` so each
+    // one is named; recovery still runs only while occupancy is known.
+    expect(recovery).toContain('occupancyKnown: piInvocationOccupancy.status === "known"');
   });
 
   it("still refuses while this Journey's own run is streaming", () => {
