@@ -3,7 +3,7 @@
 # CR172: Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3
 
 **Status:** in_progress
-**Delivery:** `mirrormind-site` `main` (`0a68a5d`, local, not pushed)
+**Delivery:** `mirrormind-site` `main` (`0a68a5d`, `5a58c10`, `a5d3ac2`, local, not pushed)
 **Line:** 0.3 · the public site (`mirrormind-site`, Journey *Mirror Mind Website*)
 **Raised by:** the Navigator, 2026-11-01, to be done before the rest of this queue
 
@@ -163,3 +163,14 @@ Commit `0a68a5d` in `mirrormind-site`, local only. Not pushed and not deployed; 
 - **The clean-account run** (acceptance): the commands were taken from Core 0.39's Getting Started,
   not yet run on the `mirror` account.
 - The Navigator's review of the preview, then the push and the deploy, each with its own word.
+
+### Review rounds (2026-11-01)
+
+- **English approved** by the Navigator as built.
+- **pt-br (`5a58c10`):** the product is named "Mirror", never "espelho" ("Instale seu Mirror"); the
+  Codex Plus recommendation removed from the pt-br pages. The English pages keep it.
+- **Windows (`a5d3ac2`, the Navigator's "opção 2"):** an *Experimental: from a terminal* block over
+  the npm package, in Git Bash, with Pi from npm (`@earendil-works/pi-coding-agent`). It says the
+  path is unsupported, untested by us on Windows, outside Core's CI, and without owner-only file
+  protection, and that Core PR #45 (a per-user installer) is in review. Marked with an HTML comment
+  to be replaced by that installer.
