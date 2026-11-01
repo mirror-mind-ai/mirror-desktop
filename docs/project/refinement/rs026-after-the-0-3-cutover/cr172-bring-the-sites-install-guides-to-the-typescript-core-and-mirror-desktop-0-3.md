@@ -41,7 +41,46 @@ match the repository (`main` `acbe246`, 2026-09-18). Read on 2026-11-01:
   Windows product"*, though a package install on Windows can now update itself (PR #46, CR189).
 - **The site's README** states the same 0.2 download contract and the Core-first order.
 
-## Proposed Direction
+## Revised Direction (2026-11-01, after the Navigator named the rebrand)
+
+The Navigator plans to rebrand Mirror Desktop back to **Nautilus**: not a canonical application for
+using Mirror, but one harness in an ecosystem of harnesses built to the style and preference of
+different enthusiasts. The pages keep saying *Mirror Desktop* for now, and will soon present
+Nautilus as one option in an ecosystem that holds Mirror, Ariad (the method for traceable agent
+work, already a section of the site), Nautilus and others.
+
+That reverses the original direction's first point. **The guides put Mirror at the center and the
+harnesses around it**, which is the shape the rebrand needs, so this CR is not rewritten in weeks:
+
+1. **Install Mirror** is the guide's spine on macOS and Linux: the Core 0.39 steps (Node.js 24+,
+   `npm install -g mirror-mind`, `mirror init`, the OpenRouter key in `~/.config/mirror/env`,
+   `mirror seed`), linking to Core's Getting Started for detail.
+2. **Choose how you talk to it** follows, as parallel options of equal standing: the terminal
+   runtimes (Pi recommended, with its one wiring step; the others by link), and **Mirror Desktop**
+   on macOS (alpha, Intel, unsigned, the `/ts/` download). The Desktop option is one self-contained
+   block, so the rebrand changes its name, words and link in one place, and new harnesses are added
+   as siblings.
+3. **The Desktop block says it needs no terminal**: its assistant can create the Mirror itself, or
+   adopt one that exists. It is not presented as the way to use Mirror.
+4. Linux and Windows as in the original direction (points 4 and 5); both languages together.
+5. **The site's README** records the block structure and the `/ts/` download contract.
+
+What this CR still owns is correctness: stop teaching the Python Core, stop offering 0.2, stop
+linking the retired Windows installer. The ecosystem page itself (Nautilus by name, the harness
+catalogue, how Ariad relates) belongs to the rebrand and to the *Mirror Mind Website* Journey.
+
+### What the rebrand will have to decide, found here
+
+- **A harness's home should be every harness's home.** A Mirror created by Desktop's assistant lives
+  in `~/Mirror Homes/<name>` and writes no `~/.config/mirror/env`, so the terminal Core and other
+  harnesses do not find it. That fits a canonical app; it contradicts an ecosystem, where the
+  person's Mirror is one and the harnesses are interchangeable around it. Until it is decided, the
+  Desktop block says that a Mirror it creates is used from the app.
+- **The update channel carries the old name** (`updates.mirrormind.sh/mirror-desktop/ts/`). Installed
+  apps poll it, so the rebrand must keep it answering, or move it with a redirect the installed
+  updater follows. The site's download link moves with whatever the rebrand chooses.
+
+## Original Proposed Direction (superseded in part: points 1–3 and 6 by the revision above)
 
 1. **macOS leads with Mirror Desktop 0.3.** Download from
    `https://updates.mirrormind.sh/mirror-desktop/ts/downloads/macos/mirror-desktop-latest.dmg`
@@ -62,9 +101,8 @@ match the repository (`main` `acbe246`, 2026-09-18). Read on 2026-11-01:
 
 ## Open Questions for the Navigator
 
-- **Desktop-first on macOS?** The recommendation is yes: it is what CV-010 was built for, and it is
-  the only path without a terminal. The cost is that an unsigned app is the first thing a newcomer
-  meets.
+- ~~**Desktop-first on macOS?**~~ *Answered by the rebrand: Mirror at the center, the Desktop one
+  harness among the options.*
 - **Apple Silicon.** 0.3 ships an Intel build only. Whether it runs under Rosetta on Apple Silicon,
   including the bundled Node host and the app's own Pi, has not been measured. Until it is, the page
   says Intel only.
