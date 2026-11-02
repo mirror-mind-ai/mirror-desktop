@@ -61,7 +61,7 @@ The file (direction 1).
 - The screen says "kept on this Mac, in a file only you can read" instead of the Keychain.
 - Spec first; 6 mutation controls applied and caught. Full suites: 2501 TypeScript, 457 Rust.
 
-### Navigator check in development (owed)
+### Navigator check in development (done, 2026-11-02)
 
 The development build has its own Keychain item (`ai.mirrormind.desktop.ts.dev` / `openrouter`;
 its attributes were read, never its key).
@@ -71,3 +71,8 @@ its attributes were read, never its key).
 2. Send two more turns and wait ten minutes for a learning run: no prompt.
 3. The Driver checks that `openrouter-key.secret` exists in the development data folder, `0600`,
    and that the development Keychain item is gone (attributes only).
+
+Then: the Navigator ran the development build (compiled at 17:19 from `0a338ff`). At 18:02 the key
+was carried over: `openrouter-key.secret` exists, `-rw-------`, and the development Keychain item is
+gone. The Navigator saw no prompt after the first turn, and none over more turns and a learning
+run. What closes the CR is the same on production after the next alpha: one last prompt, then none.
