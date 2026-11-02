@@ -15,6 +15,7 @@ import {
 // the person's Claude Code hooks never run inside a Desktop turn (CR167), and the person's bridge
 // configuration is never read nor written, which also keeps AskClaude unregistered.
 
+const SETTING_SOURCES_CUT = 'settingSources: ["user"] as SettingSource[], // Mirror Desktop, CR176';
 const PROVIDER = join(dirname(fileURLToPath(import.meta.url)), "../../mirror-host/anthropic/provider");
 
 describe("CR173 the Desktop's Anthropic provider", () => {
@@ -82,7 +83,7 @@ describe("CR173 the Desktop's Anthropic provider", () => {
     expect(readdirSync(home)).toEqual([]);
   });
 
-  it("changes no upstream file but config.ts", () => {
+  it("changes no upstream file but config.ts and one line of index.ts", () => {
     const lines = readFileSync(join(PROVIDER, "UPSTREAM.sha256"), "utf8").trim().split("\n");
     const upstream = new Map(lines.map((line) => {
       const [hash, path] = line.split(/\s+/);
@@ -92,7 +93,21 @@ describe("CR173 the Desktop's Anthropic provider", () => {
     expect(vendored).toEqual([...upstream.keys()].sort());
     const changed = vendored.filter((path) =>
       createHash("sha256").update(readFileSync(join(PROVIDER, path))).digest("hex") !== upstream.get(path));
-    expect(changed).toEqual(["src/config.ts"]);
+    expect(changed).toEqual(["src/config.ts", "src/index.ts"]);
+    // CR176: index.ts is upstream's plus one line, so it stays a copy plus one cut.
+    const index = readFileSync(join(PROVIDER, "src/index.ts"), "utf8");
+    const cut = index.split("\n").filter((line) => line.includes(SETTING_SOURCES_CUT));
+    expect(cut).toHaveLength(1);
+    const withoutCut = index.split("\n").filter((line) => !line.includes(SETTING_SOURCES_CUT)).join("\n");
+    expect(createHash("sha256").update(withoutCut).digest("hex")).toBe(upstream.get("src/index.ts"));
+  });
+
+  it("starts the turn's Claude Code with the person's settings only, never a project's (CR176)", () => {
+    // A project's .claude/settings.json can run a command (apiKeyHelper) and set the environment;
+    // measured to run inside a Desktop turn once turns work in the Journey's folder.
+    const index = readFileSync(join(PROVIDER, "src/index.ts"), "utf8");
+    const options = index.slice(index.indexOf("const queryOptions: NonNullable<"), index.indexOf("systemPrompt: {", index.indexOf("const queryOptions: NonNullable<")));
+    expect(options).toContain(SETTING_SOURCES_CUT);
   });
 
   it("records where it came from and what it changed", () => {

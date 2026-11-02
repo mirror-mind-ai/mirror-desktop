@@ -38,7 +38,7 @@ describe("Mirror-mediated Pi invocation", () => {
     expect(tauriMainSource).toContain("active_runtime_channel");
     // CV-010.DS-005 slice 2e: one isolated constructor, in the 0.3 home, for every mode; no Mirror
     // skills from a Python checkout (Mirror context returns through the host in phase 3).
-    expect(tauriMainSource).toContain("pi_turn_command(&command, args, &profile)");
+    expect(tauriMainSource).toContain("pi_turn_command(&command, args, &profile, &workspace)");
     expect(tauriMainSource).toContain("run_authority.pi_session_file");
     expect(tauriMainSource).toContain("args.extend(mediated_turn_flags(&global_extensions))");
     expect(tauriMainSource).not.toContain("mirror_runtime_skill_paths");

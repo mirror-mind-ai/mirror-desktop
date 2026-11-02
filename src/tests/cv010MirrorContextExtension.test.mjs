@@ -81,7 +81,7 @@ describe("the turn's context", () => {
 describe("the turn that carries it", () => {
   it("asks for context with what the person typed, before Pi starts, and never in place of the turn", () => {
     const start = mainSource.indexOf("// CV-010.DS-005 slice 3d: Mirror's context before the model");
-    const spawn = mainSource.indexOf("let mut process_command = pi_turn_command(&command, args, &profile);");
+    const spawn = mainSource.indexOf("let mut process_command = pi_turn_command(&command, args, &profile, &workspace);");
     expect(start).toBeGreaterThan(0);
     expect(start).toBeLessThan(spawn);
     const block = mainSource.slice(start, mainSource.indexOf("let use_stdin = ", start));

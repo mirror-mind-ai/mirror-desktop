@@ -2034,6 +2034,7 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 		env: childEnv,
 		tools: [],
 		permissionMode: "bypassPermissions",
+		settingSources: ["user"] as SettingSource[], // Mirror Desktop, CR176
 		includePartialMessages: true,
 		// includeGitInstructions:false drops the gitStatus block from the preset.
 		// That block is the trailing suffix of the cached system block, and a
