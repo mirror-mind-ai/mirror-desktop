@@ -141,7 +141,8 @@ describe("runtime channel configuration", () => {
   });
 
   it("routes Mirror operations through a persisted binding without production fallback", () => {
-    // CV-010.DS-005 slice 2d-1: the profile is the 0.3 home binding; no Mirror variable, no uv.
+    // CV-010.DS-005 slice 2d-1: the profile is the 0.3 home binding; no uv. CR177: the Mirror
+    // variables name that binding.
     expect(runtimeChannelSource).toContain("load_home_binding(&app_data_root)");
     expect(runtimeChannelSource).toContain('join(channel.bundle_identifier())');
     expect(runtimeChannelSource).not.toContain("alisson-vale");
@@ -150,7 +151,6 @@ describe("runtime channel configuration", () => {
     expect(runtimeChannelSource).toContain('.env("MIRROR_USER", home_folder_name)');
     expect(runtimeChannelSource).toContain('.env("DB_PATH", &self.db_path)');
     expect(runtimeChannelSource).toContain('.env_remove("MEMORY_DIR")');
-    expect(runtimeChannelSource).not.toContain('.env("MIRROR_HOME"');
     expect(runtimeChannelSource).toContain('.env("PATH"');
     expect(runtimeChannelSource).toContain('if program == "uv" {\n            return Err(UV_RETIRED.to_string());');
     expect(runtimeChannelSource).toContain('.nvm/versions/node');
