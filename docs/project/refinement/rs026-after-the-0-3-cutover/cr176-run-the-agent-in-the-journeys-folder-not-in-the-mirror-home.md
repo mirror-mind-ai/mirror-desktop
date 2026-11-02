@@ -137,6 +137,12 @@ user. A development Desktop on a rehearsal home that follows such a skill writes
 A Journey with a project path answers "which directory are we in?" with it; one without answers
 `~/Mirror Journeys/<journey>`; a file written without a path lands there; nothing new in the home.
 
+**Reported 2026-11-02:** "deu tudo certo nos testes." On disk afterwards: the session used in dev
+has its header anchored at `~/.mirror-journeys/vida-tecnica` (the Journey's project path), and the
+home `ensaio-5c-2` holds nothing new besides `memory.db` and `backups/`. `~/Mirror Journeys` does
+not exist, so the case of a Journey without a project path left no trace; confirmation asked of
+the Navigator before closing.
+
 ## Acceptance
 
 - Spec first: the working directory is the Journey's project path, else its neutral folder, never
