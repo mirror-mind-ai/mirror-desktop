@@ -48,3 +48,23 @@ Production without a turn: 0.8% waiting. Development during a turn on 80 KB: 4.4
 during a turn on 31.7 MB: 42%. The animation-only hypothesis is refuted; the cost needs a turn and
 the long conversation. Next: a page timeline on a conversation of production's size, in the
 development build.
+
+## Rehearsal of Production's Size (Navigator, 2026-11-02)
+
+The Navigator authorized copying the `mirror-desktop` conversation into a rehearsal, so the page can
+be inspected in the development build at production's size.
+
+- New marked home `~/Mirror Homes/ensaio-cr185` (`home-cb4f0735-bdd0-443a-b32d-b6c7a621dc06`),
+  created by the pinned core, with Journey `mirror-desktop` added through the host.
+- Copied into the development data folder, for that home only: the thread, the projections
+  (`dedicated-journey-conversations/mirror-desktop`), the segments and the six `mirror-desktop` Pi
+  sessions: 146 files, 483 MB. Every occurrence of production's home data path (2,376) was
+  rewritten to the rehearsal's; the thread is marked `development` (CR168 would refuse it
+  otherwise). After the copy, no `piSessionFile`, `sessionFile` or `absolutePath` field points at
+  production; the remaining mentions are inside message text.
+- The bound Mirror conversation `20f40b74` (1,580 messages) was copied from an APFS clone of
+  production's database into the rehearsal's; the clone was deleted. Production was only read.
+- The development binding moved to `ensaio-cr185`; the previous one is kept as
+  `runtime-home.v2.json.before-cr185`.
+
+Owed: the page timeline during a turn, then removing the rehearsal and restoring the binding.

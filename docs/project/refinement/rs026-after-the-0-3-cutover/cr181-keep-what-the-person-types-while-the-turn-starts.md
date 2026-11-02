@@ -52,3 +52,5 @@ draft **and the visible composer**, by then holding only what the person typed s
 
 The composer group's check ([RS026](index.md#composer-group-check)): the Navigator confirmed all
 three steps in development. Closed; it reaches production with the next alpha.
+
+**Shipped in [v0.3.0-alpha.9](../../../releases/v0.3.0-alpha.9.md)** (2026-11-02).
