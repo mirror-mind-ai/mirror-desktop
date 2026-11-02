@@ -2,7 +2,7 @@
 
 # CR179: Read a Table Whose Delimiter Has Fewer Than Three Hyphens
 
-**Status:** captured
+**Status:** in_progress
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -30,6 +30,14 @@ the paragraph, together with the text after the table.
 - Spec first, with the three delimiters above, and a control that a row of plain text between pipes
   is still not a delimiter.
 - Check the compact reader (`parseCompactTable`) against the same rule, so the two cannot disagree.
+
+## Delivered on `main` (`2b43d6b`)
+
+- `parseTableAlignments` accepts `^(:)?-+(:)?$`. The compact reader shares it, so both agree.
+- An older control in `messageContent.test.ts` asserted that `A | B` / `--|---` / `1 | 2` is a
+  paragraph: it held the defect as a rule. It now expects the table GFM reads there.
+- Spec first (the 2026-11-02 queue answer among the cases); 3 mutation controls, each applied and
+  caught. Full suite: 2491 TypeScript.
 
 ## Acceptance
 
