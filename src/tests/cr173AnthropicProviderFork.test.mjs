@@ -1,25 +1,26 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   claudeCodeSettings,
   loadConfig,
   markAskClaudeDeprecationNoticeShown,
   markStartupNoticeShown,
-} from "../../mirror-host/anthropic/provider/src/config";
+} from "../../mirror-host/anthropic/provider/src/config.ts";
 
 // CR173: the Desktop's own Anthropic provider, a pinned fork of pi-claude-bridge 0.9.3. Its cuts:
 // the person's Claude Code hooks never run inside a Desktop turn (CR167), and the person's bridge
 // configuration is never read nor written, which also keeps AskClaude unregistered.
 
-const PROVIDER = join(__dirname, "../../mirror-host/anthropic/provider");
+const PROVIDER = join(dirname(fileURLToPath(import.meta.url)), "../../mirror-host/anthropic/provider");
 
 describe("CR173 the Desktop's Anthropic provider", () => {
-  let home: string;
-  let previousHome: string | undefined;
-  let previousAgentDir: string | undefined;
+  let home;
+  let previousHome;
+  let previousAgentDir;
 
   beforeEach(() => {
     home = realpathSync(mkdtempSync(join(tmpdir(), "cr173-")));
@@ -85,7 +86,7 @@ describe("CR173 the Desktop's Anthropic provider", () => {
     const lines = readFileSync(join(PROVIDER, "UPSTREAM.sha256"), "utf8").trim().split("\n");
     const upstream = new Map(lines.map((line) => {
       const [hash, path] = line.split(/\s+/);
-      return [path, hash] as const;
+      return [path, hash];
     }));
     const vendored = readdirSync(join(PROVIDER, "src")).map((name) => `src/${name}`).sort();
     expect(vendored).toEqual([...upstream.keys()].sort());
