@@ -88,6 +88,8 @@ Navigator's development validation (2026-11-02): two Desktop turns on Anthropic 
 `ensaio-5c-2`, one conversation of 4 messages, no `claude_code` conversation. The release re-run
 folds into the first alpha that carries it.
 
+**Shipped in [v0.3.0-alpha.5](../../../releases/v0.3.0-alpha.5.md)** (2026-11-02, tag at `767b6ec`); the release re-run is the Navigator's first use of it.
+
 ## Acceptance
 
 - The 2026-11-02 sandbox (`/private/tmp/cr167-repro` recipe above), run against the Desktop's own

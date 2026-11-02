@@ -89,6 +89,8 @@ conversation. **Closed by the Navigator on this development validation** ("teste
 The release-build re-run below folds into the first alpha that carries CR173 rather than holding the
 CR open.
 
+**Shipped in [v0.3.0-alpha.5](../../../releases/v0.3.0-alpha.5.md)** (2026-11-02, tag at `767b6ec`); the release re-run is the Navigator's first use of it.
+
 ### Departures from the direction
 
 - **AskClaude is unreachable, not deleted.** It registers only when `askClaude.enabled` is set, and

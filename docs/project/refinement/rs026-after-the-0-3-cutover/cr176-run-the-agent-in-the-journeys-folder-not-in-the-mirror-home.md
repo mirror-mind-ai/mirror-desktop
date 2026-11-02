@@ -147,6 +147,8 @@ the Navigator before closing.
 and its session's header is anchored there. **Closed by the Navigator on this development
 validation**; the release re-run folds into the alpha that carries it.
 
+**Shipped in [v0.3.0-alpha.5](../../../releases/v0.3.0-alpha.5.md)** (2026-11-02, tag at `767b6ec`); the release re-run is the Navigator's first use of it.
+
 ## Acceptance
 
 - Spec first: the working directory is the Journey's project path, else its neutral folder, never
