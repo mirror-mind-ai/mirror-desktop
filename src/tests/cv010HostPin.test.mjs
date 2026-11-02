@@ -196,8 +196,11 @@ describe("the 0.3 runtime pin", () => {
     mkdirSync(bundle, { recursive: true });
     writeFileSync(join(bundle, "stale.txt"), "from an older stage");
     stageBundle({ root, pin: realPin, platform, runtimeDir: outDir, outDir: bundle });
-    expect(readdirSync(bundle).sort()).toEqual(["host.mjs", "mirror-context.mjs", "node", "node_modules", "pi", "pi-auth.mjs", "pi-install.mjs", "pin-receipt.json"]);
+    expect(readdirSync(bundle).sort()).toEqual(["anthropic", "host.mjs", "mirror-context.mjs", "node", "node_modules", "pi", "pi-auth.mjs", "pi-install.mjs", "pin-receipt.json"]);
     expect(readdirSync(join(bundle, "pi"))).toEqual(["package-lock.json"]);
+    // CR173: the Anthropic provider's source and lockfile; its packages are installed on demand.
+    expect(readdirSync(join(bundle, "anthropic")).sort()).toEqual(["package-lock.json", "provider"]);
+    expect(existsSync(join(bundle, "anthropic", "provider", "src", "index.ts"))).toBe(true);
     expect(readdirSync(join(bundle, "node")).sort()).toEqual(["LICENSE", "bin"]);
     expect(readdirSync(join(bundle, "node", "bin"))).toEqual(["node"]);
     expect(statSync(join(bundle, "node", "bin", "node")).mode & 0o111).toBe(0o111);

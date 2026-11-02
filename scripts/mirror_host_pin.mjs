@@ -24,6 +24,11 @@
 // the receipt records both hashes. `scriptsNotRun` names the packages that declare an install
 // script, which the installer never runs; a new pin that adds one fails `verify` until it is read.
 //
+// CR173 adds the Desktop's own Anthropic provider, installed by the same installer on demand:
+// `pin.anthropic` records the vendored fork (`mirror-host/anthropic/provider/`, named by a hash of
+// its files), its lockfile's SHA-256, the Agent SDK version and the Claude Code it ships. The
+// runtime carries the source and the lockfile, and the receipt records both hashes.
+//
 // Known gap: SHASUMS256.txt is signed by Node's releasers, and this machine has no gpg, so the
 // recorded hashes were taken from the file over HTTPS, not from a verified signature.
 
@@ -32,6 +37,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { chmodSync, copyFileSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CLAUDE_AGENT_SDK, readLockfile, treeSha256 } from "../mirror-host/pi-install.mjs";
 
 export const MIN_NODE_VERSION = "24.21.0";
 export const PLATFORMS = ["darwin-arm64", "darwin-x64"];
@@ -97,6 +103,7 @@ export function validatePin(pin, root) {
   if (!yamlTarball || !existsSync(yamlTarball)) problems.push("yaml tarball is missing");
   else if (sha512Integrity(yamlTarball) !== yaml.integrity) problems.push("yaml tarball integrity does not match the pin");
   problems.push(...validatePiPin(pin, root));
+  problems.push(...validateAnthropicPin(pin, root));
   return problems;
 }
 
@@ -124,6 +131,39 @@ export function validatePiPin(pin, root) {
   const scripted = entries.filter(([, entry]) => entry.hasInstallScript).map(([path]) => path.slice(path.lastIndexOf("node_modules/") + 13)).sort();
   if (JSON.stringify(scripted) !== JSON.stringify([...(pi.scriptsNotRun ?? [])].sort())) {
     problems.push(`the packages with install scripts are ${scripted.join(", ")}, not the ones the pin read (${(pi.scriptsNotRun ?? []).join(", ")})`);
+  }
+  return problems;
+}
+
+/** Every problem with `pin.anthropic`, its source and its lockfile, or none. */
+export function validateAnthropicPin(pin, root) {
+  const anthropic = pin?.anthropic;
+  if (!anthropic) return ["the Anthropic provider is not pinned"];
+  const lockfile = anthropic.lockfile ? join(root, anthropic.lockfile) : "";
+  if (!lockfile || !existsSync(lockfile)) return ["the Anthropic provider's lockfile is missing"];
+  if (sha256File(lockfile) !== anthropic.lockfileSha256) return ["the Anthropic provider's lockfile sha256 does not match the pin"];
+  const problems = [];
+  const source = anthropic.source ? join(root, anthropic.source) : "";
+  if (!source || !existsSync(join(source, "src", "index.ts"))) problems.push("the Anthropic provider's source is missing");
+  else if (treeSha256(source) !== anthropic.sourceSha256) problems.push("the Anthropic provider's source does not match the pin");
+  const bytes = readFileSync(lockfile);
+  const packages = JSON.parse(bytes.toString("utf8")).packages ?? {};
+  const entries = Object.entries(packages).filter(([path]) => path !== "");
+  if (packages[`node_modules/${CLAUDE_AGENT_SDK}`]?.version !== anthropic.claudeAgentSdk) {
+    problems.push(`the Anthropic provider's lockfile does not hold ${CLAUDE_AGENT_SDK} ${anthropic.claudeAgentSdk}`);
+  }
+  if (entries.length !== anthropic.packages) problems.push(`the Anthropic provider's lockfile holds ${entries.length} packages, the pin ${anthropic.packages}`);
+  const scripted = entries.filter(([, entry]) => entry.hasInstallScript).map(([path]) => path);
+  if (scripted.length > 0) problems.push(`the Anthropic provider's lockfile has packages with install scripts: ${scripted.join(", ")}`);
+  for (const platform of PLATFORMS) {
+    const [os, arch] = platform.split("-");
+    try {
+      const laid = readLockfile(bytes, anthropic.lockfileSha256, { platform: os, arch }).packages;
+      const binary = laid.find((entry) => entry.path === `node_modules/${CLAUDE_AGENT_SDK}-${platform}`);
+      if (binary?.version !== anthropic.claudeAgentSdk) problems.push(`the Anthropic provider's lockfile holds no Claude Code ${anthropic.claudeAgentSdk} for ${platform}`);
+    } catch (error) {
+      problems.push(`the Anthropic provider's lockfile is refused: ${error.message}`);
+    }
   }
   return problems;
 }
@@ -161,6 +201,9 @@ export function layoutHost({ root, pin, outDir, node = null }) {
   copyFileSync(join(root, MIRROR_CONTEXT_PATH), join(outDir, "mirror-context.mjs"));
   mkdirSync(join(outDir, "pi"));
   copyFileSync(join(root, pin.pi.lockfile), join(outDir, "pi", "package-lock.json"));
+  mkdirSync(join(outDir, "anthropic"));
+  copyFileSync(join(root, pin.anthropic.lockfile), join(outDir, "anthropic", "package-lock.json"));
+  cpSync(join(root, pin.anthropic.source), join(outDir, "anthropic", "provider"), { recursive: true });
   writeFileSync(join(outDir, "pin-receipt.json"), `${JSON.stringify({
     schemaVersion: "1.0.0",
     ...(node ?? {}),
@@ -168,6 +211,7 @@ export function layoutHost({ root, pin, outDir, node = null }) {
     yaml: { version: pin.core.dependencies.yaml.version, integrity: pin.core.dependencies.yaml.integrity },
     host: { sha256: sha256File(join(root, HOST_SCRIPT_PATH)) },
     pi: { package: pin.pi.package, version: pin.pi.version, lockfileSha256: pin.pi.lockfileSha256 },
+    anthropic: { sourceSha256: pin.anthropic.sourceSha256, lockfileSha256: pin.anthropic.lockfileSha256, claudeCode: pin.anthropic.claudeCode },
     piInstaller: { sha256: sha256File(join(root, PI_INSTALLER_PATH)) },
     piAuth: { sha256: sha256File(join(root, PI_AUTH_PATH)) },
     mirrorContext: { sha256: sha256File(join(root, MIRROR_CONTEXT_PATH)) },
@@ -268,6 +312,18 @@ export function checkRuntime({ root, pin, platform, dir }) {
   }
   const lockCopy = join(dir, "pi", "package-lock.json");
   if (!existsSync(lockCopy) || sha256File(lockCopy) !== receipt.pi?.lockfileSha256) problems.push("the runtime's Pi lockfile is not the one its receipt records");
+  if (receipt.anthropic?.sourceSha256 !== pin.anthropic.sourceSha256 || receipt.anthropic?.lockfileSha256 !== pin.anthropic.lockfileSha256
+    || receipt.anthropic?.claudeCode !== pin.anthropic.claudeCode) {
+    problems.push("the runtime's Anthropic provider pin is not the current one; rematerialize with --replace");
+  }
+  const anthropicLock = join(dir, "anthropic", "package-lock.json");
+  if (!existsSync(anthropicLock) || sha256File(anthropicLock) !== receipt.anthropic?.lockfileSha256) {
+    problems.push("the runtime's Anthropic provider lockfile is not the one its receipt records");
+  }
+  const anthropicSource = join(dir, "anthropic", "provider");
+  if (!existsSync(anthropicSource) || treeSha256(anthropicSource) !== receipt.anthropic?.sourceSha256) {
+    problems.push("the runtime's Anthropic provider source is not the one its receipt records");
+  }
   const installer = join(dir, "pi-install.mjs");
   if (!existsSync(installer) || sha256File(installer) !== receipt.piInstaller?.sha256) problems.push("the runtime's pi-install.mjs is not the one its receipt records");
   const host = join(dir, "host.mjs");
@@ -281,7 +337,7 @@ export function checkRuntime({ root, pin, platform, dir }) {
 }
 
 /** What the app carries from a runtime: npm, corepack and Node's headers stay behind. */
-export const BUNDLE_ENTRIES = ["host.mjs", "pin-receipt.json", "node/bin/node", "node/LICENSE", "node_modules", "pi-install.mjs", "pi-auth.mjs", "mirror-context.mjs", "pi"];
+export const BUNDLE_ENTRIES = ["host.mjs", "pin-receipt.json", "node/bin/node", "node/LICENSE", "node_modules", "pi-install.mjs", "pi-auth.mjs", "mirror-context.mjs", "pi", "anthropic"];
 
 /**
  * Copy `BUNDLE_ENTRIES` of the runtime at `runtimeDir` into `outDir`, replacing it, all or
