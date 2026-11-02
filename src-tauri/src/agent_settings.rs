@@ -1,4 +1,3 @@
-use crate::pi_global_extensions::resolve_global_pi_extensions;
 use crate::runtime_channel::RuntimeChannelProfile;
 use serde::Serialize;
 use serde_json::Value;
@@ -89,8 +88,7 @@ fn pi_model_catalog_command(profile: &RuntimeChannelProfile) -> Result<Command, 
 fn pi_invocation_catalog_command(profile: &RuntimeChannelProfile) -> Result<Command, String> {
     let mut command = pi_model_catalog_command(profile)?;
     command.arg("--no-extensions");
-    let home = crate::current_user_home_directory()?;
-    for entry in resolve_global_pi_extensions(&home.join(".pi").join("agent")).entries {
+    for entry in profile.pi_extensions().entries {
         command.arg("--extension").arg(entry);
     }
     Ok(command)

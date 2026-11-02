@@ -12,13 +12,18 @@ const MIRROR_PACKAGE: &str = "mirror-mind";
 const EXTENSION_FILE_SUFFIXES: [&str; 4] = [".ts", ".js", ".mjs", ".cjs"];
 
 pub fn resolve_global_pi_extensions(pi_agent_dir: &Path) -> GlobalExtensionResolution {
+    resolve_global_pi_extensions_except(pi_agent_dir, &[])
+}
+
+/// CR173: as above, without the npm packages the Desktop `replaced` with its own copy.
+pub fn resolve_global_pi_extensions_except(pi_agent_dir: &Path, replaced: &[&str]) -> GlobalExtensionResolution {
     let mut resolution = GlobalExtensionResolution { entries: Vec::new(), skipped: Vec::new() };
-    resolve_settings_packages(pi_agent_dir, &mut resolution);
+    resolve_settings_packages(pi_agent_dir, replaced, &mut resolution);
     resolve_user_extensions_dir(pi_agent_dir, &mut resolution);
     resolution
 }
 
-fn resolve_settings_packages(pi_agent_dir: &Path, resolution: &mut GlobalExtensionResolution) {
+fn resolve_settings_packages(pi_agent_dir: &Path, replaced: &[&str], resolution: &mut GlobalExtensionResolution) {
     let settings_path = pi_agent_dir.join("settings.json");
     if !settings_path.is_file() {
         return;
@@ -47,6 +52,12 @@ fn resolve_settings_packages(pi_agent_dir: &Path, resolution: &mut GlobalExtensi
         if name == MIRROR_PACKAGE {
             resolution.skipped.push(format!(
                 "Global Pi package '{}' was refused: Mirror Desktop TS reaches Mirror only through its own host.", source
+            ));
+            continue;
+        }
+        if replaced.contains(&name) {
+            resolution.skipped.push(format!(
+                "Global Pi package '{}' was not loaded: Mirror Desktop TS runs its own copy.", source
             ));
             continue;
         }

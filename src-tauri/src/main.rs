@@ -1,4 +1,5 @@
 mod agent_settings;
+mod anthropic_provider;
 mod home_state;
 mod journey_appearance;
 mod mirror_home;
@@ -33,7 +34,6 @@ use native_panic_trace::{
     clear_panic_turn_context, install_panic_trace_hook, native_panic_trace_path,
     set_panic_turn_context, PanicTurnContext,
 };
-use pi_global_extensions::resolve_global_pi_extensions;
 use pi_process_registry::{
     control_bounded_child_handles, control_child_handle, join_before_continuation,
     terminalize_attempt,
@@ -3762,9 +3762,9 @@ async fn suggest_desktop_conversation_title(
         excerpts.join("\n\n")
     );
     let profile = active_runtime_channel()?;
-    let extension_args: Vec<String> = current_user_home_directory()
-        .map(|home| resolve_global_pi_extensions(&home.join(".pi").join("agent")).entries)
-        .unwrap_or_default()
+    let extension_args: Vec<String> = profile
+        .pi_extensions()
+        .entries
         .into_iter()
         .flat_map(|entry| ["--extension".to_string(), entry.to_string_lossy().into_owned()])
         .collect();
@@ -3850,15 +3850,13 @@ fn run_manual_compaction(
     session_file: &str,
     custom_instructions: Option<&str>,
 ) -> Result<PiCompactionResult, String> {
+    let profile = active_runtime_channel()?;
     let global_extensions = if config.invocation_mode == "mirror" {
-        current_user_home_directory()
-            .map(|home| resolve_global_pi_extensions(&home.join(".pi").join("agent")).entries)
-            .unwrap_or_default()
+        profile.pi_extensions().entries
     } else {
         Vec::new()
     };
     let args = manual_compaction_args(config, session_file, &global_extensions);
-    let profile = active_runtime_channel()?;
     let mut command = pi_turn_command(&config.command, args, &profile);
     let mut child = command
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
@@ -7629,8 +7627,9 @@ fn isolate_pi_command(mut command: Command, profile: &RuntimeChannelProfile) -> 
     command
 }
 
-/// The flags a Mirror-mediated turn adds: approval, no auto-discovered extensions, and the global
-/// extensions named explicitly (conversation writers and Mirror's package already refused).
+/// The flags a Mirror-mediated turn adds: approval, no auto-discovered extensions, and the profile's
+/// extensions named explicitly (conversation writers and Mirror's package already refused; the
+/// app's own Anthropic provider first when installed, CR173).
 fn mediated_turn_flags(global_extensions: &[PathBuf]) -> Vec<String> {
     let mut flags = vec!["--approve".to_string(), "--no-extensions".to_string()];
     for entry in global_extensions {
@@ -7997,9 +7996,8 @@ fn run_pi_process_unguarded(
     }
     if mirror_mediated {
         args.retain(|arg| arg != "--approve" && arg != "--no-approve");
-        let global_extensions = match current_user_home_directory() {
-            Ok(home) => {
-                let resolution = resolve_global_pi_extensions(&home.join(".pi").join("agent"));
+        let global_extensions = match active_runtime_channel().map(|profile| profile.pi_extensions()) {
+            Ok(resolution) => {
                 for note in resolution.skipped {
                     emit(&app, &authority, PiProcessEventKind::Stderr, note);
                 }
@@ -10205,6 +10203,7 @@ fn main() {
             adopt_mirror_home,
             create_mirror_home,
             pi_install::install_pi,
+            pi_install::install_anthropic_provider,
             pi_auth::inspect_pi_providers,
             pi_auth::start_pi_login,
             pi_auth::answer_pi_login,

@@ -25,6 +25,8 @@ pub struct RuntimeChannelProfile {
     node_bin: PathBuf,
     pi_runtime_directory: PathBuf,
     home: PathBuf,
+    /// CR173: the app's own Anthropic provider's Pi extension, when it is installed.
+    anthropic_provider: Option<PathBuf>,
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq, Eq)]
@@ -315,7 +317,8 @@ impl RuntimeChannelProfile {
         let runtime_dir = crate::mirror_host_bridge::current_runtime_dir()?;
         let pi = crate::pi_toolchain::resolve_app_pi(&app_data_root, &runtime_dir)?;
         let node_directory = pi.node_bin.parent().map(Path::to_path_buf).unwrap_or_else(|| runtime_dir.clone());
-        Ok(Self::from_home(channel, &home, &marked, pi.pi_bin, pi.node_bin, node_directory))
+        let anthropic_provider = crate::anthropic_provider::resolve_app_anthropic(&app_data_root, &runtime_dir).ok();
+        Ok(Self::from_home(channel, &home, &marked, pi.pi_bin, pi.node_bin, node_directory).with_anthropic_provider(anthropic_provider))
     }
 
     pub(crate) fn from_home(
@@ -339,6 +342,29 @@ impl RuntimeChannelProfile {
             node_bin,
             pi_runtime_directory,
             home: home.to_path_buf(),
+            anthropic_provider: None,
+        }
+    }
+
+    pub(crate) fn with_anthropic_provider(self, anthropic_provider: Option<PathBuf>) -> Self {
+        Self { anthropic_provider, ..self }
+    }
+
+    /// The extensions every Pi invocation the Desktop makes loads by name, auto-discovery off: the
+    /// person's global ones (Mirror's package and conversation writers refused) and, once installed,
+    /// the app's own Anthropic provider, first, in place of the person's `pi-claude-bridge` (CR173).
+    pub fn pi_extensions(&self) -> crate::pi_global_extensions::GlobalExtensionResolution {
+        let agent = self.home.join(".pi").join("agent");
+        match &self.anthropic_provider {
+            Some(entry) => {
+                let mut resolution = crate::pi_global_extensions::resolve_global_pi_extensions_except(
+                    &agent,
+                    &[crate::anthropic_provider::UPSTREAM_PACKAGE],
+                );
+                resolution.entries.insert(0, entry.clone());
+                resolution
+            }
+            None => crate::pi_global_extensions::resolve_global_pi_extensions(&agent),
         }
     }
 
@@ -424,6 +450,46 @@ impl RuntimeChannelProfile {
 #[cfg(test)]
 mod tests {
     use super::{runtime_search_directories, RuntimeChannel, RuntimeChannelProfile};
+
+    #[test]
+    fn the_desktops_anthropic_provider_replaces_the_persons_bridge() {
+        // CR173: when the app's own provider is installed it goes first, and the person's
+        // `pi-claude-bridge` is not loaded; without it, the person's bridge is still borrowed.
+        let home = std::env::temp_dir().join(format!("cr173-profile-{}-{:?}", std::process::id(), std::thread::current().id()));
+        let _ = std::fs::remove_dir_all(&home);
+        let agent = home.join(".pi/agent");
+        for (name, entry) in [("pi-claude-bridge", "src/index.ts"), ("pi-gmail", "index.ts")] {
+            let package = agent.join("npm/node_modules").join(name);
+            std::fs::create_dir_all(package.join(entry).parent().unwrap()).unwrap();
+            std::fs::write(package.join("package.json"), format!(r#"{{"pi":{{"extensions":["./{entry}"]}}}}"#)).unwrap();
+            std::fs::write(package.join(entry), "export default {}\n").unwrap();
+        }
+        std::fs::write(agent.join("settings.json"), r#"{"packages":["npm:pi-claude-bridge","npm:pi-gmail"]}"#).unwrap();
+        let profile = RuntimeChannelProfile::for_home(RuntimeChannel::User, &home);
+
+        let borrowed = profile.pi_extensions();
+        assert_eq!(borrowed.entries.len(), 2);
+        assert!(borrowed.entries[0].ends_with("pi-claude-bridge/src/index.ts"));
+
+        let own = std::path::PathBuf::from("/app-data/anthropic/anthropic-25e01d9e7280-ea4895ef6832/provider/src/index.ts");
+        let owned = profile.with_anthropic_provider(Some(own.clone())).pi_extensions();
+        assert_eq!(owned.entries.len(), 2);
+        assert_eq!(owned.entries[0], own);
+        assert!(owned.entries[1].ends_with("pi-gmail/index.ts"));
+        assert!(owned.skipped.iter().any(|note| note.contains("npm:pi-claude-bridge") && note.contains("its own")), "{:?}", owned.skipped);
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
+    fn every_pi_invocation_takes_its_extensions_from_the_profile() {
+        // CR173: a turn, a compaction, a title and the model catalog load the same extensions, so
+        // none of them resolves the person's Pi folder on its own.
+        for (name, source) in [("main.rs", include_str!("main.rs")), ("agent_settings.rs", include_str!("agent_settings.rs"))] {
+            let production = source.split("#[cfg(test)]").next().unwrap();
+            assert!(!production.contains("resolve_global_pi_extensions("), "{name} resolves global extensions itself");
+            assert!(production.contains(".pi_extensions()"), "{name}");
+        }
+    }
 
     #[test]
     fn the_0_3_line_never_opens_a_python_mirror() {

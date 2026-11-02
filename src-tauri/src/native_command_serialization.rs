@@ -151,7 +151,8 @@ mod tests {
         // CV-010.DS-005 slice 4a added `mirror_learning_status`, async, an in-memory read: 101 → 102.
         // CV-010.DS-005 slice 5a added `inspect_home_for_adoption` and `adopt_mirror_home`, serialised and
         // off the main thread: 102 → 104.
-        assert_eq!(v.len(), 104, "the command census changed; update SOURCES or this count");
+        // CR173 added `install_anthropic_provider`, async, its long work on a blocking thread: 104 → 105.
+        assert_eq!(v.len(), 105, "the command census changed; update SOURCES or this count");
         v
     }
 

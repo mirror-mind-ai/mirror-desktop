@@ -6,11 +6,16 @@
 //! and renames its work into place only when Pi starts and reports the pinned version. Its progress
 //! lines become `pi-install-progress` events; its outcome becomes a sentence that says what to do.
 //! One install at a time, in this process and, through the installer's lock, across processes.
+//!
+//! CR173: `install_anthropic_provider` runs the same installer for the Desktop's own Anthropic
+//! provider (`--kind anthropic`), on demand: the provider's source and lockfile from the runtime,
+//! this Mac's Claude Code from the registry. Its events are `anthropic-install-progress`.
 
 use crate::pi_toolchain::{install_dir, pinned_pi, resolve_app_pi, PI_DIRECTORY};
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
 use std::os::unix::fs::DirBuilderExt;
 use std::path::Path;
@@ -19,21 +24,23 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, Manager};
 
 pub(crate) const PI_INSTALL_PROGRESS_EVENT: &str = "pi-install-progress";
+pub(crate) const ANTHROPIC_INSTALL_PROGRESS_EVENT: &str = "anthropic-install-progress";
 const STDERR_LIMIT: u64 = 16 * 1024;
 
-static INSTALLING: AtomicBool = AtomicBool::new(false);
+static INSTALLING_PI: AtomicBool = AtomicBool::new(false);
+static INSTALLING_ANTHROPIC: AtomicBool = AtomicBool::new(false);
 
-struct Installing;
+struct Installing(&'static AtomicBool);
 
 impl Installing {
-    fn take() -> Option<Self> {
-        INSTALLING.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).ok().map(|_| Installing)
+    fn take(flag: &'static AtomicBool) -> Option<Self> {
+        flag.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).ok().map(|_| Installing(flag))
     }
 }
 
 impl Drop for Installing {
     fn drop(&mut self) {
-        INSTALLING.store(false, Ordering::SeqCst);
+        self.0.store(false, Ordering::SeqCst);
     }
 }
 
@@ -68,10 +75,29 @@ pub(crate) fn describe_install_failure(reason: &str, log: &Path) -> String {
         "check_failed" => {
             "Pi was downloaded but did not start, so it was not installed. Try again; if it fails again, reinstall Mirror Desktop TS.".to_string()
         }
-        "lockfile_mismatch" | "lockfile_invalid" | "invalid_target" | "usage" => {
+        "lockfile_mismatch" | "lockfile_invalid" | "invalid_target" | "usage" | "platform_unsupported" | "source_mismatch" => {
             "This copy of Mirror Desktop TS cannot install Pi. Reinstall the app.".to_string()
         }
         _ => format!("Pi could not be installed. Try again; details are in {}.", log.display()),
+    }
+}
+
+/// CR173: the same outcomes, said of Claude models.
+pub(crate) fn describe_anthropic_install_failure(reason: &str, log: &Path) -> String {
+    match reason {
+        "download_failed" => "Claude models could not be downloaded. Check your internet connection and try again; what was already downloaded is kept.".to_string(),
+        "integrity_mismatch" | "unsafe_package" => {
+            "A downloaded package for Claude models was not the one this app expects, so nothing was installed. Try again later.".to_string()
+        }
+        "already_installing" => "Claude models are already being installed. Wait for it to finish.".to_string(),
+        "check_failed" => {
+            "Claude Code was downloaded but did not start, so Claude models were not installed. Try again; if it fails again, reinstall Mirror Desktop TS.".to_string()
+        }
+        "platform_unsupported" => "Claude models are not available for this Mac in this version of Mirror Desktop TS.".to_string(),
+        "lockfile_mismatch" | "lockfile_invalid" | "invalid_target" | "usage" | "source_mismatch" => {
+            "This copy of Mirror Desktop TS cannot install Claude models. Reinstall the app.".to_string()
+        }
+        _ => format!("Claude models could not be installed. Try again; details are in {}.", log.display()),
     }
 }
 
@@ -79,49 +105,52 @@ fn sha256_of(path: &Path) -> Option<String> {
     std::fs::read(path).ok().map(|bytes| format!("{:x}", Sha256::digest(bytes)))
 }
 
-/// Install the Pi `runtime_dir` pins into `app_data_root`, reporting progress, or say why not.
-pub(crate) fn run_install(app_data_root: &Path, runtime_dir: &Path, mut progress: impl FnMut(PiInstallProgress)) -> Result<(), String> {
-    let damaged = || crate::mirror_host_bridge::RUNTIME_MISSING.to_string();
-    let pinned = pinned_pi(runtime_dir)?;
+/// The runtime's installer, when its receipt names it; `RUNTIME_MISSING` otherwise.
+fn trusted_installer(runtime_dir: &Path) -> Result<std::path::PathBuf, String> {
     let receipt: Value = std::fs::read(runtime_dir.join("pin-receipt.json"))
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .ok_or_else(damaged)?;
+        .ok_or_else(|| crate::mirror_host_bridge::RUNTIME_MISSING.to_string())?;
     let installer = runtime_dir.join("pi-install.mjs");
-    let lockfile = runtime_dir.join("pi").join("package-lock.json");
-    if sha256_of(&installer).as_deref() != receipt.pointer("/piInstaller/sha256").and_then(Value::as_str)
-        || sha256_of(&lockfile).as_deref() != Some(pinned.lockfile_sha256.as_str())
-    {
-        return Err(damaged());
+    if sha256_of(&installer).as_deref() != receipt.pointer("/piInstaller/sha256").and_then(Value::as_str) {
+        return Err(crate::mirror_host_bridge::RUNTIME_MISSING.to_string());
     }
-    let pi_root = app_data_root.join(PI_DIRECTORY);
-    match std::fs::symlink_metadata(&pi_root) {
-        Ok(metadata) if metadata.is_dir() => {}
-        Ok(_) => return Err(format!("{} is not a folder Mirror Desktop made.", pi_root.display())),
+    Ok(installer)
+}
+
+/// The folder an installer works in, made private when it is new.
+fn private_root(root: &Path) -> Result<(), String> {
+    match std::fs::symlink_metadata(root) {
+        Ok(metadata) if metadata.is_dir() => Ok(()),
+        Ok(_) => Err(format!("{} is not a folder Mirror Desktop made.", root.display())),
         Err(_) => std::fs::DirBuilder::new()
             .mode(0o700)
-            .create(&pi_root)
-            .map_err(|error| format!("Could not create {}: {error}", pi_root.display()))?,
+            .create(root)
+            .map_err(|error| format!("Could not create {}: {error}", root.display())),
     }
-    let target = install_dir(app_data_root, &pinned);
-    let log = pi_root.join("install.log");
+}
+
+/// Run the runtime's installer with `args` in `root`, reporting progress, and say how it ended in
+/// the words `describe` gives each refusal.
+fn run_installer(
+    runtime_dir: &Path,
+    installer: &Path,
+    args: Vec<OsString>,
+    root: &Path,
+    describe: fn(&str, &Path) -> String,
+    mut progress: impl FnMut(PiInstallProgress),
+) -> Result<(), String> {
+    let log = root.join("install.log");
     let mut child = Command::new(runtime_dir.join("node").join("bin").join("node"))
-        .arg(&installer)
-        .arg("--lockfile")
-        .arg(&lockfile)
-        .arg("--lock-sha256")
-        .arg(&pinned.lockfile_sha256)
-        .arg("--pi-root")
-        .arg(&pi_root)
-        .arg("--target")
-        .arg(&target)
+        .arg(installer)
+        .args(args)
         .env_clear()
-        .current_dir(&pi_root)
+        .current_dir(root)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|error| format!("Could not start Pi's installer: {error}"))?;
+        .map_err(|error| format!("Could not start the installer: {error}"))?;
     let mut stderr = child.stderr.take().expect("piped");
     let stderr_reader = std::thread::spawn(move || {
         let mut text = String::new();
@@ -142,40 +171,106 @@ pub(crate) fn run_install(app_data_root: &Path, runtime_dir: &Path, mut progress
             Some("installed") => outcome = Some(Ok(())),
             Some("failed") => {
                 let reason = event.get("reason").and_then(Value::as_str).unwrap_or("failed");
-                outcome = Some(Err(describe_install_failure(reason, &log)));
+                outcome = Some(Err(describe(reason, &log)));
             }
             _ => {}
         }
     }
-    let status = child.wait().map_err(|error| format!("Pi's installer could not be awaited: {error}"))?;
+    let status = child.wait().map_err(|error| format!("The installer could not be awaited: {error}"))?;
     let stderr = stderr_reader.join().unwrap_or_default();
     match outcome {
-        Some(Ok(())) if status.success() => resolve_app_pi(app_data_root, runtime_dir).map(|_| ()),
+        Some(Ok(())) if status.success() => Ok(()),
         Some(Err(message)) => Err(message),
         _ => {
             let detail = stderr.lines().last().unwrap_or("it stopped without an outcome");
-            Err(format!("Pi could not be installed ({detail}). Try again; details are in {}.", log.display()))
+            Err(format!("{} ({detail})", describe("stopped", &log)))
         }
     }
 }
 
+/// Install the Pi `runtime_dir` pins into `app_data_root`, reporting progress, or say why not.
+pub(crate) fn run_install(app_data_root: &Path, runtime_dir: &Path, progress: impl FnMut(PiInstallProgress)) -> Result<(), String> {
+    let pinned = pinned_pi(runtime_dir)?;
+    let installer = trusted_installer(runtime_dir)?;
+    let lockfile = runtime_dir.join("pi").join("package-lock.json");
+    if sha256_of(&lockfile).as_deref() != Some(pinned.lockfile_sha256.as_str()) {
+        return Err(crate::mirror_host_bridge::RUNTIME_MISSING.to_string());
+    }
+    let pi_root = app_data_root.join(PI_DIRECTORY);
+    private_root(&pi_root)?;
+    let target = install_dir(app_data_root, &pinned);
+    let args = vec![
+        "--lockfile".into(), lockfile.into_os_string(),
+        "--lock-sha256".into(), pinned.lockfile_sha256.clone().into(),
+        "--pi-root".into(), pi_root.clone().into_os_string(),
+        "--target".into(), target.into_os_string(),
+    ];
+    run_installer(runtime_dir, &installer, args, &pi_root, describe_install_failure, progress)?;
+    resolve_app_pi(app_data_root, runtime_dir).map(|_| ())
+}
+
+/// CR173: install the Anthropic provider `runtime_dir` pins into `app_data_root`, or say why not.
+pub(crate) fn run_anthropic_install(app_data_root: &Path, runtime_dir: &Path, progress: impl FnMut(PiInstallProgress)) -> Result<(), String> {
+    use crate::anthropic_provider::{install_dir, pinned_anthropic, resolve_app_anthropic, ANTHROPIC_DIRECTORY};
+    let pinned = pinned_anthropic(runtime_dir)?;
+    let installer = trusted_installer(runtime_dir)?;
+    let lockfile = runtime_dir.join("anthropic").join("package-lock.json");
+    let source = runtime_dir.join("anthropic").join("provider");
+    // The source itself is hashed by the installer; here, only that the runtime holds one.
+    if sha256_of(&lockfile).as_deref() != Some(pinned.lockfile_sha256.as_str()) || !source.join("src").join("index.ts").is_file() {
+        return Err(crate::mirror_host_bridge::RUNTIME_MISSING.to_string());
+    }
+    let root = app_data_root.join(ANTHROPIC_DIRECTORY);
+    private_root(&root)?;
+    let target = install_dir(app_data_root, &pinned);
+    let args = vec![
+        "--kind".into(), "anthropic".into(),
+        "--source".into(), source.into_os_string(),
+        "--source-sha256".into(), pinned.source_sha256.clone().into(),
+        "--claude-code".into(), pinned.claude_code.clone().into(),
+        "--lockfile".into(), lockfile.into_os_string(),
+        "--lock-sha256".into(), pinned.lockfile_sha256.clone().into(),
+        "--pi-root".into(), root.clone().into_os_string(),
+        "--target".into(), target.into_os_string(),
+    ];
+    run_installer(runtime_dir, &installer, args, &root, describe_anthropic_install_failure, progress)?;
+    resolve_app_anthropic(app_data_root, runtime_dir).map(|_| ())
+}
+
 #[tauri::command]
 pub(crate) async fn install_pi(app: AppHandle) -> Result<(), String> {
-    let Some(installing) = Installing::take() else {
+    let Some(installing) = Installing::take(&INSTALLING_PI) else {
         return Err(describe_install_failure("already_installing", Path::new("")));
     };
     let app_data_root = app.path().app_data_dir().map_err(|error| format!("Could not resolve app data directory: {error}"))?;
     let runtime_dir = crate::mirror_host_bridge::current_runtime_dir()?;
     let emitter = app.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || {
+    tauri::async_runtime::spawn_blocking(move || {
         let _installing = installing;
         run_install(&app_data_root, &runtime_dir, |step| {
             let _ = emitter.emit(PI_INSTALL_PROGRESS_EVENT, step);
         })
     })
     .await
-    .map_err(|error| format!("Pi's installer stopped: {error}"))?;
-    result
+    .map_err(|error| format!("Pi's installer stopped: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn install_anthropic_provider(app: AppHandle) -> Result<(), String> {
+    let Some(installing) = Installing::take(&INSTALLING_ANTHROPIC) else {
+        return Err(describe_anthropic_install_failure("already_installing", Path::new("")));
+    };
+    let app_data_root = app.path().app_data_dir().map_err(|error| format!("Could not resolve app data directory: {error}"))?;
+    let runtime_dir = crate::mirror_host_bridge::current_runtime_dir()?;
+    let emitter = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _installing = installing;
+        run_anthropic_install(&app_data_root, &runtime_dir, |step| {
+            let _ = emitter.emit(ANTHROPIC_INSTALL_PROGRESS_EVENT, step);
+        })
+    })
+    .await
+    .map_err(|error| format!("The installer for Claude models stopped: {error}"))?
 }
 
 #[cfg(test)]
@@ -185,6 +280,8 @@ mod tests {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
+
+    const ANTHROPIC_LOCK: &str = crate::anthropic_provider::tests::LOCK;
 
     /// A runtime whose `node` is a shell script playing the installer: it prints `lines`, and on
     /// success lays out the install the toolchain test builds.
@@ -290,9 +387,95 @@ mod tests {
         }
         reasons.sort();
         reasons.dedup();
-        assert!(reasons.len() >= 8, "{reasons:?}");
+        assert!(reasons.len() >= 10, "{reasons:?}");
+        let anthropic_generic = describe_anthropic_install_failure("anything else", log);
         for reason in reasons {
             assert_ne!(describe_install_failure(&reason, log), generic, "{reason} falls through to the generic sentence");
+            assert_ne!(describe_anthropic_install_failure(&reason, log), anthropic_generic, "{reason} falls through for Claude models");
+        }
+    }
+
+    /// CR173: a runtime pinning the Anthropic provider, whose `node` plays the installer: it
+    /// records its arguments, prints `lines`, and on success lays out a finished install.
+    fn anthropic_runtime_playing(label: &str, lines: &str, exit: i32) -> (PathBuf, PathBuf, PathBuf) {
+        let (base, runtime, app_data) = crate::anthropic_provider::tests::installed(label);
+        fs::rename(app_data.join("anthropic"), base.join("finished-install")).unwrap();
+        fs::write(runtime.join("pi-install.mjs"), "// the installer\n").unwrap();
+        fs::create_dir_all(runtime.join("anthropic/provider/src")).unwrap();
+        fs::write(runtime.join("anthropic/provider/src/index.ts"), "export default function () {}\n").unwrap();
+        fs::write(runtime.join("anthropic/package-lock.json"), "lock").unwrap();
+        let lock = format!("{:x}", Sha256::digest(b"lock"));
+        let installer_sha = format!("{:x}", Sha256::digest(b"// the installer\n"));
+        let receipt = fs::read_to_string(runtime.join("pin-receipt.json")).unwrap().replace(ANTHROPIC_LOCK, &lock);
+        let receipt = receipt.trim_end().strip_suffix('}').unwrap().to_string() + &format!(r#","piInstaller":{{"sha256":"{installer_sha}"}}}}"#);
+        fs::write(runtime.join("pin-receipt.json"), receipt).unwrap();
+        let finished = base.join("finished-install").join("anthropic-25e01d9e7280-ea4895ef6832");
+        let receipt_file = finished.join("install-receipt.json");
+        fs::write(&receipt_file, fs::read_to_string(&receipt_file).unwrap().replace(ANTHROPIC_LOCK, &lock)).unwrap();
+        let target = format!("anthropic-25e01d9e7280-{}", &lock[..12]);
+        let script = format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{args}'\ncat <<'EOF'\n{lines}\nEOF\n[ {exit} -eq 0 ] && cp -R '{}' \"$PWD/{target}\"\nexit {exit}\n",
+            finished.display(),
+            args = base.join("argv").display(),
+        );
+        fs::create_dir_all(runtime.join("node/bin")).unwrap();
+        fs::write(runtime.join("node/bin/node"), script).unwrap();
+        fs::set_permissions(runtime.join("node/bin/node"), fs::Permissions::from_mode(0o755)).unwrap();
+        (base, runtime, app_data)
+    }
+
+    #[test]
+    fn the_anthropic_provider_is_installed_from_the_runtimes_pin() {
+        let lines = [
+            r#"{"event":"progress","phase":"download","done":0,"total":107}"#,
+            r#"{"event":"progress","phase":"check","done":1,"total":1}"#,
+            r#"{"event":"installed"}"#,
+        ]
+        .join("\n");
+        let (base, runtime, app_data) = anthropic_runtime_playing("anthropic-finished", &lines, 0);
+        let mut seen = Vec::new();
+        run_anthropic_install(&app_data, &runtime, |step| seen.push(step)).unwrap();
+        assert_eq!(seen.last(), Some(&PiInstallProgress { phase: "check", done: 1, total: 1 }));
+        let pinned = crate::anthropic_provider::pinned_anthropic(&runtime).unwrap();
+        let argv: Vec<String> = fs::read_to_string(base.join("argv")).unwrap().lines().map(str::to_string).collect();
+        let expected: Vec<String> = [
+            runtime.join("pi-install.mjs").display().to_string(),
+            "--kind".into(), "anthropic".into(),
+            "--source".into(), runtime.join("anthropic/provider").display().to_string(),
+            "--source-sha256".into(), pinned.source_sha256.clone(),
+            "--claude-code".into(), "2.1.306".into(),
+            "--lockfile".into(), runtime.join("anthropic/package-lock.json").display().to_string(),
+            "--lock-sha256".into(), pinned.lockfile_sha256.clone(),
+            "--pi-root".into(), app_data.join("anthropic").display().to_string(),
+            "--target".into(), crate::anthropic_provider::install_dir(&app_data, &pinned).display().to_string(),
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(argv, expected);
+        assert!(crate::anthropic_provider::resolve_app_anthropic(&app_data, &runtime).is_ok());
+        assert_eq!(fs::metadata(app_data.join("anthropic")).unwrap().permissions().mode() & 0o777, 0o700);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn a_stopped_anthropic_install_says_what_to_do_in_its_own_words() {
+        let (base, runtime, app_data) = anthropic_runtime_playing("anthropic-stopped", r#"{"event":"failed","reason":"platform_unsupported"}"#, 1);
+        let error = run_anthropic_install(&app_data, &runtime, |_| {}).unwrap_err();
+        assert!(error.contains("Claude models") && error.contains("this Mac"), "{error}");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn an_anthropic_installer_lockfile_or_source_the_runtime_does_not_hold_is_not_run() {
+        for (file, change) in [("pi-install.mjs", Some("changed")), ("anthropic/package-lock.json", Some("changed")), ("anthropic/provider/src/index.ts", None)] {
+            let (base, runtime, app_data) = anthropic_runtime_playing("anthropic-tampered", r#"{"event":"installed"}"#, 0);
+            match change {
+                Some(text) => fs::write(runtime.join(file), text).unwrap(),
+                None => fs::remove_file(runtime.join(file)).unwrap(),
+            }
+            assert_eq!(run_anthropic_install(&app_data, &runtime, |_| {}).unwrap_err(), crate::mirror_host_bridge::RUNTIME_MISSING, "{file}");
+            assert!(!app_data.join("anthropic").exists(), "nothing is made before the check");
+            let _ = fs::remove_dir_all(&base);
         }
     }
 
@@ -328,9 +511,12 @@ mod tests {
 
     #[test]
     fn one_install_at_a_time_in_this_process() {
-        let first = Installing::take().expect("free");
-        assert!(Installing::take().is_none());
+        let first = Installing::take(&INSTALLING_PI).expect("free");
+        assert!(Installing::take(&INSTALLING_PI).is_none());
+        // Claude models are installed apart from Pi: one does not wait for the other.
+        let anthropic = Installing::take(&INSTALLING_ANTHROPIC).expect("free");
         drop(first);
-        assert!(Installing::take().is_some());
+        assert!(Installing::take(&INSTALLING_PI).is_some());
+        drop(anthropic);
     }
 }
