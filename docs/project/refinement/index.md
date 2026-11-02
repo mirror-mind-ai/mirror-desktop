@@ -260,7 +260,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR173](rs026-after-the-0-3-cutover/cr173-make-anthropic-access-the-desktops-own-provider.md) | RS026 | Make Anthropic Access the Desktop's Own Provider | done | @alissonvale | `main`, dev-validated |
 | — | [CR174](rs026-after-the-0-3-cutover/cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) | RS026 | A Bound Home That No Longer Opens Must Not Hold the App | captured | — | — |
 | — | [CR175](rs026-after-the-0-3-cutover/cr175-organize-settings-by-what-the-person-wants-to-do.md) | RS026 | Organize Settings by What the Person Wants to Do | captured | — | — |
-| — | [CR176](rs026-after-the-0-3-cutover/cr176-run-the-agent-in-the-journeys-folder-not-in-the-mirror-home.md) | RS026 | Run the Agent in the Journey's Folder, Not in the Mirror Home | in_progress | — | — |
+| — | [CR176](rs026-after-the-0-3-cutover/cr176-run-the-agent-in-the-journeys-folder-not-in-the-mirror-home.md) | RS026 | Run the Agent in the Journey's Folder, Not in the Mirror Home | done | @alissonvale | `main`, dev-validated |
 | — | [CR177](rs026-after-the-0-3-cutover/cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) | RS026 | Keep the Person's Mirror Skills From Reaching Another Home | captured | — | — |
 | — | [CR165](rs025-legible-endings-for-a-turn-that-ends-badly/cr165-a-turn-after-an-unanswered-request-never-settles.md) | RS025 | A Turn After an Unanswered Request Never Settles | done | @alissonvale | `main` (`4078eef`) |
 | — | [CR147](rs016-ongoing-product-improvements-and-adjustments/cr147-stop-a-run-loop-thread-from-dying-in-silence.md) | RS016 | Stop a Run-Loop Thread from Dying in Silence | done | — | — |

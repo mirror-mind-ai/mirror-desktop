@@ -2,7 +2,7 @@
 
 # CR176: Run the Agent in the Journey's Folder, Not in the Mirror Home
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -142,6 +142,10 @@ has its header anchored at `~/.mirror-journeys/vida-tecnica` (the Journey's proj
 home `ensaio-5c-2` holds nothing new besides `memory.db` and `backups/`. `~/Mirror Journeys` does
 not exist, so the case of a Journey without a project path left no trace; confirmation asked of
 the Navigator before closing.
+
+**Then (11:41):** a turn in `vida-interior` (no project path) made `~/Mirror Journeys/vida-interior`,
+and its session's header is anchored there. **Closed by the Navigator on this development
+validation**; the release re-run folds into the alpha that carries it.
 
 ## Acceptance
 
