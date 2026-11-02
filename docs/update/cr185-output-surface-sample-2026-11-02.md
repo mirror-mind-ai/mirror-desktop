@@ -104,3 +104,45 @@ conversation: most likely what the page re-lays out or repaints as the answer st
 sample's WebContent spent 11.9% in `updateRendering`, 8.0% in layout and style). The next
 instrument is a timeline of the page itself, in a build that can be inspected, on a conversation
 of production's size.
+
+## The page at production's size (rehearsal `ensaio-cr185`, 2026-11-02)
+
+Development build, the copied `mirror-desktop` conversation (projection 34.1 MB as loaded). One turn
+ran 23:36:25Z–23:39:37Z. The Navigator recorded a Web Inspector timeline (screenshots, network,
+layout, script, rendering frames, CPU) from 23:36:10Z to 23:40:55Z, scrolling and typing during the
+turn. The screenshot instrument took one capture per frame and probably inflates compositing; the
+proportions below are read with that in mind.
+
+Native sample of the development app during the turn (23:36:40Z–23:37:13Z): main thread 13.4% in
+`SLSDisplayGetTiming` (4.4% on the 80 KB conversation, 42% in production).
+
+### During the turn (timeline 50–185 s)
+
+| | share of the window |
+|---|---:|
+| `composite` | **20.7%** (≈30 ms per frame) |
+| stream events (`message`, 2.4/s, **34 ms** each) | 6.0% |
+| `input` events | 4.7% |
+| layout, style, paint together | 1.4% |
+
+The page drew **6.9 frames per second** (median frame 119 ms). Mirror Desktop's native commands
+were light: draft saves, the turn journal and the Pi leaf, a few per 10 s.
+
+### After the turn settled (timeline 190–315 s)
+
+- `load_dedicated_journey_conversation` returned the **34.1 MB** projection six times between
+  23:38:53Z and 23:39:51Z, 2.2–5.7 s each.
+- One `message` handler ran **11.95 s**; one composite **12.0 s**; four layouts of 4–5 s each; a
+  forced layout of 2.6 s.
+- **3,754 `inspect_local_references` calls in 20 s** (23:39:40Z–23:40:00Z), from
+  `LinkifiedText`, which asks the native side about the paths of its text when it mounts. That count
+  means the whole transcript was mounted again after the turn: the flash of CR184.
+
+### Reading
+
+- **CR184 is a remount.** Settlement reloads the full projection several times and the transcript
+  mounts again, every message asking again about its paths. The stall at the end of a turn is that
+  work, not the turn.
+- **CR185 is the size of what the page keeps live.** During the turn, the page spends a fifth of
+  its time compositing and about 34 ms per streamed event; both grow with the conversation the DOM
+  holds, and they leave fewer than seven frames per second for scrolling and typing.

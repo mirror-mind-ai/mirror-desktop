@@ -29,3 +29,11 @@ conversation is not drawn again.
 ## Acceptance
 
 At the end of a turn, nothing visible moves except the answer that settled, in a long conversation.
+
+## Measured (2026-11-02)
+
+[cr185-output-surface-sample-2026-11-02.md](../../../update/cr185-output-surface-sample-2026-11-02.md),
+the rehearsal at production's size: after settlement the 34.1 MB projection was loaded six times
+(2.2–5.7 s each), one handler ran 12 s, and `LinkifiedText` asked about local paths 3,754 times in
+20 s, which only a remount of the whole transcript produces. The hypothesis holds: the end of a turn
+mounts the conversation again.

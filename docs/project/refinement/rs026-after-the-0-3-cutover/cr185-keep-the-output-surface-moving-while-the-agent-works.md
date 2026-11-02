@@ -68,3 +68,9 @@ be inspected in the development build at production's size.
   `runtime-home.v2.json.before-cr185`.
 
 Owed: the page timeline during a turn, then removing the rehearsal and restoring the binding.
+
+## Page Timeline (2026-11-02)
+
+During the turn, at production's size: 20.7% compositing, 34 ms per streamed event, 6.9 frames per
+second. Native commands were light. The cost is what the page keeps live, the whole conversation;
+see the measurement record.
