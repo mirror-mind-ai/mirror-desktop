@@ -159,7 +159,8 @@ describe("Journey runtime integration guardrails", () => {
       'if (event.type === "run_status" && event.status === "working")',
       'if (event.type === "context_usage")',
     );
-    expect(admitted).toContain("persistOwnerComposerDraft(\"\", true)");
+    // CR181: the stored copy of the sent message goes at agent start, never what was typed since.
+    expect(admitted).toContain("draftAfterAdmission(composerDraftsRef.current[ownerDraftKey], content)");
     expect(admitted).toContain("saveAdmittedTurnProjection(stagedConversation, settlementAuthority)");
     expect(generation.indexOf("saveAdmittedTurnProjection(stagedConversation, settlementAuthority)")).toBeGreaterThan(
       generation.indexOf("for await (const event of provider(packet))"),

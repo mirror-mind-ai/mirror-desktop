@@ -46,6 +46,7 @@ import {
 } from "./terminalAgentActionEvidence";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
 import { ComposerDraftInput, type ComposerDraftHandle } from "./ComposerDraftInput";
+import { draftAfterAdmission, draftAfterUnansweredCancel } from "../domain/composerHandoff";
 import {
   clearScheduledNotice,
   scheduleTransientComposerNotice,
@@ -3509,6 +3510,12 @@ export function App({ model }: AppProps) {
         setVisibleComposerDraft(boundedText);
       }
     };
+    // CR183: the owner's draft as the person last left it, on screen or stored.
+    const currentOwnerDraft = () => (
+      selectedJourneyRef.current === ownerJourneyId && conversationRef.current.id === baseConversation.id
+        ? draftRef.current
+        : composerDraftsRef.current[ownerDraftKey] ?? ""
+    );
     let agentStartApplied = false;
     let rawLiveOutput = "";
     let runReachedAgent = false;
@@ -3563,7 +3570,13 @@ export function App({ model }: AppProps) {
               && current.piSessionId === baseConversation.liveIdentity.piSessionId
                 ? undefined
                 : current);
-            persistOwnerComposerDraft("", true);
+            // CR181: the agent has the message, so its stored copy goes. The visible composer is left
+            // alone: it already shows only what the person typed since sending.
+            updateComposerDrafts((current) => updateComposerDraft(
+              current,
+              ownerDraftKey,
+              draftAfterAdmission(composerDraftsRef.current[ownerDraftKey], content),
+            ), true);
             try {
               await journeyPersistenceCoordinator.run(
                 settlementAuthority,
@@ -3859,6 +3872,17 @@ export function App({ model }: AppProps) {
           }
         }
         runConversation = interrupted;
+        // CR183: cancelled before the agent wrote or did anything, the message goes back to the
+        // composer, before whatever the person typed since.
+        const unanswered = runWasCancelled && !performedWork && !interruptedFragment.trim()
+          && !runConversation.messages.some((message) => message.id === assistantMessage.id && message.content.trim());
+        if (unanswered) {
+          persistOwnerComposerDraft(draftAfterUnansweredCancel(currentOwnerDraft(), content), true);
+          if (selectedJourneyRef.current === ownerJourneyId && fileAttachments.length) {
+            setPendingFileAttachments((current) => current.length ? current : fileAttachments);
+          }
+          setUnsentDraftNotices((current) => recordUnsentDraft(current, ownerJourneyId, "Message returned to the composer: the turn was cancelled before any answer."));
+        }
         dispatchJourneyRuntime({ type: "conversation_snapshot", identity: runtimeIdentity, conversation: runConversation });
         if (selectedJourneyRef.current === ownerJourneyId
           && conversationRef.current.id === baseConversation.id
