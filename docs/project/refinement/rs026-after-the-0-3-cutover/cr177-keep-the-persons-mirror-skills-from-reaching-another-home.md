@@ -64,3 +64,5 @@ the next alpha.
 - Spec first, with mutation controls, on whichever direction is chosen.
 - Sandbox: a development Desktop turn that runs `mirror journal` on a rehearsal home writes nothing
   to the home `~/.config/mirror/env` names.
+
+**Shipped in [v0.3.0-alpha.7](../../../releases/v0.3.0-alpha.7.md)** (2026-11-02).

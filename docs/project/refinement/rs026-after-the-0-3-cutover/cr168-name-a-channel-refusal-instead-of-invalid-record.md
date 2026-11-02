@@ -37,3 +37,5 @@ conversation belongs to another Mirror Desktop build: it was made by the user bu
 development build." and "Open it in the build that made it. Nothing was changed.", with no "needs
 recovery". The Driver restored the file from the backup (hash equal to the original, channel
 `development`) and deleted the backup. Closed.
+
+**Shipped in [v0.3.0-alpha.7](../../../releases/v0.3.0-alpha.7.md)** (2026-11-02).

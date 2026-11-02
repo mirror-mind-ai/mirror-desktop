@@ -33,3 +33,5 @@ by design. The error named a plugin, not the situation, and the two apps look al
 
 Then (2026-11-02): the Navigator confirmed steps 1 and 2 in development: the sidebar reads
 "Mirror Desktop TS Dev", and Updates says the build does not update itself, with no check. Closed.
+
+**Shipped in [v0.3.0-alpha.7](../../../releases/v0.3.0-alpha.7.md)** (2026-11-02).
