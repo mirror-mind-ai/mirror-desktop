@@ -987,7 +987,7 @@ export function App({ model }: AppProps) {
   const [openRouterState, setOpenRouterState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [openRouterMessage, setOpenRouterMessage] = useState<string>();
   const [openRouterBusy, setOpenRouterBusy] = useState(false);
-  // "Not now" holds for this launch even if the Keychain could not record it.
+  // "Not now" holds for this launch even if it could not be recorded.
   const [openRouterSkipped, setOpenRouterSkipped] = useState(false);
   const [piLogin, setPiLogin] = useState<PiLoginView>();
   const [providerStepOpen, setProviderStepOpen] = useState(false);
@@ -7710,9 +7710,9 @@ export function App({ model }: AppProps) {
                     status={openRouterKey}
                     message={openRouterMessage}
                     busy={openRouterBusy}
-                    onSave={(key) => void changeOpenRouterKey(() => saveOpenRouterKey(key), () => "OpenRouter accepted the key; it is kept in the Keychain.")}
+                    onSave={(key) => void changeOpenRouterKey(() => saveOpenRouterKey(key), () => "OpenRouter accepted the key; it is kept on this Mac.")}
                     onTest={() => void changeOpenRouterKey(testOpenRouterKey, () => undefined)}
-                    onRemove={() => void changeOpenRouterKey(removeOpenRouterKey, () => "The key was removed from the Keychain.")}
+                    onRemove={() => void changeOpenRouterKey(removeOpenRouterKey, () => "The key was removed from this Mac.")}
                     onDecline={() => undefined}
                     onReload={() => { setOpenRouterMessage(undefined); setOpenRouterState("idle"); }}
                   />

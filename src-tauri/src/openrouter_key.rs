@@ -1,11 +1,14 @@
 // CV-010.DS-005 slice 3c-2: the OpenRouter key Mirror's context needs (decision 4).
 //
-// The key lives in the macOS Keychain, under the app's bundle identifier, so each channel keeps its
-// own. Mirror Desktop never shows it back: the screen learns whether one is kept, when it was last
+// CR180: the key lives in an owner-only file in the app data folder, so each channel keeps its own.
+// It lived in the macOS Keychain, but an unsigned app has no identity the Keychain can remember, so
+// every read could ask for the login password, and a read happened on every turn and every learning
+// run. A key still in the Keychain is carried to the file once, and the item removed. When the app
+// is signed (CV-009) the Keychain can be the place again. Mirror Desktop never shows it back: the screen learns whether one is kept, when it was last
 // checked and what OpenRouter said. A key is checked with OpenRouter before it is kept, and a key
 // OpenRouter refuses is not kept. Slice 3d hands it to the host, per call, for Mirror's context.
 //
-// Next to the Keychain, `openrouter-key.v1.json` in the app data folder holds what may be shown: the
+// Next to the key, `openrouter-key.v1.json` in the app data folder holds what may be shown: the
 // last check and whether the person chose to go on without a key. It never holds the key.
 
 use serde::{Deserialize, Serialize};
@@ -14,6 +17,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
 const STATE_FILE: &str = "openrouter-key.v1.json";
+/// CR180: the key itself, owner-only, and nothing else in it.
+const KEY_FILE: &str = "openrouter-key.secret";
 const KEYCHAIN_ACCOUNT: &str = "openrouter";
 const KEY_CHECK_URL: &str = "https://openrouter.ai/api/v1/key";
 const KEY_CHECK_TIMEOUT: Duration = Duration::from_secs(15);
@@ -22,7 +27,7 @@ const KEY_LIMIT: usize = 512;
 #[cfg(target_os = "macos")]
 const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
 
-/// Where the key is kept. The Keychain in the app; memory in tests.
+/// Where the key is kept: the key file in the app; the Keychain only for what is carried over from it.
 pub(crate) trait KeyStore: Send + Sync {
     fn present(&self) -> Result<bool, String>;
     fn read(&self) -> Result<Option<String>, String>;
@@ -227,45 +232,126 @@ impl KeyStore for Keychain {
     }
 }
 
-fn openrouter_context(app: &AppHandle) -> Result<(Keychain, PathBuf), String> {
+/// CR180: the key in a file of the app data folder, readable and writable by its owner only.
+pub(crate) struct KeyFile {
+    path: PathBuf,
+}
+
+impl KeyFile {
+    pub(crate) fn in_folder(root: &Path) -> Self {
+        Self { path: root.join(KEY_FILE) }
+    }
+}
+
+impl KeyStore for KeyFile {
+    fn present(&self) -> Result<bool, String> {
+        Ok(self.read()?.is_some())
+    }
+
+    fn read(&self) -> Result<Option<String>, String> {
+        match std::fs::read_to_string(&self.path) {
+            Ok(text) => {
+                let key = text.trim();
+                Ok((!key.is_empty()).then(|| key.to_string()))
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(format!("The key file could not be read ({error}).")),
+        }
+    }
+
+    fn write(&self, key: &str) -> Result<(), String> {
+        use std::io::Write;
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        let temporary = self.path.with_extension("secret.tmp");
+        let _ = std::fs::remove_file(&temporary);
+        let written = (|| {
+            let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&temporary)?;
+            file.write_all(key.as_bytes())?;
+            file.sync_all()?;
+            std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o600))?;
+            std::fs::rename(&temporary, &self.path)
+        })();
+        written.map_err(|error| {
+            let _ = std::fs::remove_file(&temporary);
+            format!("The key could not be kept ({error}).")
+        })
+    }
+
+    fn remove(&self) -> Result<(), String> {
+        match std::fs::remove_file(&self.path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!("The key file could not be removed ({error}).")),
+        }
+    }
+}
+
+/// The key file of `root`. With no key kept there, a key still in the Keychain is carried over once
+/// and the item removed; asking whether one is kept is an attribute search, which needs no
+/// password. With the file kept, the Keychain is not asked at all.
+pub(crate) fn open_store(root: &Path, keychain: &dyn KeyStore) -> KeyFile {
+    let file = KeyFile::in_folder(root);
+    if file.present() == Ok(true) || keychain.present() != Ok(true) {
+        return file;
+    }
+    if let Ok(Some(key)) = keychain.read() {
+        if file.write(&key).is_ok() {
+            // The file decides from now on; an item the Keychain will not let go is tried again on
+            // removal.
+            let _ = keychain.remove();
+        }
+    }
+    file
+}
+
+/// Removing the key removes the file and whatever the Keychain still holds of it.
+pub(crate) fn remove_everywhere(file: &KeyFile, keychain: &dyn KeyStore, state_path: &Path) -> Result<OpenRouterKeyStatus, String> {
+    if keychain.present() == Ok(true) {
+        let _ = keychain.remove();
+    }
+    remove(file, state_path)
+}
+
+fn openrouter_context(app: &AppHandle) -> Result<(KeyFile, Keychain, PathBuf), String> {
     let root = app.path().app_data_dir().map_err(|error| format!("Could not resolve app data directory: {error}"))?;
     std::fs::create_dir_all(&root).map_err(|error| format!("Could not create app data directory: {error}"))?;
-    Ok((Keychain { service: app.config().identifier.clone() }, root.join(STATE_FILE)))
+    let keychain = Keychain { service: app.config().identifier.clone() };
+    Ok((open_store(&root, &keychain), keychain, root.join(STATE_FILE)))
 }
 
 /// The key for slice 3d's host calls; never sent to the screen.
 pub(crate) fn kept_key(app: &AppHandle) -> Result<Option<String>, String> {
-    let (store, _) = openrouter_context(app)?;
+    let (store, _, _) = openrouter_context(app)?;
     store.read()
 }
 
 #[tauri::command]
 pub(crate) async fn openrouter_key_status(app: AppHandle) -> Result<OpenRouterKeyStatus, String> {
-    let (store, state) = openrouter_context(&app)?;
+    let (store, _, state) = openrouter_context(&app)?;
     status(&store, &state)
 }
 
 #[tauri::command]
 pub(crate) async fn save_openrouter_key(app: AppHandle, key: String) -> Result<OpenRouterKeyStatus, String> {
-    let (store, state) = openrouter_context(&app)?;
+    let (store, _, state) = openrouter_context(&app)?;
     save(&store, &state, KEY_CHECK_URL, &key).await
 }
 
 #[tauri::command]
 pub(crate) async fn test_openrouter_key(app: AppHandle) -> Result<OpenRouterKeyStatus, String> {
-    let (store, state) = openrouter_context(&app)?;
+    let (store, _, state) = openrouter_context(&app)?;
     test(&store, &state, KEY_CHECK_URL).await
 }
 
 #[tauri::command]
 pub(crate) async fn remove_openrouter_key(app: AppHandle) -> Result<OpenRouterKeyStatus, String> {
-    let (store, state) = openrouter_context(&app)?;
-    remove(&store, &state)
+    let (store, keychain, state) = openrouter_context(&app)?;
+    remove_everywhere(&store, &keychain, &state)
 }
 
 #[tauri::command]
 pub(crate) async fn decline_openrouter_key(app: AppHandle) -> Result<OpenRouterKeyStatus, String> {
-    let (store, state) = openrouter_context(&app)?;
+    let (store, _, state) = openrouter_context(&app)?;
     decline(&store, &state)
 }
 
@@ -402,6 +488,116 @@ mod tests {
         let (store, state) = (MemoryStore::default(), scratch("outside"));
         write_state(&state, &KeyState { last_check: Some(LastCheck { at_ms: 1, outcome: KeyCheck::Worked }), declined: false }).unwrap();
         assert_eq!(status(&store, &state).unwrap().last_check, None);
+    }
+
+    /// CR180: a store whose every call is counted, standing in for the Keychain an unsigned app
+    /// pays a password prompt to read.
+    #[derive(Default)]
+    struct CountedStore {
+        key: Mutex<Option<String>>,
+        calls: Mutex<Vec<&'static str>>,
+        refuse_removal: bool,
+    }
+
+    impl KeyStore for CountedStore {
+        fn present(&self) -> Result<bool, String> {
+            self.calls.lock().unwrap().push("present");
+            Ok(self.key.lock().unwrap().is_some())
+        }
+        fn read(&self) -> Result<Option<String>, String> {
+            self.calls.lock().unwrap().push("read");
+            Ok(self.key.lock().unwrap().clone())
+        }
+        fn write(&self, key: &str) -> Result<(), String> {
+            self.calls.lock().unwrap().push("write");
+            *self.key.lock().unwrap() = Some(key.to_string());
+            Ok(())
+        }
+        fn remove(&self) -> Result<(), String> {
+            self.calls.lock().unwrap().push("remove");
+            if self.refuse_removal {
+                return Err("The Keychain did not remove the key (-25293).".to_string());
+            }
+            *self.key.lock().unwrap() = None;
+            Ok(())
+        }
+    }
+
+    fn key_root(label: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("openrouter-keyfile-{label}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn a_key_is_kept_in_a_file_only_its_owner_can_read() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = key_root("owner");
+        let file = KeyFile::in_folder(&root);
+        assert_eq!(file.present(), Ok(false));
+        assert_eq!(file.read(), Ok(None));
+        file.write("sk-or-file").unwrap();
+        let path = root.join(KEY_FILE);
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "sk-or-file", "the file holds the key and nothing else");
+        assert_eq!(file.present(), Ok(true));
+        assert_eq!(file.read().unwrap().as_deref(), Some("sk-or-file"));
+        file.write("sk-or-other").unwrap();
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600, "a replaced key stays owner-only");
+        assert_eq!(file.read().unwrap().as_deref(), Some("sk-or-other"));
+        file.remove().unwrap();
+        assert!(!path.exists());
+        assert_eq!(file.remove(), Ok(()), "removing nothing is fine");
+        assert!(std::fs::read_dir(&root).unwrap().next().is_none(), "no temporary file is left behind");
+    }
+
+    #[test]
+    fn a_key_in_the_keychain_is_carried_to_the_file_once() {
+        let root = key_root("carry");
+        let keychain = CountedStore { key: Mutex::new(Some("sk-or-old".into())), ..Default::default() };
+        let file = open_store(&root, &keychain);
+        assert_eq!(file.read().unwrap().as_deref(), Some("sk-or-old"));
+        assert_eq!(keychain.key.lock().unwrap().clone(), None, "the Keychain item is removed once carried");
+        assert_eq!(*keychain.calls.lock().unwrap(), vec!["present", "read", "remove"]);
+
+        keychain.calls.lock().unwrap().clear();
+        let again = open_store(&root, &keychain);
+        assert_eq!(again.read().unwrap().as_deref(), Some("sk-or-old"));
+        assert!(keychain.calls.lock().unwrap().is_empty(), "with the file kept, the Keychain is never asked");
+    }
+
+    #[test]
+    fn with_no_key_anywhere_the_keychain_is_asked_only_whether_one_is_kept() {
+        let root = key_root("none");
+        let keychain = CountedStore::default();
+        let file = open_store(&root, &keychain);
+        assert_eq!(file.read(), Ok(None));
+        assert_eq!(*keychain.calls.lock().unwrap(), vec!["present"], "an attribute search, which does not ask for the password");
+    }
+
+    #[test]
+    fn a_keychain_that_will_not_let_go_still_leaves_the_file_as_the_key() {
+        let root = key_root("stuck");
+        let keychain = CountedStore { key: Mutex::new(Some("sk-or-stuck".into())), refuse_removal: true, ..Default::default() };
+        let file = open_store(&root, &keychain);
+        assert_eq!(file.read().unwrap().as_deref(), Some("sk-or-stuck"));
+        keychain.calls.lock().unwrap().clear();
+        let _ = open_store(&root, &keychain);
+        assert!(keychain.calls.lock().unwrap().is_empty(), "the file decides, even with the old item left");
+    }
+
+    #[test]
+    fn removing_the_key_removes_the_file_and_what_the_keychain_still_holds() {
+        let root = key_root("remove");
+        let keychain = CountedStore { key: Mutex::new(Some("sk-or-left".into())), refuse_removal: true, ..Default::default() };
+        let file = open_store(&root, &keychain);
+        let state = root.join(STATE_FILE);
+        let keychain = CountedStore { key: Mutex::new(Some("sk-or-left".into())), ..Default::default() };
+        let removed = remove_everywhere(&file, &keychain, &state).unwrap();
+        assert!(!removed.configured);
+        assert!(!root.join(KEY_FILE).exists());
+        assert_eq!(keychain.key.lock().unwrap().clone(), None, "a stuck old item is tried again on removal");
     }
 
     /// Writes, reads and removes a throwaway item in the login Keychain:

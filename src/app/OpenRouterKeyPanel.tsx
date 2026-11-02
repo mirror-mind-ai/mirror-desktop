@@ -33,9 +33,9 @@ export function OpenRouterKeyPanel({ variant, status, message, busy, onSave, onT
   return (
     <>
       <Heading>Mirror's context · OpenRouter</Heading>
-      <p>Before the model answers, your Mirror finds what matters from your identity, Journeys and memories. It does that through OpenRouter, with your own key. The key is kept in your Mac's Keychain and never shown again.</p>
+      <p>Before the model answers, your Mirror finds what matters from your identity, Journeys and memories. It does that through OpenRouter, with your own key. The key is kept on this Mac, in a file only you can read, and never shown again.</p>
       {status ? <p className="provider-note">{status.configured ? describeLastCheck(status) : WITHOUT_CONTEXT}</p> : null}
-      {!status && !message ? <p className="provider-note">Checking the Keychain…</p> : null}
+      {!status && !message ? <p className="provider-note">Checking for a kept key…</p> : null}
       {message ? <p className={status ? "provider-note" : "provider-error"} role="status">{message}</p> : null}
       {!status && message ? (
         <div className="provider-actions">
