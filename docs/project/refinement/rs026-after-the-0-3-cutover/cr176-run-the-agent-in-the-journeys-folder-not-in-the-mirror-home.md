@@ -2,7 +2,7 @@
 
 # CR176: Run the Agent in the Journey's Folder, Not in the Mirror Home
 
-**Status:** captured
+**Status:** in_progress
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -51,6 +51,50 @@ Changing the folder changes what loads from it. Each needs a measurement in a sa
   elsewhere.
 - Compaction and title suggestion follow the turn's folder (title has no tools; compaction must not
   diverge).
+
+## Measured (2026-11-02)
+
+The app's own Pi 1.4.0, a local fake OpenAI-compatible server recording the exact request, a sandbox
+agent directory with an `AGENTS.md`, and a project with a parent `AGENTS.md`, its own `CLAUDE.md`,
+`.pi/settings.json`, `.pi/skills/` and `.pi/prompts/` (`/private/tmp/cr176-probe`):
+
+| Working directory and flags | What reached the model |
+|-----------------------------|------------------------|
+| A data folder, the turn's flags today (`--approve --no-extensions`) | global `AGENTS.md` |
+| The project, the turn's flags today | global, parent and project context files, **and the project's skill** |
+| The project, `--no-approve --no-extensions` | global, parent and project context files |
+| The project, plus `--no-context-files` | nothing, not even the global `AGENTS.md` |
+
+In every case the tools were `read`, `bash`, `edit`, `write`, and the working directory was written
+into the system prompt: the agent's "where am I" is the process's working directory, nothing else.
+
+What this settles:
+
+- **`--approve` is project trust**, not tool approval (`pi --help`: "trusts project-local files for
+  one command"). Harmless while a turn runs in the home; in a project it would load that project's
+  `.pi/settings.json`, skills and prompts, and install packages it declares. A turn outside the home
+  must pass `--no-approve`. The person's `trust.json` trusts `/Users/alissonvale` and its children,
+  so without the flag a saved decision would load them too.
+- **Context files load regardless of trust.** In a project, its `AGENTS.md`/`CLAUDE.md` and every
+  parent's enter the turn, as they do for Pi in a terminal there.
+- No Journey in the production home points at `~/mirror`. Five have no project path (among them
+  `journey-nova`, `vida-interior`). Five point at `~/Code/mirror-dev`, the stale Python checkout,
+  whose `.pi/extensions` (`mirror-logger`) `--no-extensions` already keeps out and whose project
+  resources `--no-approve` keeps out.
+
+### Adjacent finding, not this CR's
+
+Desktop turns load the person's agent-level skills, among them the Mirror package's `mm-*` skills
+(no `--no-skills`). They call `mirror`, which is on the turn's `PATH` (`/usr/local/bin`). The turn
+removes `MIRROR_HOME`, so the CLI falls back to `~/.config/mirror/env`, which names the production
+user. A development Desktop on a rehearsal home that follows such a skill writes to production.
+
+### Decisions for the Navigator
+
+1. Project context files enter the turn (recommended: yes, as Pi in a terminal does).
+2. `--approve` becomes `--no-approve` for turns and compactions (recommended).
+3. Where a Journey without a project path runs.
+4. Whether the adjacent finding becomes its own CR.
 
 ## Acceptance
 
