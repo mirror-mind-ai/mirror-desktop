@@ -2,7 +2,7 @@
 
 # CR169: Tell a Dev Build Apart From the User Build
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop
 
 ## Friction
@@ -30,3 +30,6 @@ by design. The error named a plugin, not the situation, and the two apps look al
   reopen if the Dock still confuses.
 - Spec first; 3 mutation controls applied and caught. Full suite: 2498 TypeScript.
 - Checked with group B's script ([RS026](index.md#group-b-check)).
+
+Then (2026-11-02): the Navigator confirmed steps 1 and 2 in development: the sidebar reads
+"Mirror Desktop TS Dev", and Updates says the build does not update itself, with no check. Closed.

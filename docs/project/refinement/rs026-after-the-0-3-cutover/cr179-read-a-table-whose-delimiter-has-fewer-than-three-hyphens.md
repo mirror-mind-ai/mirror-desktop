@@ -2,7 +2,7 @@
 
 # CR179: Read a Table Whose Delimiter Has Fewer Than Three Hyphens
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -45,3 +45,6 @@ the paragraph, together with the text after the table.
 
 - The RS026 queue answer of 2026-11-02 renders as a table.
 - `|-|`, `|:-|`, `|-:|`, `|:-:|` are delimiters; `|:|`, `|a|`, `|- -|` are not.
+
+Then (2026-11-02): on production alpha.6, the Navigator saw a `|--:|---|:-:|` table drawn as a
+table. Closed.

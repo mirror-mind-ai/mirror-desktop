@@ -28,7 +28,7 @@ delivering anything.
 
 - [CR167: Keep a User's Claude Code Plugin Out of the Desktop's Own Turns](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) — **done** · Desktop (delivered through CR173) · affects new users who already use Claude Code with Mirror
 - [CR168: Name a Channel Refusal Instead of invalid_record](cr168-name-a-channel-refusal-instead-of-invalid-record.md) — **in_progress** · Desktop
-- [CR169: Tell a Dev Build Apart From the User Build](cr169-tell-a-dev-build-apart-from-the-user-build.md) — **in_progress** · Desktop
+- [CR169: Tell a Dev Build Apart From the User Build](cr169-tell-a-dev-build-apart-from-the-user-build.md) — **done** · Desktop
 - [CR170: Pass the Invocation Directory to the Core Explicitly](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) — **captured** · Core
 - [CR171: Retire the nautilus_harness Interface Label](cr171-retire-the-nautilus-harness-interface-label.md) — **captured** · Desktop + Core data
 - [CR172: Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) — **done** · the public site (another Journey's repository) · put first by the Navigator
@@ -38,7 +38,7 @@ delivering anything.
 - [CR176: Run the Agent in the Journey's Folder, Not in the Mirror Home](cr176-run-the-agent-in-the-journeys-folder-not-in-the-mirror-home.md) — **done** · Desktop · found by the Navigator testing CR173, 2026-11-02; the agent's tools act inside the home
 - [CR177: Keep the Person's Mirror Skills From Reaching Another Home](cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) — **done** · Desktop · found measuring CR176; a dev turn can write to production through `mm-*` skills
 - [CR178: A Chapter May Begin at Mirror's Context](cr178-a-chapter-may-begin-at-mirrors-context.md) — **done** · Desktop · found on alpha.5; a compaction whose kept tail starts at Mirror's context fails the chapter check
-- [CR179: Read a Table Whose Delimiter Has Fewer Than Three Hyphens](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) — **in_progress** · Desktop · Navigator, 2026-11-02; `|--:|` makes a whole table a paragraph
+- [CR179: Read a Table Whose Delimiter Has Fewer Than Three Hyphens](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) — **done** · Desktop · Navigator, 2026-11-02; `|--:|` makes a whole table a paragraph
 
 ## Queue After the Cutover
 
@@ -55,11 +55,11 @@ The proposed order. The Navigator can reorder it; the index's status column stay
 | 3c3 | [CR178](cr178-a-chapter-may-begin-at-mirrors-context.md) | RS026 | done | shipped in alpha.6; chapters confirmed in production 2026-11-02 |
 | 3b | [CR174](cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) | RS026 | done | on `main` (`be81e1c`); dev-validated 2026-11-02 |
 | 3d | [CR175](cr175-organize-settings-by-what-the-person-wants-to-do.md) | RS026 | captured | Settings by intent; setup offers Claude through Claude Code |
-| 3e | [CR179](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) | RS026 | in_progress | on `main` (`2b43d6b`); shipped in alpha.6; release check owed |
+| 3e | [CR179](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) | RS026 | done | shipped in alpha.6; confirmed in production 2026-11-02 |
 | 4 | [CR159](../rs025-legible-endings-for-a-turn-that-ends-badly/cr159-say-why-the-provider-refused-a-turn.md) | RS025 | in_progress | the real refusal arrived on 2026-11-01 ("Third-party apps now draw from your extra usage"); attach it and read it on 0.3 |
 | 5 | [CR163](../rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md) | RS025 | in_progress | field check owed, now on the TypeScript append |
 | 6 | [CR168](cr168-name-a-channel-refusal-instead-of-invalid-record.md) | RS026 | in_progress | group B; on `main` (`eb43319`); dev check owed |
-| 7 | [CR169](cr169-tell-a-dev-build-apart-from-the-user-build.md) | RS026 | in_progress | group B; on `main` (`27c9e13`); dev check owed |
+| 7 | [CR169](cr169-tell-a-dev-build-apart-from-the-user-build.md) | RS026 | done | group B; on `main` (`27c9e13`); dev-validated 2026-11-02 |
 | 8 | [CR164](../rs025-legible-endings-for-a-turn-that-ends-badly/cr164-the-hung-append-test-races-its-own-stderr.md) | RS025 | captured | flaky test, test-only |
 | 9 | [CR155](../rs025-legible-endings-for-a-turn-that-ends-badly/cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md), [CR161](../rs025-legible-endings-for-a-turn-that-ends-badly/cr161-give-every-finishing-the-same-exits.md) | RS025 | parked | unpark together with CR166, which touches the same exits |
 | 10 | [CR170](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS026 | captured | Core |
