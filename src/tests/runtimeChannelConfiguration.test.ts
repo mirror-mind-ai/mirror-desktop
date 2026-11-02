@@ -145,9 +145,11 @@ describe("runtime channel configuration", () => {
     expect(runtimeChannelSource).toContain("load_home_binding(&app_data_root)");
     expect(runtimeChannelSource).toContain('join(channel.bundle_identifier())');
     expect(runtimeChannelSource).not.toContain("alisson-vale");
-    expect(runtimeChannelSource).toContain('.env_remove("MIRROR_HOME")');
-    expect(runtimeChannelSource).toContain('.env_remove("MIRROR_USER")');
-    expect(runtimeChannelSource).toContain('.env_remove("DB_PATH")');
+    // CR177: no inherited production coordinate survives; the bound home's replaces it.
+    expect(runtimeChannelSource).toContain('.env("MIRROR_HOME", &self.mirror_home)');
+    expect(runtimeChannelSource).toContain('.env("MIRROR_USER", home_folder_name)');
+    expect(runtimeChannelSource).toContain('.env("DB_PATH", &self.db_path)');
+    expect(runtimeChannelSource).toContain('.env_remove("MEMORY_DIR")');
     expect(runtimeChannelSource).not.toContain('.env("MIRROR_HOME"');
     expect(runtimeChannelSource).toContain('.env("PATH"');
     expect(runtimeChannelSource).toContain('if program == "uv" {\n            return Err(UV_RETIRED.to_string());');
