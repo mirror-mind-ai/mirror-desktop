@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.3.0-alpha.7 — Your Skills, in This App's Home](v0.3.0-alpha.7.md) — Mirror's skills used from a turn write to the home this app opened; a conversation of the other build is named as such; the development build carries its own name. Intel only, not signed.
 - [v0.3.0-alpha.6 — Chapters, Tables and a Way Out of Setup](v0.3.0-alpha.6.md) — compaction no longer ends in "structurally invalid" and missed chapters return; short-delimiter tables are drawn as tables; setup can leave a home that no longer opens. Intel only, not signed.
 - [v0.3.0-alpha.5 — Its Own Way to Claude, in the Journey's Folder](v0.3.0-alpha.5.md) — Claude through Mirror Desktop's own Claude Code, with your Claude Code's plugins and hooks kept out of its turns; the agent works in the Journey's folder, never beside your memory. Intel only, not signed.
 - [v0.3.0-alpha.4 — An Exit That Says What It Did](v0.3.0-alpha.4.md) — *Recover this turn* no longer does nothing in silence: it recovers the turn or says, under the button, why it could not. The first release after production moved to the 0.3 line. Intel only, not signed.
