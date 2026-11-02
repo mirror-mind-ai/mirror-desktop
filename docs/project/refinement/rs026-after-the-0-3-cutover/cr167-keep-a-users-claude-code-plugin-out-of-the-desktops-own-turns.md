@@ -2,7 +2,7 @@
 
 # CR167: Keep a User's Claude Code Plugin Out of the Desktop's Own Turns
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop (the Core does not change; see Direction)
 
 ## Friction
@@ -83,8 +83,10 @@ know one of its clients), and an environment variable contributed upstream as th
 
 Through CR173 on `main`: `disableAllHooks: true` in the Desktop's own provider (`d0a2d65`), loaded
 in place of the person's bridge once Claude models are installed (`a2a3dc2`, `a844f07`). The sandbox
-measured it with the installed provider: no `claude_code` conversation. Stays `in_progress` until the
-release acceptance below runs.
+measured it with the installed provider: no `claude_code` conversation. Closed with CR173 on the
+Navigator's development validation (2026-11-02): two Desktop turns on Anthropic models in
+`ensaio-5c-2`, one conversation of 4 messages, no `claude_code` conversation. The release re-run
+folds into the first alpha that carries it.
 
 ## Acceptance
 

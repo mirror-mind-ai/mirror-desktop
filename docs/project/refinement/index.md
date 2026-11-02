@@ -251,13 +251,13 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR163](rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md) | RS025 | A Hung Mirror Append Freezes Every Exit | in_progress | @alissonvale | `refinement/cr163-bound-the-mirror-append` |
 | — | [CR164](rs025-legible-endings-for-a-turn-that-ends-badly/cr164-the-hung-append-test-races-its-own-stderr.md) | RS025 | The Hung-Append Test Races Its Own Stderr | captured | — | — |
 | — | [CR166](rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | Recover This Turn Does Nothing on a Turn Still Running | in_progress | @alissonvale | `main` |
-| — | [CR167](rs026-after-the-0-3-cutover/cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) | RS026 | Keep a User's Claude Code Plugin Out of the Desktop's Own Turns | in_progress | — | — |
+| — | [CR167](rs026-after-the-0-3-cutover/cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) | RS026 | Keep a User's Claude Code Plugin Out of the Desktop's Own Turns | done | @alissonvale | `main`, dev-validated |
 | — | [CR168](rs026-after-the-0-3-cutover/cr168-name-a-channel-refusal-instead-of-invalid-record.md) | RS026 | Name a Channel Refusal Instead of invalid_record | captured | — | — |
 | — | [CR169](rs026-after-the-0-3-cutover/cr169-tell-a-dev-build-apart-from-the-user-build.md) | RS026 | Tell a Dev Build Apart From the User Build | captured | — | — |
 | — | [CR170](rs026-after-the-0-3-cutover/cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS026 | Pass the Invocation Directory to the Core Explicitly | captured | — | — |
 | — | [CR171](rs026-after-the-0-3-cutover/cr171-retire-the-nautilus-harness-interface-label.md) | RS026 | Retire the nautilus_harness Interface Label | captured | — | — |
 | — | [CR172](rs026-after-the-0-3-cutover/cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3 | done | @alissonvale | `mirrormind-site` `main`, deployed |
-| — | [CR173](rs026-after-the-0-3-cutover/cr173-make-anthropic-access-the-desktops-own-provider.md) | RS026 | Make Anthropic Access the Desktop's Own Provider | in_progress | — | — |
+| — | [CR173](rs026-after-the-0-3-cutover/cr173-make-anthropic-access-the-desktops-own-provider.md) | RS026 | Make Anthropic Access the Desktop's Own Provider | done | @alissonvale | `main`, dev-validated |
 | — | [CR174](rs026-after-the-0-3-cutover/cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) | RS026 | A Bound Home That No Longer Opens Must Not Hold the App | captured | — | — |
 | — | [CR175](rs026-after-the-0-3-cutover/cr175-organize-settings-by-what-the-person-wants-to-do.md) | RS026 | Organize Settings by What the Person Wants to Do | captured | — | — |
 | — | [CR176](rs026-after-the-0-3-cutover/cr176-run-the-agent-in-the-journeys-folder-not-in-the-mirror-home.md) | RS026 | Run the Agent in the Journey's Folder, Not in the Mirror Home | captured | — | — |

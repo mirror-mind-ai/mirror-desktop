@@ -2,7 +2,7 @@
 
 # CR173: Make Anthropic Access the Desktop's Own Provider
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -81,6 +81,13 @@ On `a844f07`, in `ensaio-5c-2`: installed, started a Journey, ran a turn on an A
 `claude_code` conversation**. The check found CR174 (setup could not leave a broken binding), CR175
 (Settings by intent) and CR176 (the agent works inside the Mirror home). `0bf99de` changed only where
 Connect lives; it is to be checked again in dev.
+
+**Retest on `0bf99de` (2026-11-02):** with the earlier install moved aside (`anthropic.prev`),
+Connect on "Claude · through Claude Code" installed it with progress (10:41) and a turn on an
+Anthropic model ran; the same conversation then held 4 messages and still no `claude_code`
+conversation. **Closed by the Navigator on this development validation** ("teste ok… podemos fechar").
+The release-build re-run below folds into the first alpha that carries CR173 rather than holding the
+CR open.
 
 ### Departures from the direction
 
