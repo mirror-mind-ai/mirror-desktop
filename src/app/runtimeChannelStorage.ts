@@ -15,11 +15,14 @@ export type RuntimeChannelDiagnostic = {
   message?: string;
   /** CV-010.DS-005 slice 3b: on a validated home, whether the app's own Pi is installed. */
   piInstalled?: boolean;
+  /** CR173: on a validated home, whether the app's own Claude models are installed. */
+  anthropicInstalled?: boolean;
 };
 
 const ALLOWED_KEYS = [
   "channel", "productName", "bundleIdentifier", "appDataRoot", "mirrorRoot",
   "mirrorHome", "mirrorUser", "dbPath", "status", "message", "piInstalled",
+  "anthropicInstalled",
 ] as const;
 const COORDINATE_KEYS = ["mirrorRoot", "mirrorHome", "mirrorUser", "dbPath"] as const;
 
@@ -63,6 +66,10 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
   if (diagnostic.piInstalled !== undefined
     && (typeof diagnostic.piInstalled !== "boolean" || diagnostic.status !== "validated")) {
     throw new Error("Runtime channel diagnostic reports Pi outside a validated home.");
+  }
+  if (diagnostic.anthropicInstalled !== undefined
+    && (typeof diagnostic.anthropicInstalled !== "boolean" || diagnostic.status !== "validated")) {
+    throw new Error("Runtime channel diagnostic reports Claude models outside a validated home.");
   }
   return diagnostic as RuntimeChannelDiagnostic;
 }
@@ -114,6 +121,19 @@ export async function installPi(onProgress: (step: PiInstallProgress) => void): 
   const unlisten: UnlistenFn = await listen<PiInstallProgress>("pi-install-progress", (event) => onProgress(event.payload));
   try {
     await invoke("install_pi");
+  } finally {
+    unlisten();
+  }
+}
+
+/**
+ * CR173: install the app's own Claude models (its copy of Claude Code and the provider Pi loads),
+ * reporting each step to `onProgress`. Resolves once installed; rejects with a sentence.
+ */
+export async function installAnthropicProvider(onProgress: (step: PiInstallProgress) => void): Promise<void> {
+  const unlisten: UnlistenFn = await listen<PiInstallProgress>("anthropic-install-progress", (event) => onProgress(event.payload));
+  try {
+    await invoke("install_anthropic_provider");
   } finally {
     unlisten();
   }

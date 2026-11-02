@@ -50,6 +50,9 @@ pub struct RuntimeChannelDiagnostic {
     /// CV-010.DS-005 slice 3b: whether the app's own Pi is installed, on a validated home only.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pi_installed: Option<bool>,
+    /// CR173: whether the app's own Anthropic provider is installed, on a validated home only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anthropic_installed: Option<bool>,
 }
 
 impl RuntimeChannel {
@@ -253,6 +256,7 @@ impl RuntimeChannelDiagnostic {
             },
             message: Some(message),
             pi_installed: None,
+            anthropic_installed: None,
         }
     }
 
@@ -285,6 +289,7 @@ impl RuntimeChannelDiagnostic {
             status: "validated",
             message: None,
             pi_installed: Some(false),
+            anthropic_installed: None,
         }
     }
 }
@@ -443,6 +448,7 @@ impl RuntimeChannelProfile {
             status: "validated",
             message: None,
             pi_installed: Some(true),
+            anthropic_installed: Some(self.anthropic_provider.is_some()),
         }
     }
 }
@@ -640,8 +646,10 @@ mod tests {
         let diagnostic = profile.diagnostic(Path::new("/tmp/ai.mirrormind.desktop.ts.dev"));
         let value = serde_json::to_value(diagnostic).unwrap();
         // The 0.3 diagnostic names the home and its database, and no Mirror source tree or user.
-        assert_eq!(value.as_object().unwrap().len(), 8);
+        assert_eq!(value.as_object().unwrap().len(), 9);
         assert_eq!(value["piInstalled"], true);
+        // CR173: and whether the app's own Claude models are installed.
+        assert_eq!(value["anthropicInstalled"], false);
         assert_eq!(value["mirrorHome"], "/Users/example/Mirror Homes/development");
         assert_eq!(value["dbPath"], "/Users/example/Mirror Homes/development/memory.db");
         assert_eq!(value["channel"], "development");
@@ -659,6 +667,7 @@ mod tests {
         assert_eq!(diagnostic.bundle_identifier, "ai.mirrormind.desktop.ts");
         assert_eq!(diagnostic.mirror_root, None);
         assert_eq!(serde_json::to_value(&diagnostic).unwrap().get("piInstalled"), None);
+        assert_eq!(serde_json::to_value(&diagnostic).unwrap().get("anthropicInstalled"), None);
     }
 
     #[test]
