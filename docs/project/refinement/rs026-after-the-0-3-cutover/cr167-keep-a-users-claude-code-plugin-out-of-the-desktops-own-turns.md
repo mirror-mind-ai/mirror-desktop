@@ -3,7 +3,7 @@
 # CR167: Keep a User's Claude Code Plugin Out of the Desktop's Own Turns
 
 **Status:** in_progress
-**Line:** 0.3 · Desktop and Core (`mirror-ts`)
+**Line:** 0.3 · Desktop (the Core does not change; see Direction)
 
 ## Friction
 
@@ -67,19 +67,22 @@ It does not touch `settings.json`'s `env` or `apiKeyHelper`, which is why the br
 
 The bridge exposes no way to set it today: `claudeCodeSettings` passes only `autoMemoryEnabled`.
 
-## Proposed Direction
+## Direction (Navigator, 2026-11-02)
 
-1. A contribution to `pi-claude-bridge` (Eli Dickinson, `elidickinson/pi-claude-bridge`): an option that
-   adds `disableAllHooks: true` to the provider path's settings. Per process (an environment variable,
-   like the bridge's `CLAUDE_BRIDGE_DEBUG`) so the Desktop can set it for its own Pi without changing
-   the person's bridge config; whether it should be the default is the bridge author's call. Opening
-   an issue or PR there is a publication and needs the Navigator's word.
-2. The Desktop sets it on the Pi it runs (`runtime_channel.rs`, where it already clears `MIRROR_HOME`),
-   with a test that pins the variable.
-3. Negative case: a Claude Code session the person starts, outside the Desktop, still runs its hooks
-   and still logs.
-4. Until the bridge has the option, the Desktop can say it: if `~/.claude/skills/mirror-mind` (or a
-   Claude Code plugin with Mirror's hooks) is present, the first-run assistant names the double logging.
-   Optional, smaller.
+Anthropic access is not an optional extension of the Desktop, so the Desktop stops borrowing the
+person's bridge and owns its provider:
+[CR173](cr173-make-anthropic-access-the-desktops-own-provider.md). This CR closes when CR173's pinned
+fork sets `disableAllHooks: true` on the provider path and the acceptance below holds. No dependency on
+an upstream PR; offering the option to `pi-claude-bridge` stays a courtesy that needs its own word.
+
+Superseded proposals, kept for the record: the Core skipping marked sessions (rejected: the Core would
+know one of its clients), and an environment variable contributed upstream as the only route
+(rejected: it would make the fix wait on another author).
+
+## Acceptance
+
+- The 2026-11-02 sandbox (`/private/tmp/cr167-repro` recipe above), run against the Desktop's own
+  provider: no `claude_code` conversation in the home.
+- A Claude Code session started by the person, outside the Desktop, still logs.
 
 The Core does not change.
