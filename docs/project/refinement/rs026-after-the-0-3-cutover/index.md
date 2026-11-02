@@ -39,7 +39,7 @@ delivering anything.
 - [CR177: Keep the Person's Mirror Skills From Reaching Another Home](cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) — **done** · Desktop · found measuring CR176; a dev turn can write to production through `mm-*` skills
 - [CR178: A Chapter May Begin at Mirror's Context](cr178-a-chapter-may-begin-at-mirrors-context.md) — **done** · Desktop · found on alpha.5; a compaction whose kept tail starts at Mirror's context fails the chapter check
 - [CR179: Read a Table Whose Delimiter Has Fewer Than Three Hyphens](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) — **done** · Desktop · Navigator, 2026-11-02; `|--:|` makes a whole table a paragraph
-- [CR180: Keep the OpenRouter Key Without Asking the Keychain Every Turn](cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) — **captured** · Desktop · Navigator, 2026-11-02; the Keychain prompts on every turn; the app is unsigned
+- [CR180: Keep the OpenRouter Key Without Asking the Keychain Every Turn](cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) — **in_progress** · Desktop · Navigator, 2026-11-02; the Keychain prompts on every turn; the app is unsigned
 - [CR181: Keep What the Person Types While the Turn Starts](cr181-keep-what-the-person-types-while-the-turn-starts.md) — **captured** · Desktop · Navigator, 2026-11-02; text typed during Working is erased when the agent starts
 - [CR182: Store the Composer Draft When the Person Leaves the Field](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) — **captured** · Desktop · Navigator, 2026-11-02; typing does not feel good; store the draft on blur
 - [CR183: Give Back a Message Whose Turn Was Cancelled Before Any Answer](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) — **captured** · Desktop · Navigator, 2026-11-02; cancelling during Working loses the sent message
@@ -53,7 +53,7 @@ is proposed and awaits the Navigator.
 
 | Order | CR | Home RS | Status | Why here |
 |------:|----|---------|--------|----------|
-| F1 | [CR180](cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) | RS026 | captured | the most urgent friction (Navigator); the Keychain is read on every turn and the unsigned app cannot be remembered |
+| F1 | [CR180](cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) | RS026 | in_progress | the most urgent friction (Navigator); the Keychain is read on every turn and the unsigned app cannot be remembered; the file (Navigator); on `main` (`0a338ff`); dev check owed |
 | F2 | [CR181](cr181-keep-what-the-person-types-while-the-turn-starts.md) | RS026 | captured | composer group; the person loses text |
 | F3 | [CR183](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) | RS026 | captured | composer group; the person loses text |
 | F4 | [CR182](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) | RS026 | captured | composer group; measured first, it shares the draft code with CR181 |

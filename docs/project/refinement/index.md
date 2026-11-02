@@ -264,7 +264,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR177](rs026-after-the-0-3-cutover/cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) | RS026 | Keep the Person's Mirror Skills From Reaching Another Home | done | @alissonvale | `main`, dev-validated |
 | — | [CR178](rs026-after-the-0-3-cutover/cr178-a-chapter-may-begin-at-mirrors-context.md) | RS026 | A Chapter May Begin at Mirror's Context | done | @alissonvale | alpha.6, field-validated |
 | — | [CR179](rs026-after-the-0-3-cutover/cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) | RS026 | Read a Table Whose Delimiter Has Fewer Than Three Hyphens | done | @alissonvale | alpha.6, field-validated |
-| — | [CR180](rs026-after-the-0-3-cutover/cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) | RS026 | Keep the OpenRouter Key Without Asking the Keychain Every Turn | captured | — | — |
+| — | [CR180](rs026-after-the-0-3-cutover/cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) | RS026 | Keep the OpenRouter Key Without Asking the Keychain Every Turn | in_progress | @alissonvale | `main` |
 | — | [CR181](rs026-after-the-0-3-cutover/cr181-keep-what-the-person-types-while-the-turn-starts.md) | RS026 | Keep What the Person Types While the Turn Starts | captured | — | — |
 | — | [CR182](rs026-after-the-0-3-cutover/cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) | RS026 | Store the Composer Draft When the Person Leaves the Field | captured | — | — |
 | — | [CR183](rs026-after-the-0-3-cutover/cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) | RS026 | Give Back a Message Whose Turn Was Cancelled Before Any Answer | captured | — | — |
