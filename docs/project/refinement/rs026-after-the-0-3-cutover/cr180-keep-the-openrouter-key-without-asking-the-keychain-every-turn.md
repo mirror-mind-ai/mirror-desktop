@@ -2,7 +2,7 @@
 
 # CR180: Keep the OpenRouter Key Without Asking the Keychain Every Turn
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -77,4 +77,9 @@ was carried over: `openrouter-key.secret` exists, `-rw-------`, and the developm
 gone. The Navigator saw no prompt after the first turn, and none over more turns and a learning
 run. What closes the CR is the same on production after the next alpha: one last prompt, then none.
 
-**Shipped in [v0.3.0-alpha.8](../../../releases/v0.3.0-alpha.8.md)** (2026-11-02). Production check owed.
+**Shipped in [v0.3.0-alpha.8](../../../releases/v0.3.0-alpha.8.md)** (2026-11-02).
+
+Production check (done, 2026-11-02): with alpha.8 installed, the Navigator saw one prompt on
+reopening and none after, over several turns. `openrouter-key.secret` exists in the production data
+folder (18:24, `-rw-------`) and the `ai.mirrormind.desktop.ts` Keychain item is gone (attributes
+only, the key was not read). Closed.
