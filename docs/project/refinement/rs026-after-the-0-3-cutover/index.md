@@ -36,8 +36,8 @@ delivering anything.
 - [CR174: A Bound Home That No Longer Opens Must Not Hold the App](cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) — **done** · Desktop · found by the Navigator testing CR173 in dev, 2026-11-02
 - [CR175: Organize Settings by What the Person Wants to Do](cr175-organize-settings-by-what-the-person-wants-to-do.md) — **captured** · Desktop · Navigator, testing CR173, 2026-11-02
 - [CR176: Run the Agent in the Journey's Folder, Not in the Mirror Home](cr176-run-the-agent-in-the-journeys-folder-not-in-the-mirror-home.md) — **done** · Desktop · found by the Navigator testing CR173, 2026-11-02; the agent's tools act inside the home
-- [CR177: Keep the Person's Mirror Skills From Reaching Another Home](cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) — **in_progress** · Desktop · found measuring CR176; a dev turn can write to production through `mm-*` skills
-- [CR178: A Chapter May Begin at Mirror's Context](cr178-a-chapter-may-begin-at-mirrors-context.md) — **in_progress** · Desktop · found on alpha.5; a compaction whose kept tail starts at Mirror's context fails the chapter check
+- [CR177: Keep the Person's Mirror Skills From Reaching Another Home](cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) — **done** · Desktop · found measuring CR176; a dev turn can write to production through `mm-*` skills
+- [CR178: A Chapter May Begin at Mirror's Context](cr178-a-chapter-may-begin-at-mirrors-context.md) — **done** · Desktop · found on alpha.5; a compaction whose kept tail starts at Mirror's context fails the chapter check
 - [CR179: Read a Table Whose Delimiter Has Fewer Than Three Hyphens](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) — **in_progress** · Desktop · Navigator, 2026-11-02; `|--:|` makes a whole table a paragraph
 
 ## Queue After the Cutover
@@ -51,8 +51,8 @@ The proposed order. The Navigator can reorder it; the index's status column stay
 | 3 | [CR167](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) | RS026 | done | reproduced in a sandbox 2026-11-02; the fix is `disableAllHooks` in the provider, not the Core; delivered by CR173 |
 | 3a | [CR173](cr173-make-anthropic-access-the-desktops-own-provider.md) | RS026 | done | the Desktop owns its Anthropic provider (pinned fork of the bridge), on `main` 2026-11-02, release acceptance owed; the lean provider is an [exploration](../../explorations/a-lean-anthropic-provider/index.md) |
 | 3c | [CR176](cr176-run-the-agent-in-the-journeys-folder-not-in-the-mirror-home.md) | RS026 | done | on `main` (`1b14030`): Journey folder, session anchored, no project trust, provider on user settings; dev-validated 2026-11-02 |
-| 3c2 | [CR177](cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) | RS026 | in_progress | the bound home (Navigator); on `main` (`09ae441`); dev check owed |
-| 3c3 | [CR178](cr178-a-chapter-may-begin-at-mirrors-context.md) | RS026 | in_progress | on `main` (`b1f7e7d`); shipped in alpha.6; release check owed |
+| 3c2 | [CR177](cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) | RS026 | done | the bound home (Navigator); on `main` (`09ae441`); dev-validated 2026-11-02 |
+| 3c3 | [CR178](cr178-a-chapter-may-begin-at-mirrors-context.md) | RS026 | done | shipped in alpha.6; chapters confirmed in production 2026-11-02 |
 | 3b | [CR174](cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) | RS026 | done | on `main` (`be81e1c`); dev-validated 2026-11-02 |
 | 3d | [CR175](cr175-organize-settings-by-what-the-person-wants-to-do.md) | RS026 | captured | Settings by intent; setup offers Claude through Claude Code |
 | 3e | [CR179](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) | RS026 | in_progress | on `main` (`2b43d6b`); shipped in alpha.6; release check owed |

@@ -2,7 +2,7 @@
 
 # CR178: A Chapter May Begin at Mirror's Context
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -58,10 +58,12 @@ projected from the Pi session, so the chapters return once the check accepts wha
   (`517e25d3`, `5a514717`, `043f983d`), and all 83 closures land on a drawn entry.
 - Spec first; 6 mutation controls, each applied and caught. Full suites: 2487 TypeScript, 451 Rust.
 
-### Navigator check (owed)
+### Navigator check (done, 2026-11-02)
 
 In the release that carries it: open the `mirror-desktop` conversation. The chapters after 10:12 on
 2026-11-02 appear, and the next compaction ends without the error.
+
+Then: on production updated to alpha.6, the Navigator reported that the chapters appear. Closed.
 
 **Shipped in [v0.3.0-alpha.6](../../../releases/v0.3.0-alpha.6.md)** (2026-11-02).
 

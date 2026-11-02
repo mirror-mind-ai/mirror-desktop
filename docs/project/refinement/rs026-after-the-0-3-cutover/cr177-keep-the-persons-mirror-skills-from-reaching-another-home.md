@@ -2,7 +2,7 @@
 
 # CR177: Keep the Person's Mirror Skills From Reaching Another Home
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -52,9 +52,12 @@ the Desktop's own home.
   (2424 → 2425 tasks); production stayed at 2416. `mirror journal` calls a model first; with an
   invalid key it wrote nothing anywhere. Copies deleted.
 
-### Navigator check in development (owed)
+### Navigator check in development (done, 2026-11-02)
 
-Group B's script ([RS026](index.md#group-b-check)), step 3.
+Group B's script ([RS026](index.md#group-b-check)), step 3. The Navigator had the dev agent create a
+task in `vida-tecnica`; the Driver read APFS copies of both databases: task `f4201ac7` (19:23Z) is in
+`ensaio-5c-2`, and production has no task created since 18:30Z. Closed; the release check folds into
+the next alpha.
 
 ## Acceptance
 
