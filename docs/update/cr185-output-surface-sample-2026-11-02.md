@@ -78,3 +78,29 @@ Consistent with a cause that runs with a turn, but not clean. Note: the Driver's
 production's `mirror-desktop`, so the first sample measured the Driver's turn. A clean
 production sample with no turn and a development sample during a turn were scheduled for after
 23:11Z.
+
+## Falsifiers, clean (2026-11-02)
+
+- **Production, no turn:** 23:11:29Z–23:11:56Z, app main thread, 25 s. The journals show no turn in
+  any Journey (the last settled at 23:11:24Z; the next began at 23:14:49Z).
+- **Development, during a turn:** 23:14:24Z–23:14:51Z, pid 91943 (the only development process),
+  `vida-tecnica` (80 KB). The turn ran 23:14:13Z–23:14:42Z, so about 18 s of the window.
+
+| | app main thread in `SLSDisplayGetTiming` | idle |
+|---|---:|---:|
+| production, `mirror-desktop` turn (first sample) | **42.0%** | 47.0% |
+| production, no turn | 0.8% | 95.4% |
+| development, turn, 80 KB conversation | 4.4% | 91.5% |
+
+WindowServer was at 87% CPU when the development sample began, yet development's main thread barely
+waited: a busy WindowServer alone does not block. The wait needs a turn **and** the long
+conversation.
+
+## Reading
+
+The hypothesis that the working animations alone cause it is refuted: development runs the same
+animations during a turn. What remains is something during a turn whose cost grows with the
+conversation: most likely what the page re-lays out or repaints as the answer streams (the first
+sample's WebContent spent 11.9% in `updateRendering`, 8.0% in layout and style). The next
+instrument is a timeline of the page itself, in a build that can be inspected, on a conversation
+of production's size.

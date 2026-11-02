@@ -41,3 +41,10 @@ the app's main thread spent 42% of the minute blocked on WindowServer (`SLSDispl
 from AppKit's update cycle), not in Mirror Desktop's commands (0.4%) or in the page (70% idle).
 Hypothesis: forever-running working animations that repaint (`background`, `box-shadow`) keep the
 update cycle busy, and WindowServer answers slowly. Two falsifiers are owed before a repair.
+
+## Falsifiers (2026-11-02)
+
+Production without a turn: 0.8% waiting. Development during a turn on 80 KB: 4.4%. Production
+during a turn on 31.7 MB: 42%. The animation-only hypothesis is refuted; the cost needs a turn and
+the long conversation. Next: a page timeline on a conversation of production's size, in the
+development build.
