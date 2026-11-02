@@ -96,6 +96,13 @@ pub(crate) fn load_home_binding(app_data_root: &Path) -> Result<Option<MarkedHom
 }
 
 /// Write the 0.3 binding for `home`, replacing any previous one atomically.
+/// CR174: the bound home's id, for the rule that the bound home changes only when nothing is in
+/// flight. A binding that does not open counts as none: nothing can be running in a home that does
+/// not open, and refusing here left setup with no way out of it.
+pub(crate) fn bound_home_id_for_switch(app_data_root: &Path) -> Option<String> {
+    load_home_binding(app_data_root).ok().flatten().map(|home| home.marker.home_id)
+}
+
 pub(crate) fn persist_home_binding(app_data_root: &Path, home: &MarkedHome) -> Result<(), String> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
@@ -153,6 +160,24 @@ mod tests {
     }
 
     const GOOD: &str = r#"{"line":"0.3","homeId":"home-1234-abcd","createdAt":"2026-10-29T00:00:00Z"}"#;
+
+    #[test]
+    fn a_binding_that_no_longer_opens_counts_as_no_current_home_for_a_switch() {
+        // CR174: setup must be able to leave a binding to a home that no longer opens.
+        let parent = scratch("switch");
+        let app_data = parent.join("app-data");
+        fs::create_dir_all(&app_data).unwrap();
+        assert_eq!(bound_home_id_for_switch(&app_data), None, "no binding");
+        let home = marked(&parent, "ana", GOOD);
+        persist_home_binding(&app_data, &MarkedHome::open(&home).unwrap()).unwrap();
+        assert_eq!(bound_home_id_for_switch(&app_data).as_deref(), Some("home-1234-abcd"));
+        // The home loses its mark (or the folder goes): the binding still names it, and it opens no more.
+        fs::remove_file(home.join(MARKER_DIR).join(MARKER_FILE)).unwrap();
+        assert!(load_home_binding(&app_data).is_err(), "the binding itself still says it is broken");
+        assert_eq!(bound_home_id_for_switch(&app_data), None);
+        fs::write(app_data.join(HOME_BINDING_FILE_NAME), "{not json").unwrap();
+        assert_eq!(bound_home_id_for_switch(&app_data), None);
+    }
 
     #[test]
     fn a_marked_home_opens_with_its_database_path() {

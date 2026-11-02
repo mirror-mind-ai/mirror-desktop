@@ -960,6 +960,8 @@ export function App({ model }: AppProps) {
     setWhatsNewState(resolveWhatsNewState(acknowledged, installed.version));
   }
   const [runtimeChannelError, setRuntimeChannelError] = useState<string>();
+  // CR174: once the person chooses on the setup screen, the old home's sentence is not theirs to read.
+  const [runtimeHomeChosen, setRuntimeHomeChosen] = useState(false);
   // CV-010.DS-005 slice 5a: a chosen home Mirror Desktop TS did not make, under review.
   const [homeAdoption, setHomeAdoption] = useState<Extract<HomeAdoptionInspection, { marked: false }>>();
   const [runtimeBindingState, setRuntimeBindingState] = useState<"idle" | "validating" | "saving">("idle");
@@ -5548,6 +5550,7 @@ export function App({ model }: AppProps) {
   /** The folder a new home goes in; a refusal is shown, a cancelled choice changes nothing. */
   async function chooseHomeFolder(): Promise<string | undefined> {
     setRuntimeChannelError(undefined);
+    setRuntimeHomeChosen(true);
     try {
       return await chooseRuntimeDirectory("homeFolder");
     } catch (error) {
@@ -5562,6 +5565,7 @@ export function App({ model }: AppProps) {
    */
   async function chooseAndBindMirrorHome() {
     setRuntimeChannelError(undefined);
+    setRuntimeHomeChosen(true);
     setHomeAdoption(undefined);
     let homePath: string | undefined;
     try {
@@ -5767,7 +5771,8 @@ export function App({ model }: AppProps) {
           {runtimeSetupNeedsConnection && homeAdoptionReview ? homeAdoptionReview : runtimeSetupNeedsConnection ? (
             <MirrorHomeSetup
               binding={runtimeBindingState !== "idle"}
-              error={runtimeChannelError ?? (runtimeChannel?.status === "invalid" ? runtimeChannel.message : undefined)}
+              error={runtimeChannelError}
+              brokenHome={runtimeHomeChosen ? undefined : runtimeChannel?.status === "invalid" ? runtimeChannel.message : undefined}
               onCreate={(userName, folder) => void createAndBindMirrorHome(userName, folder)}
               onChooseFolder={chooseHomeFolder}
               onChoose={() => void chooseAndBindMirrorHome()}

@@ -13,6 +13,8 @@ import { homeCreationPreview, userNameFrom, userNameProblem } from "../domain/mi
 type MirrorHomeSetupProps = {
   binding: boolean;
   error?: string;
+  /** CR174: why the home this app opened before no longer opens, until the person chooses. */
+  brokenHome?: string;
   onCreate: (userName: string, folder?: string) => void;
   onChooseFolder: () => Promise<string | undefined>;
   onChoose: () => void;
@@ -20,7 +22,7 @@ type MirrorHomeSetupProps = {
   initialName?: string;
 };
 
-export function MirrorHomeSetup({ binding, error, onCreate, onChooseFolder, onChoose, initialName = "" }: MirrorHomeSetupProps) {
+export function MirrorHomeSetup({ binding, error, brokenHome, onCreate, onChooseFolder, onChoose, initialName = "" }: MirrorHomeSetupProps) {
   const [name, setName] = useState(initialName);
   const [editedUserName, setEditedUserName] = useState<string | undefined>(undefined);
   const [folder, setFolder] = useState<string | undefined>(undefined);
@@ -38,6 +40,7 @@ export function MirrorHomeSetup({ binding, error, onCreate, onChooseFolder, onCh
       <p className="eyebrow">Mirror Desktop TS</p>
       <h1>Create your Mirror</h1>
       <p>Your Mirror keeps your Journeys, Conversations and memory in one folder on this Mac. Nothing outside it is written.</p>
+      {brokenHome ? <p className="provider-note">The Mirror home this app opened before can no longer be opened: {brokenHome} Create a new one, or open another.</p> : null}
       <form
         className="runtime-onboarding-form"
         onSubmit={(event) => {
@@ -65,7 +68,7 @@ export function MirrorHomeSetup({ binding, error, onCreate, onChooseFolder, onCh
         {error ? <p className="provider-error" role="alert">{error}</p> : null}
         <div className="provider-actions">
           <button type="submit" disabled={!ready}>{binding ? "Creating…" : "Create my Mirror"}</button>
-          <button className="secondary-button" type="button" disabled={binding} onClick={() => void chooseFolder()}>Choose another place…</button>
+          <button className="secondary-button" type="button" disabled={binding} onClick={() => void chooseFolder()}>Create it in another folder…</button>
         </div>
       </form>
       <p>Already have a Mirror home made by Mirror Desktop TS?</p>

@@ -45,7 +45,7 @@ describe("the 0.3 setup screen", () => {
     expect(html).toContain("Mirror Desktop TS");
     expect(html).toContain("Create your Mirror");
     expect(html).toContain("What should your Mirror call you?");
-    expect(html).toContain("Choose another place…");
+    expect(html).toContain("Create it in another folder…");
     expect(html).toContain("Open an existing Mirror home…");
     expect(html).toMatch(/<button type="submit" disabled="">Create my Mirror<\/button>/);
     expect(html).not.toContain('role="status"');
@@ -70,7 +70,7 @@ describe("the 0.3 setup screen", () => {
     expect(html).toContain('role="alert"');
     expect(html).toContain("/Users/ana/Mirror Homes/ana already exists.");
     expect(html).toMatch(/<button type="submit" disabled="">Creating…<\/button>/);
-    expect(html).toMatch(/disabled="">Choose another place…/);
+    expect(html).toMatch(/disabled="">Create it in another folder…/);
     expect(html).toMatch(/disabled="">Open an existing Mirror home…/);
   });
 

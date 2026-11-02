@@ -2106,8 +2106,8 @@ fn create_mirror_home(app: AppHandle, user_name: String, folder: Option<String>)
             fs::create_dir(&homes).map_err(|error| format!("Could not create {}: {error}", homes.display()))?;
         }
     }
-    let current = mirror_home::load_home_binding(&app_data_root)?;
-    if let Some(refusal) = home_switch_refusal(current.as_ref().map(|home| home.marker.home_id.as_str()), None, desktop_is_busy(&app)) {
+    let current = mirror_home::bound_home_id_for_switch(&app_data_root);
+    if let Some(refusal) = home_switch_refusal(current.as_deref(), None, desktop_is_busy(&app)) {
         return Err(refusal.to_string());
     }
     mirror_host_bridge::create_home(&app, &home_path, &user_name)
@@ -2139,8 +2139,8 @@ fn adopt_mirror_home(app: AppHandle, home_path: String, expected_pending: Vec<St
     if let Some(refusal) = mirror_host_bridge::adoption_channel_refusal(RuntimeChannel::active(), &home_path) {
         return Err(refusal.to_string());
     }
-    let current = mirror_home::load_home_binding(&app_data_root)?;
-    if let Some(refusal) = home_switch_refusal(current.as_ref().map(|home| home.marker.home_id.as_str()), None, desktop_is_busy(&app)) {
+    let current = mirror_home::bound_home_id_for_switch(&app_data_root);
+    if let Some(refusal) = home_switch_refusal(current.as_deref(), None, desktop_is_busy(&app)) {
         return Err(refusal.to_string());
     }
     mirror_host_bridge::adopt_home(&app, &home_path, &expected_pending)
@@ -2159,9 +2159,9 @@ fn validated_app_data_root(app: &AppHandle) -> Result<PathBuf, String> {
 /// the binding saved.
 fn bind_marked_home(app: &AppHandle, app_data_root: &Path, home_path: &Path) -> Result<RuntimeChannelDiagnostic, String> {
     let home = mirror_home::MarkedHome::open(home_path)?;
-    let current = mirror_home::load_home_binding(app_data_root)?;
+    let current = mirror_home::bound_home_id_for_switch(app_data_root);
     let next = Some(home.marker.home_id.as_str());
-    if let Some(refusal) = home_switch_refusal(current.as_ref().map(|home| home.marker.home_id.as_str()), next, desktop_is_busy(app)) {
+    if let Some(refusal) = home_switch_refusal(current.as_deref(), next, desktop_is_busy(app)) {
         return Err(refusal.to_string());
     }
     let report = mirror_host_bridge::request_for(app, &home, "inspectMigrationState", json!({}))
@@ -2385,9 +2385,9 @@ fn mirror_runtime_command(program: &str) -> Result<Command, String> {
 fn choose_runtime_directory(kind: String) -> Result<Option<String>, String> {
     // CV-010.DS-005 slice 2f-2: a Mirror home is the only folder the 0.3 line asks for.
     let title = match kind.as_str() {
-        "mirrorHome" => "Choose Mirror home directory",
+        "mirrorHome" => "Open an existing Mirror home",
         // CV-010.DS-005 slice 3a: the folder a new home is created in.
-        "homeFolder" => "Choose where to create your Mirror home",
+        "homeFolder" => "Choose the folder your new Mirror home is created in",
         _ => return Err("Runtime directory kind is unsupported.".to_string()),
     };
     let Some(path) = rfd::FileDialog::new().set_title(title).pick_folder() else {
@@ -15004,6 +15004,13 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         let created = body_of(&source, "fn create_mirror_home(");
         let refused = created.find("home_switch_refusal(").expect("create refuses a switch while busy");
         assert!(refused < created.find("mirror_host_bridge::create_home(").unwrap(), "refused before anything is created");
+        // CR174: both ask which home is bound in a way a broken binding cannot fail.
+        let bind = body_of(&source, "fn bind_marked_home(");
+        let adopted = body_of(&source, "fn adopt_mirror_home(");
+        for body in [&created, &bind, &adopted] {
+            assert!(body.contains("mirror_home::bound_home_id_for_switch(&app_data_root)") || body.contains("mirror_home::bound_home_id_for_switch(app_data_root)"), "{body}");
+            assert!(!body.contains("load_home_binding("), "a broken binding would hold the app again");
+        }
         let busy = body_of(&source, "fn desktop_is_busy(");
         for state in ["PiProcessState", "CompactionState", "JourneyProvisioningState"] {
             assert!(busy.contains(state), "{state}");
