@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.3.0-alpha.5 — Its Own Way to Claude, in the Journey's Folder](v0.3.0-alpha.5.md) — Claude through Mirror Desktop's own Claude Code, with your Claude Code's plugins and hooks kept out of its turns; the agent works in the Journey's folder, never beside your memory. Intel only, not signed.
 - [v0.3.0-alpha.4 — An Exit That Says What It Did](v0.3.0-alpha.4.md) — *Recover this turn* no longer does nothing in silence: it recovers the turn or says, under the button, why it could not. The first release after production moved to the 0.3 line. Intel only, not signed.
 - [v0.3.0-alpha.3 — Ready for the Mirror You Already Have](v0.3.0-alpha.3.md) — Mirror Desktop TS can now adopt an existing Mirror home behind a verified backup, and a turn that follows one interrupted mid-answer now finishes instead of hanging at *Finishing*. The release production moves to. Intel only, not signed.
 - [v0.3.0-alpha.2 — The First Update](v0.3.0-alpha.2.md) — No visible change: the version that proves Mirror Desktop TS updates itself from its own channel, leaving the Mirror home, settings, Pi and key untouched. Intel only, not signed.
