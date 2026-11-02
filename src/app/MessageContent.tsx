@@ -99,7 +99,8 @@ function parseTableCells(line: string): string[] | undefined {
 function parseTableAlignments(cells: string[]): TableAlignment[] | undefined {
   const alignments: TableAlignment[] = [];
   for (const cell of cells) {
-    const delimiter = cell.match(/^(:)?-{3,}(:)?$/);
+    // CR179: GFM asks for one hyphen or more, and models write `--:` and `:-:`.
+    const delimiter = cell.match(/^(:)?-+(:)?$/);
     if (!delimiter) return undefined;
     alignments.push(delimiter[1] && delimiter[2] ? "center" : delimiter[2] ? "right" : "left");
   }

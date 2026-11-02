@@ -153,8 +153,9 @@ describe("MessageContent rich rendering parser", () => {
     expect(parseMessageBlocks("Use alpha | beta in ordinary prose.")).toEqual([
       { type: "paragraph", text: "Use alpha | beta in ordinary prose." },
     ]);
+    // CR179: GFM reads a two-hyphen delimiter as a table; this used to assert the defect.
     expect(parseMessageBlocks("A | B\n--|---\n1 | 2")).toEqual([
-      { type: "paragraph", text: "A | B --|--- 1 | 2" },
+      { type: "table", headers: ["A", "B"], alignments: ["left", "left"], rows: [["1", "2"]] },
     ]);
   });
 
