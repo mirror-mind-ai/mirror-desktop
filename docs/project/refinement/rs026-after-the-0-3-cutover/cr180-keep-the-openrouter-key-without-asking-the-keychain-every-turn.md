@@ -76,3 +76,5 @@ Then: the Navigator ran the development build (compiled at 17:19 from `0a338ff`)
 was carried over: `openrouter-key.secret` exists, `-rw-------`, and the development Keychain item is
 gone. The Navigator saw no prompt after the first turn, and none over more turns and a learning
 run. What closes the CR is the same on production after the next alpha: one last prompt, then none.
+
+**Shipped in [v0.3.0-alpha.8](../../../releases/v0.3.0-alpha.8.md)** (2026-11-02). Production check owed.
