@@ -2,7 +2,7 @@
 
 # CR178: A Chapter May Begin at Mirror's Context
 
-**Status:** captured
+**Status:** in_progress
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -44,6 +44,24 @@ projected from the Pi session, so the chapters return once the check accepts wha
   use the first visible message at or after that entry. Today the transcript drops entries without a
   role, so a divider keyed to Mirror's context would never be drawn.
 - Spec from the real shape: the `517e25d3` neighbourhood, reduced to ids and types.
+
+## Delivered on `main` (`b1f7e7d`)
+
+- One rule, `is_pi_cut_point` in Rust and `isPiCutPoint` in TypeScript: a `message` other than a
+  `toolResult`, a `custom_message` or a `branch_summary`. A `custom` entry (an extension's own state)
+  is still refused, and so is a tool result, which the old check let through.
+- Before tightening, every compaction in the 0.2 and 0.3 app data was read: 1014 kept tails start
+  at an assistant message, 15 at a user message, 1 at Mirror's context, none at a tool result.
+- The chapter closure the transcript reads names the first visible entry from Pi's kept tail; the
+  manifest keeps Pi's own id, because it counts turns by position.
+- On an APFS copy of the real `mirror-desktop` session, the manifest now closes segments 81–83
+  (`517e25d3`, `5a514717`, `043f983d`), and all 83 closures land on a drawn entry.
+- Spec first; 6 mutation controls, each applied and caught. Full suites: 2487 TypeScript, 451 Rust.
+
+### Navigator check (owed)
+
+In the release that carries it: open the `mirror-desktop` conversation. The chapters after 10:12 on
+2026-11-02 appear, and the next compaction ends without the error.
 
 ## Acceptance
 
