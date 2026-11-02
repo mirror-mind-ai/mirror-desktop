@@ -3,7 +3,7 @@
 # CR172: Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3
 
 **Status:** in_progress
-**Delivery:** `mirrormind-site` `main` (`0a68a5d`, `5a58c10`, `a5d3ac2`, local, not pushed)
+**Delivery:** `mirrormind-site` `main` (`0a68a5d` … `bcc7b6f`, pushed and deployed 2026-11-02)
 **Line:** 0.3 · the public site (`mirrormind-site`, Journey *Mirror Mind Website*)
 **Raised by:** the Navigator, 2026-11-01, to be done before the rest of this queue
 
@@ -174,3 +174,24 @@ Commit `0a68a5d` in `mirrormind-site`, local only. Not pushed and not deployed; 
   path is unsupported, untested by us on Windows, outside Core's CI, and without owner-only file
   protection, and that Core PR #45 (a per-user installer) is in review. Marked with an HTML comment
   to be replaced by that installer.
+- **Linux (`bcc7b6f`):** "Install your Mirror on Linux" / "Instale seu Mirror no Linux"; the
+  "choose how you talk to it" part and every Mirror Desktop mention removed, in both languages.
+
+## Deployed (2026-11-02 01:42Z, Navigator's word "faça o deploy do site no server")
+
+- Pushed `mirrormind-site` `main` to `bcc7b6f` (five commits), as part of the deploy.
+- `szen-vps`: backup `/var/www/mirrormind-site.backup-20261102-014248.tgz` (31 entries), then
+  `rsync -rlc --delete` from a `git archive` export of `bcc7b6f`, so no untracked or `.DS_Store` file
+  went up. Nine files changed (the six guides, both landing pages, `styles.css`); nothing deleted.
+  Both domains serve the same root (`/var/www/mirrormind-site`, nginx).
+- Checked from outside: the eight pages answer 200 on both domains with the new titles; the pt-br
+  macOS page links `/ts/downloads`; the English macOS page no longer mentions `uv sync` or `/alpha/`.
+- **A mistake, recorded:** `git add site` in `a5d3ac2` also committed the Navigator's untracked
+  `site/favicon.png` (2026-09-27), and it was pushed. No page references it; it was excluded from the
+  deploy. Whether to keep it in the repository is the Navigator's call.
+- **Rollback:** extract the backup over `/var/www/mirrormind-site`.
+
+### Still owed
+
+- The clean-account run of the macOS commands (acceptance), and the *Open Anyway* wording against a
+  real quarantined download. CR172 stays `in_progress` until then.
