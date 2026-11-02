@@ -418,11 +418,18 @@ impl RuntimeChannelProfile {
     pub fn apply_to_command(&self, command: &mut Command) {
         let runtime_path = env::join_paths(self.runtime_search_directories())
             .expect("trusted Mirror Desktop runtime paths must be joinable");
+        // CR177: a `mirror` command the agent runs (the person's `mm-*` skills) reaches the home this
+        // app is bound to. Unset, the CLI fell back to `~/.config/mirror/env`, which can name another
+        // home: a development turn could write to production. The CLI's own rule is that
+        // MIRROR_USER is the home's folder name.
+        let home_folder_name = self.mirror_home.file_name().unwrap_or_default();
         command
             .current_dir(&self.mirror_home)
-            .env_remove("MIRROR_HOME")
-            .env_remove("MIRROR_USER")
-            .env_remove("DB_PATH")
+            .env("MIRROR_HOME", &self.mirror_home)
+            .env("MIRROR_USER", home_folder_name)
+            .env("DB_PATH", &self.db_path)
+            .env_remove("MEMORY_DIR")
+            .env_remove("MEMORY_PROD_DIR")
             .env_remove("PYTHONPATH")
             .env_remove("PYTHONHOME")
             .env_remove("VIRTUAL_ENV")
@@ -703,7 +710,7 @@ mod tests {
     }
 
     #[test]
-    fn runs_pi_in_the_0_3_home_with_no_mirror_variable() {
+    fn runs_pi_in_the_0_3_home_naming_only_that_home_to_mirror() {
         let profile = RuntimeChannelProfile::for_home(
             RuntimeChannel::Development,
             Path::new("/Users/example"),
@@ -727,11 +734,16 @@ mod tests {
         assert!(environment
             .get("PATH")
             .is_some_and(|value| value.contains("/usr/local/bin")));
-        assert_eq!(environment.len(), 1, "{environment:?}");
+        // CR177: the `mirror` CLI a skill runs reaches the bound home, never the one
+        // `~/.config/mirror/env` names; the CLI fills from that file without overriding, DB_PATH
+        // wins over every derived path, and MIRROR_USER must agree with the home's folder name.
+        assert_eq!(environment.get("MIRROR_HOME").map(String::as_str), Some("/Users/example/Mirror Homes/development"));
+        assert_eq!(environment.get("MIRROR_USER").map(String::as_str), Some("development"));
+        assert_eq!(environment.get("DB_PATH").map(String::as_str), Some("/Users/example/Mirror Homes/development/memory.db"));
+        assert_eq!(environment.len(), 4, "{environment:?}");
         for removed in [
-            "MIRROR_HOME",
-            "MIRROR_USER",
-            "DB_PATH",
+            "MEMORY_DIR",
+            "MEMORY_PROD_DIR",
             "PYTHONPATH",
             "PYTHONHOME",
             "VIRTUAL_ENV",

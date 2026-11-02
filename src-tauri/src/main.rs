@@ -7626,8 +7626,9 @@ fn acknowledge_mirror_append_item(
 
 /// CV-010.DS-005 slice 2e: the one way a Pi turn or compaction is built. Whatever the invocation
 /// mode, it runs in the bound 0.3 home (a data folder, never a Mirror checkout whose
-/// `.pi/extensions` would load), with `MIRROR_HOME`, `MIRROR_USER`, `DB_PATH` and the Python
-/// variables removed: the shell that launched the app may export a production Mirror's.
+/// `.pi/extensions` would load), with the Python variables removed and `MIRROR_HOME`, `MIRROR_USER`
+/// and `DB_PATH` naming the bound home (CR177): the shell that launched the app may export a
+/// production Mirror's, and `~/.config/mirror/env` may name another home.
 ///
 /// Slice 3b: the provider command `pi` is the app's own Pi (decision 2), never one `PATH` finds.
 ///
@@ -15162,9 +15163,14 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         let printed = String::from_utf8_lossy(&output.stdout);
         let mut lines = printed.lines();
         assert_eq!(lines.next().unwrap(), fs::canonicalize(&profile.mirror_home).unwrap().to_string_lossy());
-        for variable in ["MIRROR_HOME=", "MIRROR_USER=", "DB_PATH=", "PYTHONPATH="] {
-            assert!(!printed.lines().any(|line| line.starts_with(variable)), "{variable} reached Pi: {printed}");
+        // CR177: what reaches Pi names the bound home, whatever the launching shell exported.
+        assert!(!printed.contains("production") && !printed.contains("/x/memory.db"), "{printed}");
+        let home = format!("MIRROR_HOME={}", profile.mirror_home.display());
+        let database = format!("DB_PATH={}", profile.db_path.display());
+        for expected in [home.as_str(), "MIRROR_USER=development", database.as_str()] {
+            assert!(printed.lines().any(|line| line == expected), "{expected} missing: {printed}");
         }
+        assert!(!printed.lines().any(|line| line.starts_with("PYTHONPATH=")), "{printed}");
     }
 
     #[test]
