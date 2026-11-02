@@ -10,6 +10,9 @@ export type SelfUpdatePanelProps = {
   installUpdate?: typeof installTrustedSelfUpdate;
   reviewedUpdate?: SelfUpdateCheckResult & { status: "available" };
   installedReleaseReading?: ReleaseReading;
+  /** CR169: false in a build that registers no updater (development, evaluation). */
+  selfUpdates?: boolean;
+  buildName?: string;
 };
 
 type UpdateState =
@@ -30,6 +33,8 @@ export function SelfUpdatePanel({
   installUpdate = installTrustedSelfUpdate,
   reviewedUpdate,
   installedReleaseReading,
+  selfUpdates = true,
+  buildName = "Mirror Desktop TS",
 }: SelfUpdatePanelProps) {
   const [state, setState] = useState<UpdateState>(reviewedUpdate ? { status: "available", update: reviewedUpdate } : { status: "idle" });
 
@@ -90,6 +95,15 @@ export function SelfUpdatePanel({
     } catch (error) {
       setState({ status: "error", message: errorMessage(error) });
     }
+  }
+
+  if (!selfUpdates) {
+    return (
+      <section className="settings-section self-update-card" aria-label="Trusted self-update">
+        <h3>Mirror Desktop updates</h3>
+        <p className="provider-note">This build, {buildName}, does not update itself; updates reach Mirror Desktop TS.</p>
+      </section>
+    );
   }
 
   return (

@@ -182,7 +182,9 @@ describe("runtime channel configuration", () => {
     expect(cssSource).toContain(".brand-channel-badge.is-evaluation");
     expect(appSource).not.toContain("Journey Navigation");
     expect(appSource).not.toContain("PRODUCT_DESCRIPTOR");
-    expect(appSource).toContain("<strong>Mirror Desktop ");
+    // CR169: the brand is the build's own name, every one of them Mirror Desktop's.
+    expect(appSource).toContain("<strong>{buildName} ");
+    expect(appSource).toContain('const buildName = developmentChannel ? "Mirror Desktop TS Dev"');
     expect(appSource).not.toContain("<strong>Nautilus ");
     expect(appSource).not.toContain("Using Harness agent defaults.");
     expect(appSource).not.toContain("channel-local Nautilus storage");

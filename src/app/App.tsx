@@ -5488,6 +5488,8 @@ export function App({ model }: AppProps) {
 
   const developmentChannel = runtimeChannel?.channel === "development";
   const evaluationChannel = runtimeChannel?.channel === "evaluation";
+  // CR169: each build carries its own name where the person looks first.
+  const buildName = developmentChannel ? "Mirror Desktop TS Dev" : evaluationChannel ? "Mirror Desktop TS Eval" : "Mirror Desktop TS";
   async function importJourneysAfterBinding() {
     setRuntimeOnboardingState("importing");
     setRuntimeOnboardingMessage(undefined);
@@ -6086,7 +6088,7 @@ export function App({ model }: AppProps) {
             {developmentChannel ? <span className="brand-channel-badge">DEV</span> : evaluationChannel ? <span className="brand-channel-badge is-evaluation">EVAL</span> : null}
           </span>
           <div className="brand-copy">
-            <strong>Mirror Desktop TS {developmentChannel ? <span className="sr-only">Development channel</span> : evaluationChannel ? <span className="sr-only">Evaluation channel</span> : null}</strong>
+            <strong>{buildName} {developmentChannel ? <span className="sr-only">Development channel</span> : evaluationChannel ? <span className="sr-only">Evaluation channel</span> : null}</strong>
             <SelfUpdateNotification
               runtimeBusy={runtimeBusy}
               installedReleaseReading={whatsNewState?.installed}
@@ -7873,7 +7875,7 @@ export function App({ model }: AppProps) {
                 role="tabpanel"
                 aria-labelledby="settings-tab-updates"
               >
-                <SelfUpdatePanel runtimeBusy={runtimeBusy} reviewedUpdate={reviewedUpdate} installedReleaseReading={whatsNewState?.installed} />
+                <SelfUpdatePanel runtimeBusy={runtimeBusy} selfUpdates={!developmentChannel && !evaluationChannel} buildName={buildName} reviewedUpdate={reviewedUpdate} installedReleaseReading={whatsNewState?.installed} />
               </div>
             ) : null}
           </section>
