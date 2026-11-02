@@ -2,7 +2,7 @@
 
 # CR174: A Bound Home That No Longer Opens Must Not Hold the App
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -54,11 +54,14 @@ production was not touched.
   existing Mirror home" and "Choose the folder your new Mirror home is created in".
 - Spec first; 5 mutation controls, each applied and caught. Full suites: 2486 TypeScript, 450 Rust.
 
-### Navigator check in development (owed)
+### Navigator check in development (done, 2026-11-02)
 
 The dev binding to `ensaio-alisson-vale` was kept as `runtime-home.v2.json.ensaio-alisson-vale`.
 Putting it back reproduces the field case: Open an existing Mirror home… on `ensaio-5c-2` should
 bind it in one try.
+
+Then: with the binding to `ensaio-alisson-vale` put back, the Navigator reported that development
+opened without errors. Closed on that check; the release check folds into the next alpha.
 
 ## Acceptance
 
