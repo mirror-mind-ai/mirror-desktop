@@ -93,7 +93,7 @@ describe("technical conversation Segments", () => {
   });
 
   it("lets a chapter begin wherever Pi may cut, and nowhere else (CR178)", () => {
-    const at = (kept: Record<string, string>) => [
+    const at = (kept: Pick<PiSegmentSourceEntry, "type" | "role">) => [
       { id: "user-1", type: "message", role: "user" },
       { id: "kept", parentId: "user-1", ...kept },
       { id: "assistant-1", parentId: "kept", type: "message", role: "assistant" },
