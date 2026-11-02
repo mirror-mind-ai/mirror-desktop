@@ -96,6 +96,47 @@ user. A development Desktop on a rehearsal home that follows such a skill writes
 3. Where a Journey without a project path runs.
 4. Whether the adjacent finding becomes its own CR.
 
+## Decided (Navigator, 2026-11-02)
+
+1. Project context files enter the turn: yes.
+2. `--approve` becomes `--no-approve`: yes.
+3. A Journey without a project path works in `~/Mirror Journeys/<journey>`.
+4. The adjacent finding becomes [CR177](cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md).
+
+## Measured while building
+
+- **Pi takes the working directory from the session file, not the process.** A session created in
+  folder A and resumed from folder B still ran in A (`main.js`: "Decide the final runtime cwd …
+  --session … may select a session from another project"); a header whose folder is missing makes a
+  non-interactive Pi exit. Every Desktop session was provisioned in the home, so changing the
+  process's folder alone would have changed nothing.
+- **A project's `.claude/settings.json` runs inside a Desktop turn.** With the turn in a project
+  whose settings name an `apiKeyHelper`, Claude Code ran it (`HELPER_RAN` written), `--no-approve`
+  notwithstanding: Pi's trust does not reach Claude Code's own settings.
+
+## Delivered on `main` (`1b14030`)
+
+- `journey_workspace.rs`: the Journey's registered project path when it is absolute, exists, and is
+  not the Mirror home or inside it; otherwise `~/Mirror Journeys/<journey>` (a plain folder name,
+  made on first use, links refused), with a sentence on the turn when a registered path was set
+  aside. `anchor_session_cwd` rewrites only the session header's `cwd`, atomically, keeping the
+  file's mode and every other byte.
+- The turn resolves the folder and anchors its session before Pi starts (registry reservation
+  held); compaction resolves before its claim and anchors under it; both run Pi there.
+- `--no-approve` on turns, compactions, session provisioning and title suggestion.
+- The Desktop's provider starts Claude Code with `settingSources: ["user"]`: the person's settings
+  apply, a project's and its local settings do not. Measured after: the project's helper no longer
+  ran; the person's own still did. One marked line in the fork's `index.ts`; the source hash moved,
+  so Claude through Claude Code must be connected again.
+- Tests: `journey_workspace` (6), the turn and compaction guards, the provider fork (7); 25
+  mutation controls, every one applied and caught (M3 and M7 first survived and the tests were
+  strengthened). Full suites: 2483 TypeScript, 449 Rust.
+
+### Navigator check in development (owed)
+
+A Journey with a project path answers "which directory are we in?" with it; one without answers
+`~/Mirror Journeys/<journey>`; a file written without a path lands there; nothing new in the home.
+
 ## Acceptance
 
 - Spec first: the working directory is the Journey's project path, else its neutral folder, never

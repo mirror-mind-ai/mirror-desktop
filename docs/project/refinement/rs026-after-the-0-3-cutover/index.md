@@ -36,6 +36,7 @@ delivering anything.
 - [CR174: A Bound Home That No Longer Opens Must Not Hold the App](cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) — **captured** · Desktop · found by the Navigator testing CR173 in dev, 2026-11-02
 - [CR175: Organize Settings by What the Person Wants to Do](cr175-organize-settings-by-what-the-person-wants-to-do.md) — **captured** · Desktop · Navigator, testing CR173, 2026-11-02
 - [CR176: Run the Agent in the Journey's Folder, Not in the Mirror Home](cr176-run-the-agent-in-the-journeys-folder-not-in-the-mirror-home.md) — **in_progress** · Desktop · found by the Navigator testing CR173, 2026-11-02; the agent's tools act inside the home
+- [CR177: Keep the Person's Mirror Skills From Reaching Another Home](cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) — **captured** · Desktop · found measuring CR176; a dev turn can write to production through `mm-*` skills
 
 ## Queue After the Cutover
 
@@ -47,7 +48,8 @@ The proposed order. The Navigator can reorder it; the index's status column stay
 | 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | done | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; validated and closed by the Navigator the same day |
 | 3 | [CR167](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) | RS026 | done | reproduced in a sandbox 2026-11-02; the fix is `disableAllHooks` in the provider, not the Core; delivered by CR173 |
 | 3a | [CR173](cr173-make-anthropic-access-the-desktops-own-provider.md) | RS026 | done | the Desktop owns its Anthropic provider (pinned fork of the bridge), on `main` 2026-11-02, release acceptance owed; the lean provider is an [exploration](../../explorations/a-lean-anthropic-provider/index.md) |
-| 3c | [CR176](cr176-run-the-agent-in-the-journeys-folder-not-in-the-mirror-home.md) | RS026 | in_progress | turns run in the Mirror home with Pi's tools; first because a relative write lands next to `memory.db` |
+| 3c | [CR176](cr176-run-the-agent-in-the-journeys-folder-not-in-the-mirror-home.md) | RS026 | in_progress | on `main` (`1b14030`): Journey folder, session anchored, no project trust, provider on user settings; dev check owed |
+| 3c2 | [CR177](cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) | RS026 | captured | `--no-skills` or the bound home for the `mirror` CLI; Navigator's call |
 | 3b | [CR174](cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) | RS026 | captured | setup cannot leave a binding to a home that no longer opens; dev unblocked by hand |
 | 3d | [CR175](cr175-organize-settings-by-what-the-person-wants-to-do.md) | RS026 | captured | Settings by intent; setup offers Claude through Claude Code |
 | 4 | [CR159](../rs025-legible-endings-for-a-turn-that-ends-badly/cr159-say-why-the-provider-refused-a-turn.md) | RS025 | in_progress | the real refusal arrived on 2026-11-01 ("Third-party apps now draw from your extra usage"); attach it and read it on 0.3 |
