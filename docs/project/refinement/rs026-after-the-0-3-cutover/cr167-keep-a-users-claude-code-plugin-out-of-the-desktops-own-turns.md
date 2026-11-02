@@ -79,6 +79,13 @@ Superseded proposals, kept for the record: the Core skipping marked sessions (re
 know one of its clients), and an environment variable contributed upstream as the only route
 (rejected: it would make the fix wait on another author).
 
+## Delivered (2026-11-02)
+
+Through CR173 on `main`: `disableAllHooks: true` in the Desktop's own provider (`d0a2d65`), loaded
+in place of the person's bridge once Claude models are installed (`a2a3dc2`, `a844f07`). The sandbox
+measured it with the installed provider: no `claude_code` conversation. Stays `in_progress` until the
+release acceptance below runs.
+
 ## Acceptance
 
 - The 2026-11-02 sandbox (`/private/tmp/cr167-repro` recipe above), run against the Desktop's own

@@ -257,7 +257,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR170](rs026-after-the-0-3-cutover/cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS026 | Pass the Invocation Directory to the Core Explicitly | captured | — | — |
 | — | [CR171](rs026-after-the-0-3-cutover/cr171-retire-the-nautilus-harness-interface-label.md) | RS026 | Retire the nautilus_harness Interface Label | captured | — | — |
 | — | [CR172](rs026-after-the-0-3-cutover/cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3 | done | @alissonvale | `mirrormind-site` `main`, deployed |
-| — | [CR173](rs026-after-the-0-3-cutover/cr173-make-anthropic-access-the-desktops-own-provider.md) | RS026 | Make Anthropic Access the Desktop's Own Provider | captured | — | — |
+| — | [CR173](rs026-after-the-0-3-cutover/cr173-make-anthropic-access-the-desktops-own-provider.md) | RS026 | Make Anthropic Access the Desktop's Own Provider | in_progress | — | — |
 | — | [CR165](rs025-legible-endings-for-a-turn-that-ends-badly/cr165-a-turn-after-an-unanswered-request-never-settles.md) | RS025 | A Turn After an Unanswered Request Never Settles | done | @alissonvale | `main` (`4078eef`) |
 | — | [CR147](rs016-ongoing-product-improvements-and-adjustments/cr147-stop-a-run-loop-thread-from-dying-in-silence.md) | RS016 | Stop a Run-Loop Thread from Dying in Silence | done | — | — |
 | — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | done | @alissonvale | `refinement/rs023-cr133-stop-a-disclosure-from-selecting-a-journey` |
