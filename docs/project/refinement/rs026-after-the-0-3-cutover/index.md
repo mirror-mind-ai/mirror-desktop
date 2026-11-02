@@ -27,8 +27,8 @@ delivering anything.
 ## New Change Requests
 
 - [CR167: Keep a User's Claude Code Plugin Out of the Desktop's Own Turns](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) — **done** · Desktop (delivered through CR173) · affects new users who already use Claude Code with Mirror
-- [CR168: Name a Channel Refusal Instead of invalid_record](cr168-name-a-channel-refusal-instead-of-invalid-record.md) — **captured** · Desktop
-- [CR169: Tell a Dev Build Apart From the User Build](cr169-tell-a-dev-build-apart-from-the-user-build.md) — **captured** · Desktop
+- [CR168: Name a Channel Refusal Instead of invalid_record](cr168-name-a-channel-refusal-instead-of-invalid-record.md) — **in_progress** · Desktop
+- [CR169: Tell a Dev Build Apart From the User Build](cr169-tell-a-dev-build-apart-from-the-user-build.md) — **in_progress** · Desktop
 - [CR170: Pass the Invocation Directory to the Core Explicitly](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) — **captured** · Core
 - [CR171: Retire the nautilus_harness Interface Label](cr171-retire-the-nautilus-harness-interface-label.md) — **captured** · Desktop + Core data
 - [CR172: Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) — **done** · the public site (another Journey's repository) · put first by the Navigator
@@ -58,8 +58,8 @@ The proposed order. The Navigator can reorder it; the index's status column stay
 | 3e | [CR179](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) | RS026 | in_progress | on `main` (`2b43d6b`); shipped in alpha.6; release check owed |
 | 4 | [CR159](../rs025-legible-endings-for-a-turn-that-ends-badly/cr159-say-why-the-provider-refused-a-turn.md) | RS025 | in_progress | the real refusal arrived on 2026-11-01 ("Third-party apps now draw from your extra usage"); attach it and read it on 0.3 |
 | 5 | [CR163](../rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md) | RS025 | in_progress | field check owed, now on the TypeScript append |
-| 6 | [CR168](cr168-name-a-channel-refusal-instead-of-invalid-record.md) | RS026 | captured | |
-| 7 | [CR169](cr169-tell-a-dev-build-apart-from-the-user-build.md) | RS026 | captured | |
+| 6 | [CR168](cr168-name-a-channel-refusal-instead-of-invalid-record.md) | RS026 | in_progress | group B; on `main` (`eb43319`); dev check owed |
+| 7 | [CR169](cr169-tell-a-dev-build-apart-from-the-user-build.md) | RS026 | in_progress | group B; on `main` (`27c9e13`); dev check owed |
 | 8 | [CR164](../rs025-legible-endings-for-a-turn-that-ends-badly/cr164-the-hung-append-test-races-its-own-stderr.md) | RS025 | captured | flaky test, test-only |
 | 9 | [CR155](../rs025-legible-endings-for-a-turn-that-ends-badly/cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md), [CR161](../rs025-legible-endings-for-a-turn-that-ends-badly/cr161-give-every-finishing-the-same-exits.md) | RS025 | parked | unpark together with CR166, which touches the same exits |
 | 10 | [CR170](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS026 | captured | Core |
@@ -67,6 +67,18 @@ The proposed order. The Navigator can reorder it; the index's status column stay
 | — | [CR094](../rs022-mirror-core-debts/cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md) | RS022 | parked | re-read against the TypeScript Core before resuming |
 | — | [CR131](../rs016-ongoing-product-improvements-and-adjustments/cr131-make-the-mirror-a-channel-validates-against-identifiable.md), [CR148](../rs016-ongoing-product-improvements-and-adjustments/cr148-give-an-unanswered-turn-back-its-own-identity.md), [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md), [CR157](../rs016-ongoing-product-improvements-and-adjustments/cr157-stop-moving-the-whole-conversation-through-every-settlement.md) | RS016 | captured | re-read against 0.3 first; some may no longer apply |
 | — | [CR098](../rs021-ux-pre-beta-evolution/cr098-allow-a-journey-to-be-reparented.md), [CR099](../rs021-ux-pre-beta-evolution/cr099-allow-safe-editing-during-another-journeys-work.md) | RS021 | captured | product features, not defects |
+
+## Group B Check
+
+CR177, CR168 and CR169 share one risk, taking the development build for the user's, and one check,
+in the development app bound to `ensaio-5c-2` (Navigator, 2026-11-02):
+
+1. The sidebar reads "Mirror Desktop TS Dev". (CR169)
+2. Settings › Updates says the build does not update itself, with no Check for updates. (CR169)
+3. In any Journey, ask the agent to add a task with `mm-tasks`. The Driver then confirms it is in
+   `ensaio-5c-2` and not in production. (CR177)
+4. The Driver marks one development conversation as the user build's (backup kept); opening it says
+   it belongs to another Mirror Desktop build, not "needs recovery". The Driver restores it. (CR168)
 
 ## Not Change Requests
 

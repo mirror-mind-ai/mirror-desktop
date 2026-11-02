@@ -54,8 +54,7 @@ the Desktop's own home.
 
 ### Navigator check in development (owed)
 
-In the dev app, bound to `ensaio-5c-2`: ask the agent to add a task with `mm-tasks`. It appears in
-that home, and not in production.
+Group B's script ([RS026](index.md#group-b-check)), step 3.
 
 ## Acceptance
 
