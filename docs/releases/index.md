@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.3.0-alpha.9 — The Composer Keeps Your Words](v0.3.0-alpha.9.md) — text typed while a turn starts is no longer erased; a turn cancelled before any answer gives its message back. Intel only, not signed.
 - [v0.3.0-alpha.8 — No More Keychain Prompts](v0.3.0-alpha.8.md) — the OpenRouter key is kept in an owner-only file on this Mac instead of the Keychain, so the login password is no longer asked on every turn; an existing key is carried over once. Intel only, not signed.
 - [v0.3.0-alpha.7 — Your Skills, in This App's Home](v0.3.0-alpha.7.md) — Mirror's skills used from a turn write to the home this app opened; a conversation of the other build is named as such; the development build carries its own name. Intel only, not signed.
 - [v0.3.0-alpha.6 — Chapters, Tables and a Way Out of Setup](v0.3.0-alpha.6.md) — compaction no longer ends in "structurally invalid" and missed chapters return; short-delimiter tables are drawn as tables; setup can leave a home that no longer opens. Intel only, not signed.
