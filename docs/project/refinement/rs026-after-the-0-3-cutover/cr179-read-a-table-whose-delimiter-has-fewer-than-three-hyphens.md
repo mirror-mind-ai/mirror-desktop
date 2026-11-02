@@ -39,6 +39,8 @@ the paragraph, together with the text after the table.
 - Spec first (the 2026-11-02 queue answer among the cases); 3 mutation controls, each applied and
   caught. Full suite: 2491 TypeScript.
 
+**Shipped in [v0.3.0-alpha.6](../../../releases/v0.3.0-alpha.6.md)** (2026-11-02).
+
 ## Acceptance
 
 - The RS026 queue answer of 2026-11-02 renders as a table.

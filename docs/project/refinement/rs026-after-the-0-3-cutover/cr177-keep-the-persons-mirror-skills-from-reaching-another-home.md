@@ -2,7 +2,7 @@
 
 # CR177: Keep the Person's Mirror Skills From Reaching Another Home
 
-**Status:** captured
+**Status:** in_progress
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -30,6 +30,32 @@ is bound to a home; the CLI it can reach is bound to another:
   Gmail) would go too, so this is the Navigator's call.
 - Or the Desktop keeps the skills and sets `MIRROR_HOME`/`MIRROR_USER` to the bound home for the
   turn, so the CLI the model reaches is the Desktop's own home.
+
+## Decision (Navigator, 2026-11-02)
+
+The bound home, not `--no-skills`: the person keeps their skills, and the `mirror` CLI they reach is
+the Desktop's own home.
+
+## Delivered on `main` (`09ae441`)
+
+- `RuntimeChannelProfile::apply_to_command`, the one place a turn, compaction or title command is
+  built, sets `MIRROR_HOME` to the bound home, `MIRROR_USER` to its folder name (the CLI refuses a
+  user that disagrees with the home's basename) and `DB_PATH` to its database, and removes
+  `MEMORY_DIR` and `MEMORY_PROD_DIR`. The CLI fills from `~/.config/mirror/env` without overriding,
+  and `DB_PATH` wins over every derived path, so that file can no longer redirect the turn.
+- Not reopened: Pi still runs with `--no-extensions`, and the Desktop still refuses the
+  `mirror-mind` package's extensions and any `mirror-logger`, so naming the home brings back no
+  second conversation writer (CR167).
+- Spec first; 4 mutation controls, each applied and caught. Full suite: 451 Rust.
+- Measured with the real `mirror` CLI (0.39.0), in the turn's environment, on an APFS copy of
+  `ensaio-5c-2`, with `~/.config/mirror/env` naming production: `mirror tasks add` wrote to the copy
+  (2424 → 2425 tasks); production stayed at 2416. `mirror journal` calls a model first; with an
+  invalid key it wrote nothing anywhere. Copies deleted.
+
+### Navigator check in development (owed)
+
+In the dev app, bound to `ensaio-5c-2`: ask the agent to add a task with `mm-tasks`. It appears in
+that home, and not in production.
 
 ## Acceptance
 

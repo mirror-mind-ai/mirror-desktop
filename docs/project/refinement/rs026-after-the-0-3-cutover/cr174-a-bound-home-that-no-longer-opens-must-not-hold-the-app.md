@@ -63,6 +63,8 @@ bind it in one try.
 Then: with the binding to `ensaio-alisson-vale` put back, the Navigator reported that development
 opened without errors. Closed on that check; the release check folds into the next alpha.
 
+**Shipped in [v0.3.0-alpha.6](../../../releases/v0.3.0-alpha.6.md)** (2026-11-02).
+
 ## Acceptance
 
 - Spec first: with a binding to an unmarked folder, `bind_marked_home` on a marked home binds it,

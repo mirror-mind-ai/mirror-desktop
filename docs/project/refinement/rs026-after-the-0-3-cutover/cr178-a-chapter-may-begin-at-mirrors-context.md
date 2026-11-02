@@ -63,6 +63,8 @@ projected from the Pi session, so the chapters return once the check accepts wha
 In the release that carries it: open the `mirror-desktop` conversation. The chapters after 10:12 on
 2026-11-02 appear, and the next compaction ends without the error.
 
+**Shipped in [v0.3.0-alpha.6](../../../releases/v0.3.0-alpha.6.md)** (2026-11-02).
+
 ## Acceptance
 
 - The `mirror-desktop` conversation's chapters include the three compactions after 10:12.
