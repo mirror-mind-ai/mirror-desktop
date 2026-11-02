@@ -27,7 +27,7 @@ delivering anything.
 ## New Change Requests
 
 - [CR167: Keep a User's Claude Code Plugin Out of the Desktop's Own Turns](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) — **done** · Desktop (delivered through CR173) · affects new users who already use Claude Code with Mirror
-- [CR168: Name a Channel Refusal Instead of invalid_record](cr168-name-a-channel-refusal-instead-of-invalid-record.md) — **in_progress** · Desktop
+- [CR168: Name a Channel Refusal Instead of invalid_record](cr168-name-a-channel-refusal-instead-of-invalid-record.md) — **done** · Desktop
 - [CR169: Tell a Dev Build Apart From the User Build](cr169-tell-a-dev-build-apart-from-the-user-build.md) — **done** · Desktop
 - [CR170: Pass the Invocation Directory to the Core Explicitly](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) — **captured** · Core
 - [CR171: Retire the nautilus_harness Interface Label](cr171-retire-the-nautilus-harness-interface-label.md) — **captured** · Desktop + Core data
@@ -58,7 +58,7 @@ The proposed order. The Navigator can reorder it; the index's status column stay
 | 3e | [CR179](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) | RS026 | done | shipped in alpha.6; confirmed in production 2026-11-02 |
 | 4 | [CR159](../rs025-legible-endings-for-a-turn-that-ends-badly/cr159-say-why-the-provider-refused-a-turn.md) | RS025 | in_progress | the real refusal arrived on 2026-11-01 ("Third-party apps now draw from your extra usage"); attach it and read it on 0.3 |
 | 5 | [CR163](../rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md) | RS025 | in_progress | field check owed, now on the TypeScript append |
-| 6 | [CR168](cr168-name-a-channel-refusal-instead-of-invalid-record.md) | RS026 | in_progress | group B; on `main` (`eb43319`); dev check owed |
+| 6 | [CR168](cr168-name-a-channel-refusal-instead-of-invalid-record.md) | RS026 | done | group B; on `main` (`eb43319`); dev-validated 2026-11-02 |
 | 7 | [CR169](cr169-tell-a-dev-build-apart-from-the-user-build.md) | RS026 | done | group B; on `main` (`27c9e13`); dev-validated 2026-11-02 |
 | 8 | [CR164](../rs025-legible-endings-for-a-turn-that-ends-badly/cr164-the-hung-append-test-races-its-own-stderr.md) | RS025 | captured | flaky test, test-only |
 | 9 | [CR155](../rs025-legible-endings-for-a-turn-that-ends-badly/cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md), [CR161](../rs025-legible-endings-for-a-turn-that-ends-badly/cr161-give-every-finishing-the-same-exits.md) | RS025 | parked | unpark together with CR166, which touches the same exits |
