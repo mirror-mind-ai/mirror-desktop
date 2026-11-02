@@ -2,7 +2,7 @@
 
 # CR174: A Bound Home That No Longer Opens Must Not Hold the App
 
-**Status:** captured
+**Status:** in_progress
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -40,6 +40,25 @@ production was not touched.
    done.
 3. **The two pickers say what they are for** in their titles and in the screen's words, so a folder
    for a new home is not mistaken for a home to open.
+
+## Delivered on `main` (`be81e1c`)
+
+- `mirror_home::bound_home_id_for_switch`: the bound home's id when it opens; a binding that does not
+  open (unmarked, gone, unreadable) counts as none. Used by binding, creating **and adopting** a
+  home: `adopt_mirror_home` had the same `load_home_binding(..)?`, not named in the friction above.
+  `load_home_binding` itself still reports a broken binding, so the diagnostic keeps saying why.
+- The old home's sentence is no longer shown as an error. It reads "The Mirror home this app opened
+  before can no longer be opened: … Create a new one, or open another.", and goes once the person
+  chooses either picker.
+- "Choose another place…" is now "Create it in another folder…"; the pickers' titles are "Open an
+  existing Mirror home" and "Choose the folder your new Mirror home is created in".
+- Spec first; 5 mutation controls, each applied and caught. Full suites: 2486 TypeScript, 450 Rust.
+
+### Navigator check in development (owed)
+
+The dev binding to `ensaio-alisson-vale` was kept as `runtime-home.v2.json.ensaio-alisson-vale`.
+Putting it back reproduces the field case: Open an existing Mirror home… on `ensaio-5c-2` should
+bind it in one try.
 
 ## Acceptance
 
