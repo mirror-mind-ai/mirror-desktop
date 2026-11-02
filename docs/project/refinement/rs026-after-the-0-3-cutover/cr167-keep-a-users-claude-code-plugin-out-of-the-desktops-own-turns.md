@@ -97,3 +97,8 @@ folds into the first alpha that carries it.
 - A Claude Code session started by the person, outside the Desktop, still logs.
 
 The Core does not change.
+
+Field check on Claude (2026-11-02, alpha.7): the Navigator ran one Claude turn in
+`livro-lideranca-soberana`. An APFS copy of production showed it recorded once, in the Journey's
+existing conversation `bc01f61d` (one user and one assistant message, both of source turn
+`turn-agent-run-2026-11-02T19:55:06.843Z`), and no `claude_code` conversation created that day.
