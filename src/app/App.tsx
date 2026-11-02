@@ -122,7 +122,6 @@ import { MirrorHomeSetup } from "./MirrorHomeSetup";
 import { MirrorHomeAdoption } from "./MirrorHomeAdoption";
 import type { HomeAdoptionInspection } from "../domain/mirrorHomeAdoption";
 import { PiInstallStep, type PiInstallView } from "./PiInstallStep";
-import { ClaudeModelsPanel } from "./ClaudeModelsPanel";
 import { ProviderConnectStep } from "./ProviderConnectStep";
 import { ModelProvidersPanel } from "./ModelProvidersPanel";
 import { OpenRouterKeyPanel } from "./OpenRouterKeyPanel";
@@ -965,7 +964,7 @@ export function App({ model }: AppProps) {
   const [homeAdoption, setHomeAdoption] = useState<Extract<HomeAdoptionInspection, { marked: false }>>();
   const [runtimeBindingState, setRuntimeBindingState] = useState<"idle" | "validating" | "saving">("idle");
   const [piInstallView, setPiInstallView] = useState<PiInstallView>({ kind: "idle" });
-  const [claudeModelsView, setClaudeModelsView] = useState<PiInstallView>({ kind: "idle" });
+  const [claudeCodeView, setClaudeCodeView] = useState<PiInstallView>({ kind: "idle" });
   // CV-010.DS-005 slice 3c-1: the model providers the app's Pi reports, and a sign-in in progress.
   const [piProviders, setPiProviders] = useState<PiProviderStatus[]>([]);
   const [piProvidersState, setPiProvidersState] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -5627,18 +5626,19 @@ export function App({ model }: AppProps) {
   }
 
   /**
-   * CR173: install the app's own Claude models from Settings. Every Pi invocation picks the provider
-   * up from the next one on, so the channel is read again and the model catalog with it.
+   * CR173: connect Claude through the app's own Claude Code, from Model providers: install it, then
+   * every Pi invocation picks it up from the next one on, so the channel is read again and the model
+   * catalog with it.
    */
-  async function installClaudeModels() {
-    setClaudeModelsView({ kind: "installing", done: 0, total: 0 });
+  async function connectClaudeCode() {
+    setClaudeCodeView({ kind: "installing", done: 0, total: 0 });
     try {
-      await installAnthropicProvider((step) => setClaudeModelsView({ kind: "installing", ...step }));
+      await installAnthropicProvider((step) => setClaudeCodeView({ kind: "installing", ...step }));
       setRuntimeChannel(await inspectRuntimeChannel());
-      setClaudeModelsView({ kind: "idle" });
+      setClaudeCodeView({ kind: "idle" });
       setPiModelCatalogState("idle");
     } catch (error) {
-      setClaudeModelsView({ kind: "failed", message: error instanceof Error ? error.message : String(error) });
+      setClaudeCodeView({ kind: "failed", message: error instanceof Error ? error.message : String(error) });
     }
   }
 
@@ -7690,14 +7690,10 @@ export function App({ model }: AppProps) {
                   onOpenAgain={(url) => void openSignInPage(url)}
                   onDisconnect={(provider) => void disconnectProvider(provider)}
                   onReload={() => { setPiProvidersMessage(undefined); setPiProvidersState("idle"); }}
+                  claude={runtimeChannel?.anthropicInstalled !== undefined
+                    ? { installed: runtimeChannel.anthropicInstalled, view: claudeCodeView, onConnect: () => void connectClaudeCode() }
+                    : undefined}
                 />
-                {runtimeChannel?.anthropicInstalled !== undefined ? (
-                  <ClaudeModelsPanel
-                    installed={runtimeChannel.anthropicInstalled}
-                    view={claudeModelsView}
-                    onInstall={() => void installClaudeModels()}
-                  />
-                ) : null}
                 <section className="settings-section provider-card" aria-label="Mirror's context · OpenRouter">
                   <OpenRouterKeyPanel
                     variant="settings"

@@ -85,19 +85,19 @@ pub(crate) fn describe_install_failure(reason: &str, log: &Path) -> String {
 /// CR173: the same outcomes, said of Claude models.
 pub(crate) fn describe_anthropic_install_failure(reason: &str, log: &Path) -> String {
     match reason {
-        "download_failed" => "Claude models could not be downloaded. Check your internet connection and try again; what was already downloaded is kept.".to_string(),
+        "download_failed" => "Claude Code could not be downloaded. Check your internet connection and try again; what was already downloaded is kept.".to_string(),
         "integrity_mismatch" | "unsafe_package" => {
-            "A downloaded package for Claude models was not the one this app expects, so nothing was installed. Try again later.".to_string()
+            "A downloaded package for Claude Code was not the one this app expects, so nothing was installed. Try again later.".to_string()
         }
-        "already_installing" => "Claude models are already being installed. Wait for it to finish.".to_string(),
+        "already_installing" => "Claude Code is already being installed. Wait for it to finish.".to_string(),
         "check_failed" => {
-            "Claude Code was downloaded but did not start, so Claude models were not installed. Try again; if it fails again, reinstall Mirror Desktop TS.".to_string()
+            "Claude Code was downloaded but did not start, so it was not installed. Try again; if it fails again, reinstall Mirror Desktop TS.".to_string()
         }
         "platform_unsupported" => "Claude models are not available for this Mac in this version of Mirror Desktop TS.".to_string(),
         "lockfile_mismatch" | "lockfile_invalid" | "invalid_target" | "usage" | "source_mismatch" => {
-            "This copy of Mirror Desktop TS cannot install Claude models. Reinstall the app.".to_string()
+            "This copy of Mirror Desktop TS cannot install Claude Code. Reinstall the app.".to_string()
         }
-        _ => format!("Claude models could not be installed. Try again; details are in {}.", log.display()),
+        _ => format!("Claude Code could not be installed. Try again; details are in {}.", log.display()),
     }
 }
 
@@ -270,7 +270,7 @@ pub(crate) async fn install_anthropic_provider(app: AppHandle) -> Result<(), Str
         })
     })
     .await
-    .map_err(|error| format!("The installer for Claude models stopped: {error}"))?
+    .map_err(|error| format!("The installer for Claude Code stopped: {error}"))?
 }
 
 #[cfg(test)]
