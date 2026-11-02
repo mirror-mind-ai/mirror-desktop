@@ -54,3 +54,10 @@ comes from there, moving the draft to blur will not be felt. So the measurement 
 2. The same, during a turn.
 
 The repair is chosen from what the samples show.
+
+### Development evidence (2026-11-02)
+
+Typing through a long turn in development, the Navigator felt no delay. Development's conversation
+is 80 KB; production's `mirror-desktop` is 31,761 KB. The delay follows the conversation's size,
+not the keystroke's own code, which is the same in both. The sampling session is shared with
+[CR185](cr185-keep-the-output-surface-moving-while-the-agent-works.md).

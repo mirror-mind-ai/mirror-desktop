@@ -40,10 +40,11 @@ delivering anything.
 - [CR178: A Chapter May Begin at Mirror's Context](cr178-a-chapter-may-begin-at-mirrors-context.md) — **done** · Desktop · found on alpha.5; a compaction whose kept tail starts at Mirror's context fails the chapter check
 - [CR179: Read a Table Whose Delimiter Has Fewer Than Three Hyphens](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) — **done** · Desktop · Navigator, 2026-11-02; `|--:|` makes a whole table a paragraph
 - [CR180: Keep the OpenRouter Key Without Asking the Keychain Every Turn](cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) — **done** · Desktop · Navigator, 2026-11-02; the Keychain prompts on every turn; the app is unsigned
-- [CR181: Keep What the Person Types While the Turn Starts](cr181-keep-what-the-person-types-while-the-turn-starts.md) — **in_progress** · Desktop · Navigator, 2026-11-02; text typed during Working is erased when the agent starts
+- [CR181: Keep What the Person Types While the Turn Starts](cr181-keep-what-the-person-types-while-the-turn-starts.md) — **done** · Desktop · Navigator, 2026-11-02; text typed during Working is erased when the agent starts
 - [CR182: Store the Composer Draft When the Person Leaves the Field](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) — **captured** · Desktop · Navigator, 2026-11-02; typing does not feel good; store the draft on blur
-- [CR183: Give Back a Message Whose Turn Was Cancelled Before Any Answer](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) — **in_progress** · Desktop · Navigator, 2026-11-02; cancelling during Working loses the sent message
+- [CR183: Give Back a Message Whose Turn Was Cancelled Before Any Answer](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) — **done** · Desktop · Navigator, 2026-11-02; cancelling during Working loses the sent message
 - [CR184: Finish a Turn Without Redrawing the Whole Conversation](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) — **captured** · Desktop · Navigator, 2026-11-02; the conversation flashes when the agent finishes
+- [CR185: Keep the Output Surface Moving While the Agent Works](cr185-keep-the-output-surface-moving-while-the-agent-works.md) — **captured** · Desktop · Navigator, 2026-11-02; the output stalls during a turn, in production's long conversations
 
 ## Queue After the Cutover
 
@@ -54,10 +55,11 @@ is proposed and awaits the Navigator.
 | Order | CR | Home RS | Status | Why here |
 |------:|----|---------|--------|----------|
 | F1 | [CR180](cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) | RS026 | done | shipped in alpha.8; no prompt in production after the one carry-over, 2026-11-02 |
-| F2 | [CR181](cr181-keep-what-the-person-types-while-the-turn-starts.md) | RS026 | in_progress | composer group; the person loses text; on `main` (`dda86f5`); dev check owed |
-| F3 | [CR183](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) | RS026 | in_progress | composer group; the person loses text; on `main` (`dda86f5`); dev check owed |
+| F2 | [CR181](cr181-keep-what-the-person-types-while-the-turn-starts.md) | RS026 | done | on `main` (`dda86f5`); dev-validated 2026-11-02; ships in the next alpha |
+| F3 | [CR183](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) | RS026 | done | on `main` (`dda86f5`); dev-validated 2026-11-02; ships in the next alpha |
 | F4 | [CR182](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) | RS026 | captured | composer group; measured first, it shares the draft code with CR181; evaluated, a sample while typing comes first |
 | F5 | [CR184](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) | RS026 | captured | measured first; may share a repair with CR157 |
+| F6 | [CR185](cr185-keep-the-output-surface-moving-while-the-agent-works.md) | RS026 | captured | sampled in production together with CR182; production 31.7 MB against development 80 KB |
 | 1 | [CR166](../rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | in_progress | an exit offered that does nothing; seen in the field on 0.3. First half on `main` (`11f8b96`): the exit now says which guard held it |
 | 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | done | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; validated and closed by the Navigator the same day |
 | 3 | [CR167](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) | RS026 | done | reproduced in a sandbox 2026-11-02; the fix is `disableAllHooks` in the provider, not the Core; delivered by CR173 |

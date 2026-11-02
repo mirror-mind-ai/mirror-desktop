@@ -2,7 +2,7 @@
 
 # CR181: Keep What the Person Types While the Turn Starts
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -48,6 +48,7 @@ draft **and the visible composer**, by then holding only what the person typed s
 - Spec first (`cr181cr183ComposerHandoff.test.ts`); mutations caught. Full suites: 2508
   TypeScript, 457 Rust.
 
-### Navigator check in development (owed)
+### Navigator check in development (done, 2026-11-02)
 
-The composer group's check ([RS026](index.md#composer-group-check)).
+The composer group's check ([RS026](index.md#composer-group-check)): the Navigator confirmed all
+three steps in development. Closed; it reaches production with the next alpha.

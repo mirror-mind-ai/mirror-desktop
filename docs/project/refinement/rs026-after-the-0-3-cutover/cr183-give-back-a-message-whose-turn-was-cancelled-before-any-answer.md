@@ -2,7 +2,7 @@
 
 # CR183: Give Back a Message Whose Turn Was Cancelled Before Any Answer
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -40,6 +40,7 @@ Send, cancel during Working: the message is back in the composer, ready to edit 
   sending the message again may show it twice there. Accepted for now.
 - Spec first; mutations caught (5 across CR181 and CR183, all caught).
 
-### Navigator check in development (owed)
+### Navigator check in development (done, 2026-11-02)
 
-The composer group's check ([RS026](index.md#composer-group-check)).
+The composer group's check ([RS026](index.md#composer-group-check)): the Navigator confirmed all
+three steps in development. Closed; it reaches production with the next alpha.
