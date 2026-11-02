@@ -61,3 +61,20 @@ Falsifiers still owed:
 1. The same production sample with **no turn running** (scheduled for 23:06Z, after the Driver's
    turn ends). If the wait remains, the turn's animations are not the cause.
 2. Development **during a turn**. If its main thread shows the same wait, size is not the cause.
+
+## Falsifier 1, first attempt (contaminated)
+
+The "no turn" sample ran 23:06:11Z–23:06:31Z (app, 20 s) and 23:06:31Z–23:06:41Z (WebContent). The
+turn journals show the `mirror-desktop` turn settled at 23:05:46Z, but a `livro-lideranca-soberana`
+turn ran 23:06:22Z–23:07:07Z: about 11 s without a turn, then 9 s with one. Result:
+
+| | during the `mirror-desktop` turn | mixed window |
+|---|---:|---:|
+| app main thread in `SLSDisplayGetTiming` | 42.0% | 16.9% |
+| app main thread idle | 47.0% | 72.1% |
+| WindowServer CPU | 68–70% | 15% |
+
+Consistent with a cause that runs with a turn, but not clean. Note: the Driver's own turns run in
+production's `mirror-desktop`, so the first sample measured the Driver's turn. A clean
+production sample with no turn and a development sample during a turn were scheduled for after
+23:11Z.
