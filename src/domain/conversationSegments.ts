@@ -7,6 +7,8 @@ export type PiSegmentSourceEntry = {
   id: string;
   parentId?: string;
   type: string;
+  /** CR178: the message role, for `message` entries; Pi never cuts at a tool result. */
+  role?: string;
   firstKeptEntryId?: string;
   /** CR080: present on compaction entries; the chapter the checkpoint closed. */
   summary?: string;
@@ -200,7 +202,7 @@ export function deriveConversationSegmentManifest(input: {
     const retainedPosition = entry.firstKeptEntryId ? positions.get(entry.firstKeptEntryId) : undefined;
     if (throughPosition === undefined || retainedPosition === undefined
       || throughPosition >= compactionPosition || retainedPosition > throughPosition
-      || input.entries[retainedPosition]?.type !== "message") {
+      || !isPiCutPoint(input.entries[retainedPosition])) {
       throw new Error("Compaction checkpoint is structurally invalid.");
     }
     segments.push(segmentWithTurns({
@@ -235,6 +237,16 @@ export function deriveConversationSegmentManifest(input: {
     sourceEntryCount: input.entries.length,
     segments,
   };
+}
+
+/**
+ * CR178: where Pi may start what a compaction keeps (Pi 1.4 `findValidCutPoints`): a message other
+ * than a tool result, Mirror's context (`custom_message`) or a branch summary. A chapter begins at
+ * any of them; the Rust projection holds the same rule.
+ */
+function isPiCutPoint(entry: PiSegmentSourceEntry | undefined): boolean {
+  if (entry?.type === "message") return entry.role !== "toolResult";
+  return entry?.type === "custom_message" || entry?.type === "branch_summary";
 }
 
 function openedAt(entryId: string | undefined, entries: readonly PiSegmentSourceEntry[]): string | undefined {

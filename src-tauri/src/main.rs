@@ -4370,7 +4370,7 @@ fn project_conversation_segment_manifest(
         let retained_position = positions.get(retained).copied()
             .ok_or_else(|| "Pi compaction retained tail does not resolve.".to_string())?;
         if through_position >= index || retained_position > through_position
-            || entries[retained_position].get("type").and_then(Value::as_str) != Some("message")
+            || !is_pi_cut_point(&entries[retained_position])
         {
             return Err("Pi compaction checkpoint is structurally invalid.".to_string());
         }
@@ -5164,7 +5164,8 @@ fn inspect_pi_transcript_with_scope(
         chapter_closures: branch.iter()
             .filter(|entry| entry.entry_type == "compaction")
             .filter_map(|entry| Some(PiChapterClosure {
-                first_kept_entry_id: entry.first_kept_entry_id.clone()?,
+                first_kept_entry_id: entry.first_kept_entry_id.as_deref()
+                    .map(|retained| first_visible_entry_from(&branch, retained).unwrap_or_else(|| retained.to_string()))?,
                 summary_head: entry.summary.as_deref().map(bounded_summary_head),
                 closed_at: Some(entry.timestamp.clone()).filter(|stamp| !stamp.is_empty()),
             }))
@@ -5175,6 +5176,13 @@ fn inspect_pi_transcript_with_scope(
         turns: project_complete_pi_transcript_from_branch(&branch),
         window,
     })
+}
+
+/// CR178: the transcript shows only entries with a role, so a chapter that begins at Mirror's context
+/// draws its divider at the first visible entry from there.
+fn first_visible_entry_from(branch: &[PiBranchEntry], retained: &str) -> Option<String> {
+    let start = branch.iter().position(|entry| entry.id == retained)?;
+    branch[start..].iter().find(|entry| entry.role.is_some()).map(|entry| entry.id.clone())
 }
 
 fn project_pi_transcript_entries(branch: &[PiBranchEntry]) -> Vec<DedicatedPiTranscriptEntry> {
@@ -8692,6 +8700,17 @@ fn read_exact_pi_session_context_stats(
     })
 }
 
+/// CR178: where Pi may start what a compaction keeps (Pi 1.4 `findValidCutPoints`): a message other
+/// than a tool result, Mirror's context (`custom_message`) or a branch summary. Since the 0.3 line
+/// Mirror's context is a `custom_message`, so a chapter can begin there.
+fn is_pi_cut_point(entry: &Value) -> bool {
+    match entry.get("type").and_then(Value::as_str) {
+        Some("message") => entry.pointer("/message/role").and_then(Value::as_str) != Some("toolResult"),
+        Some("custom_message" | "branch_summary") => true,
+        _ => false,
+    }
+}
+
 fn active_pi_session_entries(content: &str) -> Vec<Value> {
     let entries: Vec<Value> = content.lines()
         .filter_map(|line| serde_json::from_str::<Value>(line).ok())
@@ -11209,6 +11228,47 @@ mod tests {
         }]);
         // The compaction itself is still not a transcript entry; only the divider evidence.
         assert!(inspection.entries.iter().all(|entry| entry.entry_id != "compact-1"));
+    }
+
+    /// CR178: the shape of compaction `517e25d3` (mirror-desktop, 2026-11-02), reduced to ids and
+    /// types. Pi 1.4 cut at Mirror's context, a `custom_message`; the chapter check refused it.
+    fn cr178_session(kept: &str, kept_line: &str) -> String {
+        [
+            r#"{"type":"session","version":3,"id":"cr178"}"#.to_string(),
+            r#"{"type":"message","id":"user-1","parentId":null,"timestamp":"2026-11-02T10:40:00Z","message":{"role":"user","content":"Question"}}"#.to_string(),
+            kept_line.to_string(),
+            format!(r#"{{"type":"message","id":"assistant-1","parentId":"{kept}","timestamp":"2026-11-02T10:40:02Z","message":{{"role":"assistant","content":[{{"type":"text","text":"Answer"}}],"stopReason":"stop"}}}}"#),
+            format!(r###"{{"type":"compaction","id":"compact-1","parentId":"assistant-1","firstKeptEntryId":"{kept}","timestamp":"2026-11-02T10:43:49Z","summary":"## Goal\nChapter."}}"###),
+            r#"{"type":"message","id":"user-2","parentId":"compact-1","timestamp":"2026-11-02T10:44:00Z","message":{"role":"user","content":"Next"}}"#.to_string(),
+        ].join("\n")
+    }
+
+    #[test]
+    fn a_chapter_may_begin_wherever_pi_may_cut() {
+        // CR178.
+        let context = r#"{"type":"custom_message","id":"context-1","parentId":"user-1","timestamp":"2026-11-02T10:40:01Z","customType":"mirror-context","content":"x","display":false}"#;
+        let branch = r#"{"type":"branch_summary","id":"branch-1","parentId":"user-1","timestamp":"2026-11-02T10:40:01Z","summary":"x"}"#;
+        for (kept, line) in [("context-1", context), ("branch-1", branch)] {
+            let manifest = project_conversation_segment_manifest(&cr178_session(kept, line), "journey-one", "thread-one", 1, "cr178", &[])
+                .unwrap_or_else(|error| panic!("{kept}: {error}"));
+            assert_eq!(manifest.pointer("/segments/0/retainedTailFromEntryId").and_then(Value::as_str), Some(kept));
+            assert_eq!(manifest.pointer("/segments/1/sourceFromEntryId").and_then(Value::as_str), Some(kept));
+            // The divider is drawn where the transcript can show it: the next visible message.
+            let inspection = inspect_complete_pi_transcript(&cr178_session(kept, line)).unwrap();
+            assert_eq!(inspection.chapter_closures.len(), 1);
+            assert_eq!(inspection.chapter_closures[0].first_kept_entry_id, "assistant-1", "{kept}");
+            assert!(inspection.entries.iter().any(|entry| entry.entry_id == "assistant-1"));
+        }
+        // Pi never cuts at a tool result or at an extension's own state; neither is a chapter start.
+        let tool = r#"{"type":"message","id":"tool-1","parentId":"user-1","message":{"role":"toolResult","toolCallId":"t","content":[]}}"#;
+        let custom = r#"{"type":"custom","id":"custom-1","parentId":"user-1","customType":"agent-browser-transition","data":{}}"#;
+        for (kept, line) in [("tool-1", tool), ("custom-1", custom)] {
+            let error = project_conversation_segment_manifest(&cr178_session(kept, line), "journey-one", "thread-one", 1, "cr178", &[]).unwrap_err();
+            assert!(error.contains("structurally invalid"), "{kept}: {error}");
+        }
+        // A chapter that starts at a visible message keeps that message as its divider.
+        let inspection = inspect_complete_pi_transcript(&cr178_session("user-0", r#"{"type":"message","id":"user-0","parentId":"user-1","message":{"role":"user","content":"Again"}}"#)).unwrap();
+        assert_eq!(inspection.chapter_closures[0].first_kept_entry_id, "user-0");
     }
 
     #[test]

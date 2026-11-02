@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveConversationSegmentManifest } from "../domain/conversationSegments";
+import { deriveConversationSegmentManifest, type PiSegmentSourceEntry } from "../domain/conversationSegments";
 
 const authority = { journeyId: "mirror-desktop", threadId: "desktop-thread-123", generation: 1, piSessionId: "pi-session-123" };
 
@@ -90,6 +90,21 @@ describe("technical conversation Segments", () => {
         { id: "compact-1", type: "compaction", parentId: "summary-1", firstKeptEntryId: "summary-1" },
       ],
     })).toThrow("structurally invalid");
+  });
+
+  it("lets a chapter begin wherever Pi may cut, and nowhere else (CR178)", () => {
+    const at = (kept: Record<string, string>) => [
+      { id: "user-1", type: "message", role: "user" },
+      { id: "kept", parentId: "user-1", ...kept },
+      { id: "assistant-1", parentId: "kept", type: "message", role: "assistant" },
+      { id: "compact-1", parentId: "assistant-1", type: "compaction", firstKeptEntryId: "kept" },
+    ] as PiSegmentSourceEntry[];
+    for (const kept of [{ type: "custom_message" }, { type: "branch_summary" }, { type: "message", role: "assistant" }]) {
+      const manifest = deriveConversationSegmentManifest({ ...authority, entries: at(kept) });
+      expect(manifest.segments[0].retainedTailFromEntryId).toBe("kept");
+    }
+    expect(() => deriveConversationSegmentManifest({ ...authority, entries: at({ type: "message", role: "toolResult" }) }))
+      .toThrow("structurally invalid");
   });
 
   it("rejects duplicate IDs and checkpoints that escape their exact source branch", () => {
