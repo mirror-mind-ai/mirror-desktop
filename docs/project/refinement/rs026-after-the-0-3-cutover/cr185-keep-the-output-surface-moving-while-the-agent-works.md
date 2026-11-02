@@ -33,3 +33,11 @@ commands moving the whole conversation, or the WebContent process itself.
 
 During a turn in production's longest conversation, the output scrolls and draws without a stall
 the Navigator can feel.
+
+## First Sample (2026-11-02)
+
+[cr185-output-surface-sample-2026-11-02.md](../../../update/cr185-output-surface-sample-2026-11-02.md):
+the app's main thread spent 42% of the minute blocked on WindowServer (`SLSDisplayGetTiming`,
+from AppKit's update cycle), not in Mirror Desktop's commands (0.4%) or in the page (70% idle).
+Hypothesis: forever-running working animations that repaint (`background`, `box-shadow`) keep the
+update cycle busy, and WindowServer answers slowly. Two falsifiers are owed before a repair.
