@@ -557,12 +557,17 @@ fn validate_thread_runtime_channel(thread: &Value) -> Result<(), String> {
     validate_thread_runtime_channel_name(thread, active.as_str())
 }
 
+/// CR168: the refusal names both builds; the frontend (`otherBuildRefusal`) tells it apart from an
+/// invalid record by its first words. A thread from before channels is the user build's.
 fn validate_thread_runtime_channel_name(thread: &Value, active: &str) -> Result<(), String> {
-    match thread.get("runtimeChannel").and_then(Value::as_str) {
-        Some(stored) if stored == active => Ok(()),
-        None if active == "user" => Ok(()),
-        _ => Err("Stored Journey thread belongs to another Mirror Desktop runtime channel.".to_string()),
+    let stored = thread.get("runtimeChannel").and_then(Value::as_str).unwrap_or("user");
+    if stored == active {
+        return Ok(());
     }
+    Err(format!(
+        "This conversation belongs to another Mirror Desktop build: it was made by the {} build, and this is the {} build.",
+        stored, active,
+    ))
 }
 
 fn dedicated_native_names(journey_name: &str, generation: u64) -> (String, String) {
@@ -11270,6 +11275,27 @@ mod tests {
         // A chapter that starts at a visible message keeps that message as its divider.
         let inspection = inspect_complete_pi_transcript(&cr178_session("user-0", r#"{"type":"message","id":"user-0","parentId":"user-1","message":{"role":"user","content":"Again"}}"#)).unwrap();
         assert_eq!(inspection.chapter_closures[0].first_kept_entry_id, "user-0");
+    }
+
+    #[test]
+    fn a_thread_of_the_other_build_is_refused_by_name() {
+        // CR168: the refusal says whose conversation it is, so the screen need not call it invalid.
+        let development = json!({"runtimeChannel": "development"});
+        let user = json!({"runtimeChannel": "user"});
+        let unmarked = json!({});
+        assert!(crate::validate_thread_runtime_channel_name(&development, "development").is_ok());
+        assert!(crate::validate_thread_runtime_channel_name(&user, "user").is_ok());
+        assert!(crate::validate_thread_runtime_channel_name(&unmarked, "user").is_ok(), "a thread from before channels is the user's");
+        assert_eq!(
+            crate::validate_thread_runtime_channel_name(&development, "user").unwrap_err(),
+            "This conversation belongs to another Mirror Desktop build: it was made by the development build, and this is the user build.",
+        );
+        for thread in [&user, &unmarked] {
+            assert_eq!(
+                crate::validate_thread_runtime_channel_name(thread, "development").unwrap_err(),
+                "This conversation belongs to another Mirror Desktop build: it was made by the user build, and this is the development build.",
+            );
+        }
     }
 
     #[test]

@@ -2,7 +2,9 @@ import type { NautilusJourneyThreadReadiness, NautilusThreadReasonCode } from ".
 
 export type JourneyThreadDisplayState = NautilusJourneyThreadReadiness
   | { kind: "loading" }
-  | { kind: "unavailable"; reason: "runtime_read_failed" };
+  | { kind: "unavailable"; reason: "runtime_read_failed" }
+  /** CR168: made by the other build (user or development); not a broken record. */
+  | { kind: "unavailable"; reason: "other_build"; message: string };
 
 type Props = {
   journeyName: string;
@@ -38,6 +40,16 @@ export function JourneyThreadState({
         <h2>This Journey conversation needs recovery</h2>
         <p>Mirror Desktop found incomplete or contradictory dedicated-thread authority for {journeyName}. Conversation remains unavailable and no repair will run automatically.</p>
         <small>{reasonLabel(state.reasonCodes)}</small>
+      </section>
+    );
+  }
+  if (state.kind === "unavailable" && state.reason === "other_build") {
+    return (
+      <section className="journey-thread-state" role="status">
+        <p className="eyebrow">Mirror Desktop conversation</p>
+        <h2>This conversation belongs to another Mirror Desktop build</h2>
+        <p>{state.message}</p>
+        <p>Open it in the build that made it. Nothing was changed.</p>
       </section>
     );
   }

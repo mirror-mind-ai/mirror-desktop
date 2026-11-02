@@ -204,6 +204,7 @@ import {
   segmentProjectionsTouchedByCompaction,
 } from "../domain/compactionChapters";
 import { compactJourneySession } from "./compactionStorage";
+import { otherBuildRefusal } from "../domain/otherBuildRefusal";
 import { classifyCompactionRefusal, clearCompactionNoticeOnNewTurn, compactionNoticeLifecycle } from "./compactionNoticeLifecycle";
 import { announceSettlement, playTurnCompletionTone, previewTurnCompletionTone } from "./turnCompletionSound";
 import { TURN_COMPLETION_SUCCESS_TONES, TURN_COMPLETION_TONE_IDS } from "../domain/turnCompletionTone";
@@ -2198,9 +2199,11 @@ export function App({ model }: AppProps) {
         setConversation(restoredConversation);
         setJourneyThreadState(classified);
         setJourneyStartError(undefined);
-      } catch {
+      } catch (error) {
         if (requestIsCurrent()) {
-          setJourneyThreadState(threadAuthorityLoaded
+          const otherBuild = otherBuildRefusal(error);
+          setJourneyThreadState(otherBuild ? { kind: "unavailable", reason: "other_build", message: otherBuild }
+            : threadAuthorityLoaded
             ? { kind: "unavailable", reason: "runtime_read_failed" }
             : { kind: "inconsistent", reasonCodes: ["invalid_record"] });
         }
