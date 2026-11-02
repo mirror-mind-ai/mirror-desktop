@@ -2,7 +2,7 @@
 
 # CR183: Give Back a Message Whose Turn Was Cancelled Before Any Answer
 
-**Status:** captured
+**Status:** in_progress
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -26,3 +26,20 @@ message is not lost and the new text is not overwritten.
 ## Acceptance
 
 Send, cancel during Working: the message is back in the composer, ready to edit or send again.
+
+## Delivered on `main` (`dda86f5`)
+
+- In the cancelled path, a turn with no committed prose, no interrupted fragment and no work is
+  *unanswered*: `draftAfterUnansweredCancel` puts the message back in the composer. An empty
+  composer (or one still holding the message) gets it alone; text typed since stays, after it.
+- Its attachments come back when none are pending, and the composer notice says "Message returned to
+  the composer: the turn was cancelled before any answer."
+- Covers a cancel before Pi reported `working` (the stored draft still held the message, the screen
+  did not) and one after (both were cleared).
+- The interrupted turn stays in the conversation as before: the transcript stays the authority, so
+  sending the message again may show it twice there. Accepted for now.
+- Spec first; mutations caught (5 across CR181 and CR183, all caught).
+
+### Navigator check in development (owed)
+
+The composer group's check ([RS026](index.md#composer-group-check)).

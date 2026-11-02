@@ -37,3 +37,20 @@ The trade: a draft typed and never left survives a crash only up to the last blu
 
 Typing in a long conversation shows no delay the Navigator can feel, and a draft still survives
 switching Journeys, conversations and restarting the app.
+
+## Evaluation (2026-11-02)
+
+Per keystroke the renderer does little: a ref, a copy of the small draft map, a debounced durable
+write, and a render of the whole `App` only when the text goes from empty to not empty, or back
+(`draftBlank`, which enables Send). Storing on blur removes all of it but the render, which Send
+still needs, unless Send reads the element itself.
+
+CR149 learned that a keystroke's delay can come from the main thread being busy with anything,
+and its decisive instrument was `sample` on the running app while the Navigator typed. If the delay
+comes from there, moving the draft to blur will not be felt. So the measurement comes first:
+
+1. Production, a long conversation, no turn running: the Navigator types continuously for 30 s while
+   the Driver samples the app and its WebContent process.
+2. The same, during a turn.
+
+The repair is chosen from what the samples show.

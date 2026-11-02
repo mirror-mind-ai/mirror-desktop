@@ -2,7 +2,7 @@
 
 # CR181: Keep What the Person Types While the Turn Starts
 
-**Status:** captured
+**Status:** in_progress
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -30,3 +30,24 @@ composer. The typed text stays visible and is stored under the key the conversat
 
 Typing during Working and then during the agent's first output, the text stays in the composer and
 is still there after the turn ends.
+
+## Cause (found 2026-11-02)
+
+Not the draft-key effect of the hypothesis. On send the visible composer is cleared while the stored
+draft keeps the sent message, so a crash before admission does not lose it. When Pi reported
+`working`, `generatePacket` called `persistOwnerComposerDraft("", true)`, which cleared the stored
+draft **and the visible composer**, by then holding only what the person typed since sending.
+
+## Delivered on `main` (`dda86f5`)
+
+- At agent start only the stored draft changes: `draftAfterAdmission`
+  (`src/domain/composerHandoff.ts`) removes it if it is still the sent message (compared trimmed, as
+  the message is sent) and keeps it otherwise. The visible composer is not touched.
+- The guard in `journeyRuntimeIntegration.test.ts` that asserted the old line now asserts the new
+  one; its intent, the stored copy lasting until agent start, is unchanged.
+- Spec first (`cr181cr183ComposerHandoff.test.ts`); mutations caught. Full suites: 2508
+  TypeScript, 457 Rust.
+
+### Navigator check in development (owed)
+
+The composer group's check ([RS026](index.md#composer-group-check)).
