@@ -31,7 +31,7 @@ delivering anything.
 - [CR169: Tell a Dev Build Apart From the User Build](cr169-tell-a-dev-build-apart-from-the-user-build.md) — **captured** · Desktop
 - [CR170: Pass the Invocation Directory to the Core Explicitly](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) — **captured** · Core
 - [CR171: Retire the nautilus_harness Interface Label](cr171-retire-the-nautilus-harness-interface-label.md) — **captured** · Desktop + Core data
-- [CR172: Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) — **in_progress** · the public site (another Journey's repository) · put first by the Navigator
+- [CR172: Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) — **done** · the public site (another Journey's repository) · put first by the Navigator
 
 ## Queue After the Cutover
 
@@ -40,7 +40,7 @@ The proposed order. The Navigator can reorder it; the index's status column stay
 | Order | CR | Home RS | Status | Why here |
 |------:|----|---------|--------|----------|
 | 1 | [CR166](../rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | in_progress | an exit offered that does nothing; seen in the field on 0.3. First half on `main` (`11f8b96`): the exit now says which guard held it |
-| 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | in_progress | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; clean-account run owed; put first by the Navigator (2026-11-01), while CR166's second half waits on the field: the site still teaches the Python Core and offers 0.2 |
+| 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | done | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; validated and closed by the Navigator the same day |
 | 3 | [CR167](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) | RS026 | captured | duplicated or misplaced memory for a new user, silently |
 | 4 | [CR159](../rs025-legible-endings-for-a-turn-that-ends-badly/cr159-say-why-the-provider-refused-a-turn.md) | RS025 | in_progress | the real refusal arrived on 2026-11-01 ("Third-party apps now draw from your extra usage"); attach it and read it on 0.3 |
 | 5 | [CR163](../rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md) | RS025 | in_progress | field check owed, now on the TypeScript append |

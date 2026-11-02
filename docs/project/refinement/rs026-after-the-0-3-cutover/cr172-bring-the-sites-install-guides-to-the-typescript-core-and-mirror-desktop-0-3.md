@@ -2,7 +2,7 @@
 
 # CR172: Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3
 
-**Status:** in_progress
+**Status:** done
 **Delivery:** `mirrormind-site` `main` (`0a68a5d` … `bcc7b6f`, pushed and deployed 2026-11-02)
 **Line:** 0.3 · the public site (`mirrormind-site`, Journey *Mirror Mind Website*)
 **Raised by:** the Navigator, 2026-11-01, to be done before the rest of this queue
@@ -191,7 +191,12 @@ Commit `0a68a5d` in `mirrormind-site`, local only. Not pushed and not deployed; 
   deploy. Whether to keep it in the repository is the Navigator's call.
 - **Rollback:** extract the backup over `/var/www/mirrormind-site`.
 
-### Still owed
+## Closed (2026-11-02)
 
-- The clean-account run of the macOS commands (acceptance), and the *Open Anyway* wording against a
-  real quarantined download. CR172 stays `in_progress` until then.
+The Navigator validated the deployed site ("O site está validado. Podemos encerrar a CR") and closed
+the CR. That validation is the acceptance: the separate clean-account run of the macOS commands and
+the check of the *Open Anyway* wording against a quarantined download were **not** run as their own
+steps. If a new user's install contradicts a page, the fix reopens here or in a new CR.
+
+Left to the Navigator, outside this CR: whether the accidentally committed `site/favicon.png` stays
+in `mirrormind-site`.
