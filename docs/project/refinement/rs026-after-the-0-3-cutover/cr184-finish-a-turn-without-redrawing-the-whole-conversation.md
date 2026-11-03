@@ -80,3 +80,28 @@ The remount is gone: no `inspect_local_references` at all, no layout over a seco
 stalls (0.8–1.5 s, four of them) are each the renderer parsing a 34 MB read of the projection, of
 which a turn makes nine. See the measurement record. Next: stop reading the whole projection where
 the renderer already holds it.
+
+## Second Repair: the Reads (`1ada90c`, 2026-11-03)
+
+A turn read the 34 MB projection eight times, and the renderer parsed each on its main thread:
+
+| read | for | now |
+|---|---|---|
+| before Send | the metadata the staged turn is built on, attachments included | **kept** (needs the bodies) |
+| before each of four saves | keeping the history outside the loaded chapter (CR114) | gone: the native save does it, it already reads the file |
+| pre-frontier evidence, twice | identity and the current turn | metadata only |
+| post-frontier receipt | identity and the turn ledger | metadata only |
+
+- `preserve_durable_conversation_history` in `main.rs` is CR114's rule, case for case (the TS
+  function and its tests were ported and removed). A save now sends only the surface.
+- `load_dedicated_journey_conversation_metadata` returns identity and reconciliation with no
+  messages. `appendAndAcknowledgeProjection` returns the projection it was given with the durable
+  commitments, since its read no longer holds bodies; the post-frontier native merge already took
+  the stored messages, not the payload's.
+- Spec `src/tests/cr184ProjectionReads.test.ts` and six Rust `cr184_*` tests, failing first. Seven
+  mutation controls, each caught. Guards re-aimed: `workingSetAuthorityIndependence` (durable, now
+  metadata), `currentSegmentWorkingSet` (one native call), the command census 105 → 106.
+- Suites: TS 2,502, Rust 463.
+
+Check owed: the same rehearsal and timeline; one read of the projection per turn, no task over a
+second at the end of a turn.
