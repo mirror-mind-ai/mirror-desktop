@@ -2,7 +2,7 @@
 
 # CR185: Keep the Output Surface Moving While the Agent Works
 
-**Status:** captured
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -153,3 +153,19 @@ returned to 1–8%. Both more frames and costlier frames, so the repair added wo
 removing it. The two halves were not measured apart. `content-visibility: auto` is withdrawn
 first, because its cost scales with the number of rows (the engine decides each row's relevance on
 every rendering update); the glow change stays and is measured alone next.
+
+## Seventh Timeline and the Field Sentence (2026-11-03)
+
+With `content-visibility` withdrawn and the glow on its fading layer (Send 02:15:31Z, lease released
+02:16:57Z, no Screenshots): Working without text, 29 frames per second, `composite` 34% (fifth:
+35 and 30%); streaming text, main thread 52–106% in five-second buckets, as in the fifth. The glow
+change is neutral on this machine; it stays because it also lets the conversation list honour
+reduced motion. The 72% of the sixth recording was `content-visibility`.
+
+The Navigator, after this turn: **"não pulou e não está lento"** (the scroll did not jump and the
+turn is not slow).
+
+Closed on that sentence. What the Navigator felt as slowness was the end of the turn (CR184) and,
+in recordings, the Screenshots instrument. The per-frame flush (about 34% while Working) and the
+stream handler (p90 38 ms) remain measured costs with no felt friction; they are not repaired
+without one. Production confirmation comes with the next alpha.
