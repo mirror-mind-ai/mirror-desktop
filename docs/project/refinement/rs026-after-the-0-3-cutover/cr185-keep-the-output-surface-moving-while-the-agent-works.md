@@ -122,3 +122,18 @@ composited, multiplied by animations that keep frames coming; and the stream han
 The stylesheet promotes almost nothing explicitly (no `will-change`, no 3D transforms, one
 `isolation`), and the transcript has no `content-visibility`, so every row of the chapter stays in
 the tree each frame walks.
+
+## First Repair: the Per-Frame Flush (`32d7163`, 2026-11-03)
+
+- The Working glow (`journey-agent-working`, on the Journey status and the conversation list)
+  animated `background` and `box-shadow`. It now lives on a `::after` layer that only fades; the
+  host keeps its static colours. Every infinite animation shown during a turn now animates only
+  `opacity` or `transform` (the voice-recording pulse, shown only while dictating, is left as is).
+- Transcript rows carry `conversation-row`: `content-visibility: auto` with
+  `contain-intrinsic-size: auto 320px`, so rows off screen are skipped by layout and paint and keep
+  their measured height once drawn.
+- Spec `src/tests/cr185CompositedSurface.test.ts`, failing first; six mutation controls, all caught.
+  TS suite 2,507. No Rust change.
+
+Check owed: a recording without Screenshots; `composite` should fall well below 30% while Working,
+and scrolling back through the chapter must not jump.
