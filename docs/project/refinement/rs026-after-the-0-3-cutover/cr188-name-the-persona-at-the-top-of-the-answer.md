@@ -92,8 +92,12 @@ The persona event of the live run now also writes `responsePersonas[answer]` on 
 which settlement keeps (`cr184SettleInPlace` extended to say so). A fresh load derives the same
 value from Pi. Spec failed first; one mutation, caught. Suites: TS 2,528, Rust 470 plus 10 ignored.
 
-Check owed: in development, an answer keeps its persona after the turn ends, after reopening the
-Conversation, and after relaunching the app.
+## Development Check (2026-11-03): Passed
+
+The Navigator, on the third build: "conferido. Funcionou." The persona shows above the answer after
+the turn ends, after reopening the Conversation and after relaunching the app.
+
+Check owed: the falsifier, in production with the next release.
 
 ## Falsifier
 

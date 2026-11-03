@@ -65,7 +65,7 @@ is proposed and awaits the Navigator.
 | F5 | [CR184](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) | RS026 | done | on `main` (`07dc639`, `1ada90c`, `68c9437`); dev-validated 2026-11-03; shipped in v0.3.0-alpha.10 |
 | F6 | [CR185](cr185-keep-the-output-surface-moving-while-the-agent-works.md) | RS026 | done | on `main` (`32d7163`, `ebfa0a3`); dev-validated 2026-11-03 at production size; shipped in v0.3.0-alpha.10 |
 | F7 | [CR186](cr186-honour-a-project-path-written-from-the-home-folder.md) | RS026 | done | shipped in v0.3.0-alpha.11; checked in production 2026-11-03 |
-| F9 | [CR188](cr188-name-the-persona-at-the-top-of-the-answer.md) | RS026 | in progress | on `main` (`78cbe33`); dev check owed |
+| F9 | [CR188](cr188-name-the-persona-at-the-top-of-the-answer.md) | RS026 | in progress | dev-validated 2026-11-03; production check owed with the next release |
 | F10 | [CR189](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) | RS022 | parked | Core; may be replaced by the Core's persona-management work |
 | F8 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | captured | measure the early refusal first |
 | 1 | [CR166](../rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | in_progress | an exit offered that does nothing; seen in the field on 0.3. First half on `main` (`11f8b96`): the exit now says which guard held it |
