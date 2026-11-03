@@ -56,7 +56,7 @@ is proposed and awaits the Navigator.
 |------:|----|---------|--------|----------|
 | F1 | [CR180](cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) | RS026 | done | shipped in alpha.8; no prompt in production after the one carry-over, 2026-11-02 |
 | F2 | [CR181](cr181-keep-what-the-person-types-while-the-turn-starts.md) | RS026 | done | shipped in v0.3.0-alpha.9; checked in production 2026-11-03 |
-| F3 | [CR183](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) | RS026 | done | on `main` (`dda86f5`); dev-validated 2026-11-02; ships in the next alpha |
+| F3 | [CR183](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) | RS026 | done | shipped in v0.3.0-alpha.9; checked in production 2026-11-03 |
 | F4 | [CR182](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) | RS026 | done | closed on the field sentence after v0.3.0-alpha.10; no code change |
 | F5 | [CR184](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) | RS026 | done | on `main` (`07dc639`, `1ada90c`, `68c9437`); dev-validated 2026-11-03; shipped in v0.3.0-alpha.10 |
 | F6 | [CR185](cr185-keep-the-output-surface-moving-while-the-agent-works.md) | RS026 | done | on `main` (`32d7163`, `ebfa0a3`); dev-validated 2026-11-03 at production size; shipped in v0.3.0-alpha.10 |
