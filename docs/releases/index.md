@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.3.0-alpha.12 — The Persona Above the Answer](v0.3.0-alpha.12.md) — each answer names its persona above the text, from the context the Mirror delivered; no trailing signature. Intel only, not signed.
 - [v0.3.0-alpha.11 — Settings by Intent](v0.3.0-alpha.11.md) — Settings grouped by intent; setup offers Claude through Claude Code; a `~/` project path is honoured. Intel only, not signed.
 - [v0.3.0-alpha.10 — A Turn Ends Quietly](v0.3.0-alpha.10.md) — the end of a turn no longer flashes or freezes a long conversation; saves carry only the loaded chapter. Intel only, not signed.
 - [v0.3.0-alpha.9 — The Composer Keeps Your Words](v0.3.0-alpha.9.md) — text typed while a turn starts is no longer erased; a turn cancelled before any answer gives its message back. Intel only, not signed.
