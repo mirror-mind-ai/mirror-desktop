@@ -2,7 +2,7 @@
 
 # CR182: Store the Composer Draft When the Person Leaves the Field
 
-**Status:** captured
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -61,3 +61,10 @@ Typing through a long turn in development, the Navigator felt no delay. Developm
 is 80 KB; production's `mirror-desktop` is 31,761 KB. The delay follows the conversation's size,
 not the keystroke's own code, which is the same in both. The sampling session is shared with
 [CR185](cr185-keep-the-output-surface-moving-while-the-agent-works.md).
+
+## Closed on the Field Sentence (2026-11-03)
+
+After v0.3.0-alpha.10, in production, the Navigator: **"A digitação também está melhor agora, não
+sinto mais ruim."** The felt friction went with CR184's end-of-turn stalls (the 34 MB reads and the
+remount ran on the thread that delivers input). The draft is still stored as before; storing it on
+blur is not done, since nothing felt asks for it. Reopen with a new sentence if typing degrades.

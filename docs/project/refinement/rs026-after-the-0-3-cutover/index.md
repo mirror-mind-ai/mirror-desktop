@@ -41,7 +41,7 @@ delivering anything.
 - [CR179: Read a Table Whose Delimiter Has Fewer Than Three Hyphens](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) — **done** · Desktop · Navigator, 2026-11-02; `|--:|` makes a whole table a paragraph
 - [CR180: Keep the OpenRouter Key Without Asking the Keychain Every Turn](cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) — **done** · Desktop · Navigator, 2026-11-02; the Keychain prompts on every turn; the app is unsigned
 - [CR181: Keep What the Person Types While the Turn Starts](cr181-keep-what-the-person-types-while-the-turn-starts.md) — **done** · Desktop · Navigator, 2026-11-02; text typed during Working is erased when the agent starts
-- [CR182: Store the Composer Draft When the Person Leaves the Field](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) — **captured** · Desktop · Navigator, 2026-11-02; typing does not feel good; store the draft on blur
+- [CR182: Store the Composer Draft When the Person Leaves the Field](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) — **done** · Desktop · Navigator, 2026-11-02; typing does not feel good; closed on "não sinto mais ruim" after v0.3.0-alpha.10, no code change
 - [CR183: Give Back a Message Whose Turn Was Cancelled Before Any Answer](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) — **done** · Desktop · Navigator, 2026-11-02; cancelling during Working loses the sent message
 - [CR184: Finish a Turn Without Redrawing the Whole Conversation](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) — **done** · Desktop · Navigator, 2026-11-02; the conversation flashes when the agent finishes; remount and projection reads removed, longest end-of-turn task 0.21 s
 - [CR185: Keep the Output Surface Moving While the Agent Works](cr185-keep-the-output-surface-moving-while-the-agent-works.md) — **done** · Desktop · Navigator, 2026-11-02; closed on "não está lento" after CR184 and the glow change; the output stalls during a turn, in production's long conversations
@@ -55,9 +55,9 @@ is proposed and awaits the Navigator.
 | Order | CR | Home RS | Status | Why here |
 |------:|----|---------|--------|----------|
 | F1 | [CR180](cr180-keep-the-openrouter-key-without-asking-the-keychain-every-turn.md) | RS026 | done | shipped in alpha.8; no prompt in production after the one carry-over, 2026-11-02 |
-| F2 | [CR181](cr181-keep-what-the-person-types-while-the-turn-starts.md) | RS026 | done | on `main` (`dda86f5`); dev-validated 2026-11-02; ships in the next alpha |
+| F2 | [CR181](cr181-keep-what-the-person-types-while-the-turn-starts.md) | RS026 | done | shipped in v0.3.0-alpha.9; checked in production 2026-11-03 |
 | F3 | [CR183](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) | RS026 | done | on `main` (`dda86f5`); dev-validated 2026-11-02; ships in the next alpha |
-| F4 | [CR182](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) | RS026 | captured | composer group; measured first, it shares the draft code with CR181; evaluated, a sample while typing comes first |
+| F4 | [CR182](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) | RS026 | done | closed on the field sentence after v0.3.0-alpha.10; no code change |
 | F5 | [CR184](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) | RS026 | done | on `main` (`07dc639`, `1ada90c`, `68c9437`); dev-validated 2026-11-03; shipped in v0.3.0-alpha.10 |
 | F6 | [CR185](cr185-keep-the-output-surface-moving-while-the-agent-works.md) | RS026 | done | on `main` (`32d7163`, `ebfa0a3`); dev-validated 2026-11-03 at production size; shipped in v0.3.0-alpha.10 |
 | 1 | [CR166](../rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | in_progress | an exit offered that does nothing; seen in the field on 0.3. First half on `main` (`11f8b96`): the exit now says which guard held it |

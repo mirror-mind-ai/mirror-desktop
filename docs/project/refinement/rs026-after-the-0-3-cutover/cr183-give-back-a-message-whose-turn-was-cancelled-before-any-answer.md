@@ -46,3 +46,5 @@ The composer group's check ([RS026](index.md#composer-group-check)): the Navigat
 three steps in development. Closed; it reaches production with the next alpha.
 
 **Shipped in [v0.3.0-alpha.9](../../../releases/v0.3.0-alpha.9.md)** (2026-11-02).
+
+Checked in production on 2026-11-03 (v0.3.0-alpha.10): the Navigator typed and cancelled during Working and reported that it worked.
