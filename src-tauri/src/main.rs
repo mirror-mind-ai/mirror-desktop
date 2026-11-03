@@ -9047,31 +9047,61 @@ fn merge_persisted_mirror_evidence(
 /// because a later complete load can correct that and nothing can restore a deletion. It lives here
 /// because this save already reads the stored projection: done in the renderer, it cost a read and
 /// a main-thread parse of the whole generation before every write.
+/// The action evidence, keyed by assistant message, follows the same ownership: the window owns
+/// the evidence of the messages it holds, and the stored evidence of every other message is kept.
 fn preserve_durable_conversation_history(persisted: &Value, candidate: &mut Value) -> Result<bool, String> {
-    let Some(previous) = persisted.pointer("/conversation/messages").and_then(Value::as_array)
-        .filter(|messages| !messages.is_empty()) else { return Ok(false); };
     let projected = candidate.pointer("/conversation/messages").and_then(Value::as_array)
         .ok_or_else(|| "dedicated_projection_invalid".to_string())?;
+    let window_ids: HashSet<String> = projected.iter()
+        .filter_map(|message| message.get("id").and_then(Value::as_str).map(str::to_string)).collect();
+    let messages = preserve_messages_outside_the_window(persisted, projected, &window_ids);
+    let evidence = preserve_evidence_outside_the_window(persisted, candidate, &window_ids);
+    let changed = messages.is_some() || evidence.is_some();
+    if let Some(messages) = messages {
+        candidate["conversation"]["messages"] = Value::Array(messages);
+    }
+    if let Some(evidence) = evidence {
+        candidate["conversation"]["terminalAgentActionEvidence"] = Value::Object(evidence);
+    }
+    Ok(changed)
+}
+
+fn preserve_messages_outside_the_window(
+    persisted: &Value,
+    projected: &[Value],
+    window_ids: &HashSet<String>,
+) -> Option<Vec<Value>> {
+    let previous = persisted.pointer("/conversation/messages").and_then(Value::as_array)
+        .filter(|messages| !messages.is_empty())?;
     let merged: Vec<Value> = match projected.first() {
         None => previous.clone(),
         Some(first) => match previous.iter().position(|message| message.get("id") == first.get("id")) {
-            Some(0) => return Ok(false),
+            Some(0) => return None,
             Some(boundary) => previous[..boundary].iter().chain(projected.iter()).cloned().collect(),
-            None => {
-                let projected_ids: HashSet<&str> = projected.iter()
-                    .filter_map(|message| message.get("id").and_then(Value::as_str)).collect();
-                previous.iter()
-                    .filter(|message| !message.get("id").and_then(Value::as_str)
-                        .is_some_and(|id| projected_ids.contains(id)))
-                    .chain(projected.iter()).cloned().collect()
-            }
+            None => previous.iter()
+                .filter(|message| !message.get("id").and_then(Value::as_str)
+                    .is_some_and(|id| window_ids.contains(id)))
+                .chain(projected.iter()).cloned().collect(),
         },
     };
-    let changed = merged.len() != projected.len();
-    if changed {
-        candidate["conversation"]["messages"] = Value::Array(merged);
+    (merged.len() != projected.len()).then_some(merged)
+}
+
+fn preserve_evidence_outside_the_window(
+    persisted: &Value,
+    candidate: &Value,
+    window_ids: &HashSet<String>,
+) -> Option<serde_json::Map<String, Value>> {
+    let stored = persisted.pointer("/conversation/terminalAgentActionEvidence").and_then(Value::as_object)?;
+    let mut evidence = candidate.pointer("/conversation/terminalAgentActionEvidence")
+        .and_then(Value::as_object).cloned().unwrap_or_default();
+    let before = evidence.len();
+    for (message_id, entry) in stored {
+        if !window_ids.contains(message_id) && !evidence.contains_key(message_id) {
+            evidence.insert(message_id.clone(), entry.clone());
+        }
     }
-    Ok(changed)
+    (evidence.len() != before).then_some(evidence)
 }
 
 /// CR184: what settlement checks against durable state, the identity and the turn ledger, without
@@ -13258,6 +13288,50 @@ mod tests {
         let mut empty = cr184_messages(&[]);
         assert!(preserve_durable_conversation_history(&persisted, &mut empty).unwrap());
         assert_eq!(cr184_ids(&empty), ["pi-1", "pi-2"]);
+    }
+
+    // CR184, second cut: the action evidence follows the messages' rule. The window owns the
+    // evidence of the messages it holds; the stored evidence of every other message is kept.
+    #[test]
+    fn cr184_a_save_keeps_the_evidence_of_messages_outside_the_window() {
+        let mut persisted = cr184_messages(&["pi-1", "pi-2", "pi-3"]);
+        persisted["conversation"]["terminalAgentActionEvidence"] = json!({
+            "pi-1": {"runId": "run-1"}, "pi-3": {"runId": "stored-3"},
+        });
+        let mut window = cr184_messages(&["pi-3", "pi-4"]);
+        window["conversation"]["terminalAgentActionEvidence"] = json!({
+            "pi-3": {"runId": "window-3"}, "pi-4": {"runId": "run-4"},
+        });
+        assert!(preserve_durable_conversation_history(&persisted, &mut window).unwrap());
+        assert_eq!(window.pointer("/conversation/terminalAgentActionEvidence"), Some(&json!({
+            "pi-1": {"runId": "run-1"}, "pi-3": {"runId": "window-3"}, "pi-4": {"runId": "run-4"},
+        })));
+    }
+
+    #[test]
+    fn cr184_a_window_without_evidence_still_keeps_the_stored_evidence_outside_it() {
+        let mut persisted = cr184_messages(&["pi-1", "pi-2"]);
+        persisted["conversation"]["terminalAgentActionEvidence"] = json!({"pi-1": {"runId": "run-1"}});
+        let mut complete = cr184_messages(&["pi-1", "pi-2"]);
+        assert!(!preserve_durable_conversation_history(&persisted, &mut complete).unwrap());
+        assert_eq!(complete.pointer("/conversation/terminalAgentActionEvidence"), None);
+        let mut tail = cr184_messages(&["pi-2"]);
+        assert!(preserve_durable_conversation_history(&persisted, &mut tail).unwrap());
+        assert_eq!(tail.pointer("/conversation/terminalAgentActionEvidence"),
+            Some(&json!({"pi-1": {"runId": "run-1"}})));
+    }
+
+    #[test]
+    fn cr184_evidence_the_window_brings_for_a_message_not_on_it_wins_over_the_stored() {
+        let mut persisted = cr184_messages(&["pi-1"]);
+        persisted["conversation"]["terminalAgentActionEvidence"] = json!({
+            "interrupted": {"runId": "stored"}, "pi-0": {"runId": "run-0"},
+        });
+        let mut window = cr184_messages(&["pi-1"]);
+        window["conversation"]["terminalAgentActionEvidence"] = json!({"interrupted": {"runId": "live"}});
+        preserve_durable_conversation_history(&persisted, &mut window).unwrap();
+        assert_eq!(window.pointer("/conversation/terminalAgentActionEvidence/interrupted/runId"),
+            Some(&json!("live")));
     }
 
     #[test]

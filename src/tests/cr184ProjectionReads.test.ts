@@ -21,6 +21,7 @@ import { createPersistedJourneyConversation } from "../domain/persistedJourneyCo
 import appSource from "../app/App.tsx?raw";
 import tauriSource from "../../src-tauri/src/main.rs?raw";
 import { readyThread } from "./fixtures/readyThread";
+import { projectPiBackedConversationSurface } from "../domain/piBackedConversationSurface";
 
 /**
  * CR184: after the remount was gone, every remaining stall at the end of a turn was the renderer
@@ -121,5 +122,43 @@ describe("CR184: settlement reads only what it checks", () => {
     expect(settled.messages).toBe(surface.messages);
     expect(settled.reconciliation.turns.find((turn) => turn.turnId === authority.turnId)?.mirror.state)
       .toBe("committed");
+  });
+});
+
+/**
+ * CR184, second cut: after the reads, every save still carried 28 MB, the action evidence of all
+ * 475 turns of the generation, for a surface of 73 messages. The transcript draws evidence only
+ * for the messages on it, so the surface keeps only theirs and the native save keeps the rest.
+ */
+describe("CR184: the surface carries only the evidence of its own messages", () => {
+  function evidence(assistantMessageId: string) {
+    return {
+      schemaVersion: "0.1.0" as const, journeyId: "journey-a", generation: 1,
+      runId: `run-${assistantMessageId}`, turnId: `turn-${assistantMessageId}`, assistantMessageId,
+      projection: { status: "completed" as const, operations: [], reasoningSummaries: [], activityOrder: [] },
+    };
+  }
+
+  it("drops from the projected surface the evidence of messages Pi did not put on it", () => {
+    const { surface } = world();
+    const metadata: JourneyConversation = {
+      ...surface,
+      terminalAgentActionEvidence: { "pi-old": evidence("pi-old"), "assistant-run-1": evidence("assistant-run-1") },
+    };
+    const projected = projectPiBackedConversationSurface(metadata, {
+      schemaVersion: "0.1.0",
+      entries: [
+        { entryId: "on-screen-question", role: "user", visibleText: "Ask", timestamp: "2026-11-02T10:00:00Z" },
+        { entryId: "on-screen", role: "assistant", visibleText: "Answer", timestamp: "2026-11-02T10:00:01Z" },
+      ],
+    });
+    expect(Object.keys(projected.terminalAgentActionEvidence ?? {})).toEqual(["assistant-run-1"]);
+  });
+
+  it("gives earlier chapters their stored evidence back when the Navigator loads them", () => {
+    const handler = appSource.slice(appSource.indexOf('"complete",\n      );'));
+    const reprojection = handler.slice(0, handler.indexOf("loadedHistoryScopeRef.current = \"complete\""));
+    expect(reprojection).toContain("loadDedicatedJourneyConversation(");
+    expect(reprojection).toContain("projectPiBackedConversationSurface(withStoredEvidence, inspection)");
   });
 });

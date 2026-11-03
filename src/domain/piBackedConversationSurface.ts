@@ -609,9 +609,17 @@ export function projectPiBackedConversationSurface(
   // A run interrupted at the very end of the session has no following request to close it.
   closeRun();
 
+  // CR184: the transcript draws evidence only for the messages on it, and the stored evidence of
+  // the rest is kept by the native save. Carried whole, it was 28 MB of a 34 MB generation,
+  // stringified on every save of a 73-message surface.
+  const terminalAgentActionEvidence = metadata.terminalAgentActionEvidence && Object.fromEntries(
+    Object.entries(metadata.terminalAgentActionEvidence).filter(([messageId]) => messageIds.has(messageId)),
+  );
+
   return {
     ...metadata,
     messages,
+    terminalAgentActionEvidence,
     ...(() => {
       const roles = projectAgentCommentRoles(messages);
       // An interrupted run produced no answer, so none of its comments may be presented as one.

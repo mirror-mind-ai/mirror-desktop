@@ -6082,7 +6082,17 @@ export function App({ model }: AppProps) {
         "complete",
       );
       if (selectedJourneyRef.current !== authority.journeyId || conversationRef.current.id !== selectedConversationId) return;
-      const complete = projectPiBackedConversationSurface(conversationRef.current, inspection);
+      // CR184: the surface holds only its own messages' evidence; the earlier chapters' is stored.
+      const stored = await loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId);
+      if (selectedJourneyRef.current !== authority.journeyId || conversationRef.current.id !== selectedConversationId) return;
+      const withStoredEvidence = {
+        ...conversationRef.current,
+        terminalAgentActionEvidence: {
+          ...stored?.terminalAgentActionEvidence,
+          ...conversationRef.current.terminalAgentActionEvidence,
+        },
+      };
+      const complete = projectPiBackedConversationSurface(withStoredEvidence, inspection);
       // The visit keeps the wider extent, so a later reprojection does not take it away again.
       loadedHistoryScopeRef.current = "complete";
       conversationRef.current = complete;
