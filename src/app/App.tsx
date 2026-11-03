@@ -7725,6 +7725,14 @@ export function App({ model }: AppProps) {
                 role="tabpanel"
                 aria-labelledby="settings-tab-you"
               >
+                {/* CR175: the person first, then how the app looks (Navigator, 2026-11-03). */}
+                <UserAvatarSettings
+                  avatar={userAvatar}
+                  busy={userAvatarBusy}
+                  message={userAvatarMessage}
+                  onChoose={() => void chooseUserAvatar()}
+                  onRemove={() => void clearUserAvatar()}
+                />
                 <section className="settings-section appearance-card" aria-label="Application appearance">
               <h3>Appearance</h3>
               <div className="theme-family-list" role="radiogroup" aria-label="Application color theme">
@@ -7761,13 +7769,6 @@ export function App({ model }: AppProps) {
                 Restore default
               </button>
                 </section>
-                <UserAvatarSettings
-                  avatar={userAvatar}
-                  busy={userAvatarBusy}
-                  message={userAvatarMessage}
-                  onChoose={() => void chooseUserAvatar()}
-                  onRemove={() => void clearUserAvatar()}
-                />
               </div>
             ) : null}
 

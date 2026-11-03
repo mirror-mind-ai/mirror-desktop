@@ -70,6 +70,11 @@ describe("CR175: Settings tabs by intent", () => {
     expect(settingsWindow.match(/id="settings-panel-/g)).toHaveLength(6);
   });
 
+  it("puts the person's avatar before the app's appearance in You", () => {
+    const you = panel("you");
+    expect(you.indexOf("<UserAvatarSettings")).toBeLessThan(you.indexOf('aria-label="Application appearance"'));
+  });
+
   it("opens on Models, and re-reads providers and learning when their tab is shown", () => {
     expect(appSource).toContain('useState<SettingsTab>("models")');
     expect(appSource).toContain('if (!settingsOpen || settingsTab !== "models") return;');
