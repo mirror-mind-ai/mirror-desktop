@@ -114,3 +114,19 @@ the saves, still 28.2 MB each because the renderer carries the action evidence o
 the generation (28.4 MB) while showing 73 messages. Next candidate: keep in the renderer only the
 evidence of the loaded window and let the native save preserve the rest, as it now does for
 messages.
+
+## Third Repair: the Action Evidence (2026-11-03)
+
+- `projectPiBackedConversationSurface` keeps only the evidence of the messages it puts on the
+  surface. The transcript never drew any other (`ConversationTranscript` looks evidence up by the
+  message it renders).
+- `preserve_durable_conversation_history` keeps the stored evidence of every message outside the
+  window; the window owns the evidence of its own messages, and evidence it brings for a message
+  not yet on it (an interrupted turn) wins over the stored.
+- Loading earlier chapters reads the stored projection once, on that request, and reprojects with
+  the stored evidence underneath the surface's.
+- Spec: two more cases in `cr184ProjectionReads.test.ts`, three more Rust `cr184_*` tests. Five
+  mutation controls, all caught (one survived first; its test was strengthened).
+- Suites: TS 2,504, Rust 466.
+
+Check owed: the save payload should fall from 28.2 MB to the window's size.
