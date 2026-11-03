@@ -8,46 +8,32 @@ import { readFileSync } from "node:fs";
 const cssSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 
 describe("Settings tabs", () => {
-  it("renders seven owned, accessible tabs with roving focus", () => {
-    const html = renderToStaticMarkup(<SettingsTabList selected="appearance" onSelect={() => undefined} />);
+  // CR175 regrouped the tabs by intent; `cr175SettingsByIntent.test.tsx` holds what each one contains.
+  it("renders six owned, accessible tabs with roving focus", () => {
+    const html = renderToStaticMarkup(<SettingsTabList selected="models" onSelect={() => undefined} />);
     expect(html).toContain('role="tablist"');
-    expect(html.match(/role="tab"/g)).toHaveLength(7);
-    expect(html).toContain("Voice");
-    expect(html).toContain("User Profile");
-    expect(html).toContain('aria-controls="settings-panel-appearance"');
+    expect(html.match(/role="tab"/g)).toHaveLength(6);
+    expect(html).toContain("Sound &amp; Voice");
+    expect(html).toContain("Diagnostics");
+    expect(html).toContain('aria-controls="settings-panel-models"');
     expect(html).toContain('aria-selected="true"');
     expect(html).toContain('tabindex="-1"');
   });
 
   it("wraps arrow navigation and supports Home and End", () => {
-    expect(nextSettingsTab("appearance", "ArrowLeft")).toBe("updates");
-    expect(nextSettingsTab("runtime", "ArrowRight")).toBe("voice");
+    expect(nextSettingsTab("models", "ArrowLeft")).toBe("diagnostics");
+    expect(nextSettingsTab("diagnostics", "ArrowRight")).toBe("models");
     expect(nextSettingsTab("voice", "ArrowRight")).toBe("updates");
-    expect(nextSettingsTab("updates", "ArrowRight")).toBe("appearance");
-    expect(nextSettingsTab("appearance", "ArrowRight")).toBe("user-profile");
-    expect(nextSettingsTab("user-profile", "ArrowRight")).toBe("agent");
-    expect(nextSettingsTab("agent", "ArrowRight")).toBe("connections");
-    expect(nextSettingsTab("connections", "ArrowRight")).toBe("runtime");
-    expect(nextSettingsTab("runtime", "Home")).toBe("appearance");
-    expect(nextSettingsTab("appearance", "End")).toBe("updates");
-    expect(nextSettingsTab("agent", "Enter")).toBe("agent");
+    expect(nextSettingsTab("you", "Home")).toBe("models");
+    expect(nextSettingsTab("mirror", "End")).toBe("diagnostics");
+    expect(nextSettingsTab("mirror", "Enter")).toBe("mirror");
   });
 
-  it("keeps each existing Settings concern in one explicit panel", () => {
-    expect(appSource).toContain('settingsTab === "appearance"');
-    expect(appSource).toContain('settingsTab === "user-profile"');
-    expect(appSource).toContain('settingsTab === "agent"');
-    expect(appSource).toContain('settingsTab === "connections"');
-    expect(appSource).toContain('settingsTab === "runtime"');
-    expect(appSource).toContain('settingsTab === "voice"');
-    expect(appSource).toContain('settingsTab === "updates"');
-    expect(appSource).toContain('id="settings-panel-appearance"');
-    expect(appSource).toContain('id="settings-panel-voice"');
-    expect(appSource).toContain('id="settings-panel-user-profile"');
-    expect(appSource).toContain('id="settings-panel-agent"');
-    expect(appSource).toContain('id="settings-panel-connections"');
-    expect(appSource).toContain('id="settings-panel-runtime"');
-    expect(appSource).toContain('id="settings-panel-updates"');
+  it("keeps each Settings concern in one explicit panel", () => {
+    for (const id of ["models", "mirror", "you", "voice", "updates", "diagnostics"]) {
+      expect(appSource).toContain(`settingsTab === "${id}"`);
+      expect(appSource).toContain(`id="settings-panel-${id}"`);
+    }
   });
 
   it("gives light-theme tabs explicit readable default, interactive, and selected colors", () => {

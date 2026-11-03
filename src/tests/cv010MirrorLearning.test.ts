@@ -38,10 +38,10 @@ describe("what Settings says Mirror learned", () => {
 });
 
 describe("where learning runs", () => {
-  it("Connections reads the last run each time it opens, with no cleanup to cancel it", () => {
+  it("Mirror (CR175; was Connections) reads the last run each time it opens, with no cleanup to cancel it", () => {
     const at = appSource.indexOf("const [mirrorLearning, setMirrorLearning]");
     const effect = appSource.slice(at, appSource.indexOf("}, [settingsTab]);", at));
-    expect(effect).toContain('if (settingsTab !== "connections") return;');
+    expect(effect).toContain('if (settingsTab !== "mirror") return;');
     expect(effect).toContain("loadMirrorLearningStatus().then(setMirrorLearning)");
     expect(effect).not.toContain("return () =>");
     expect(appSource).toContain("{describeLearning(mirrorLearning)}");

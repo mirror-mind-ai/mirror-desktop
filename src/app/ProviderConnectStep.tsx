@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PiLoginPrompt, PiLoginView, PiProviderStatus } from "./piProviders";
+import { CLAUDE_CODE, CLAUDE_CODE_NAME, ClaudeCodeConnect, type ClaudeCodeConnection } from "./ModelProvidersPanel";
 
 /**
  * CV-010.DS-005 slice 3c-1: the setup step that connects a model provider.
@@ -17,6 +18,8 @@ type ProviderConnectStepProps = {
   onCancel: () => void;
   onOpenAgain: (url: string) => void;
   onContinue: () => void;
+  /** CR175: Claude through Claude Code, offered as Settings offers it; absent until the runtime says. */
+  claude?: ClaudeCodeConnection;
   /** Tests only: the provider chosen when the screen opens. */
   initialChoice?: string;
 };
@@ -87,11 +90,17 @@ export function PiLoginPanel({ login, heading, onAnswer, onCancel, onOpenAgain }
   );
 }
 
-export function ProviderConnectStep({ providers, login, message, onSignIn, onAnswer, onCancel, onOpenAgain, onContinue, initialChoice }: ProviderConnectStepProps) {
+export function ProviderConnectStep({ providers, login, message, onSignIn, onAnswer, onCancel, onOpenAgain, onContinue, claude, initialChoice }: ProviderConnectStepProps) {
   const ordered = orderedProviders(providers);
-  const [choice, setChoice] = useState(initialChoice ?? ordered.find((provider) => !provider.ready)?.id ?? ordered[0]?.id ?? "");
-  const chosen = ordered.find((provider) => provider.id === choice);
-  const connected = ordered.filter((provider) => provider.ready);
+  const claudeOffered = claude !== undefined && !claude.installed;
+  const [choice, setChoice] = useState(initialChoice
+    ?? (claudeOffered ? CLAUDE_CODE : ordered.find((provider) => !provider.ready)?.id ?? ordered[0]?.id ?? ""));
+  const claudeChosen = claudeOffered && choice === CLAUDE_CODE;
+  const chosen = claudeChosen ? undefined : ordered.find((provider) => provider.id === choice);
+  const connected = [
+    ...(claude?.installed ? [CLAUDE_CODE_NAME] : []),
+    ...ordered.filter((provider) => provider.ready).map((provider) => provider.name),
+  ];
 
   if (login) {
     return (
@@ -107,14 +116,16 @@ export function ProviderConnectStep({ providers, login, message, onSignIn, onAns
       <p className="eyebrow">Mirror Desktop TS</p>
       <h1>Connect a model provider</h1>
       <p>Your Mirror talks to a model through a provider. Sign in with a subscription you have, or use an API key. Pi keeps the sign-in on this Mac; Mirror Desktop keeps no copy.</p>
-      {connected.length > 0 ? <p className="provider-note">Connected: {connected.map((provider) => provider.name).join(", ")}.</p> : null}
+      {connected.length > 0 ? <p className="provider-note">Connected: {connected.join(", ")}.</p> : null}
       {message ? <p className={connected.length > 0 && message.startsWith("Connected") ? "provider-note" : "provider-error"} role="alert">{message}</p> : null}
       <div className="runtime-onboarding-form">
         <label className="provider-field">Provider
-          <select value={choice} onChange={(event) => setChoice(event.target.value)}>
+          <select value={choice} disabled={claude?.view.kind === "installing"} onChange={(event) => setChoice(event.target.value)}>
+            {claudeOffered ? <option value={CLAUDE_CODE}>{CLAUDE_CODE_NAME}</option> : null}
             {ordered.map((provider) => <option key={provider.id} value={provider.id}>{provider.name} · {readinessLabel(provider)}</option>)}
           </select>
         </label>
+        {claudeChosen && claude ? <ClaudeCodeConnect claude={claude} /> : null}
         <div className="provider-actions">
           {chosen?.oauth ? <button type="button" onClick={() => onSignIn(chosen, "oauth")}>Sign in{chosen.oauthName ? ` · ${chosen.oauthName}` : ""}</button> : null}
           {chosen?.apiKey ? <button className={chosen.oauth ? "secondary-button" : undefined} type="button" onClick={() => onSignIn(chosen, "api_key")}>Use an API key</button> : null}

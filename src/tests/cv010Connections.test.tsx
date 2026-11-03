@@ -129,7 +129,8 @@ describe("the setup sequence and Settings", () => {
     expect(appSource).toContain('(providerStepOpen || piLogin?.origin === "setup" || !piProvidersLoadedOnce ||');
     expect(appSource).toContain('login={piLogin?.origin === "settings" ? piLogin : undefined}');
     expect(appSource).toContain('onSignIn={(provider, loginType) => void signInToProvider(provider, loginType, "settings")}');
-    expect(appSource).toContain('if (!settingsOpen || settingsTab !== "connections") return;');
+    // CR175: the providers moved from Connections to Models.
+    expect(appSource).toContain('if (!settingsOpen || settingsTab !== "models") return;');
   });
 
   it("after a disconnect, reads Pi's providers and models again", () => {

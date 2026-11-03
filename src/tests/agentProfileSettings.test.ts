@@ -224,13 +224,13 @@ describe("model surface availability", () => {
   });
 });
 
-// CR078: Model Intents live in the Agent panel, beside the defaults they offer alternatives
+// CR078: Model Intents live in the Agent panel (CR175: Models), beside the defaults they offer alternatives
 // to, and are loaded once on mount because the Composer footer needs them too.
 describe("model intents settings surface", () => {
   it("renders the panel inside the Agent panel and persists through the store", () => {
     const agentPanel = appSource.slice(
-      appSource.indexOf('id="settings-panel-agent"'),
-      appSource.indexOf('settingsTab === "runtime"'),
+      appSource.indexOf('id="settings-panel-models"'),
+      appSource.indexOf('settingsTab === "mirror"'),
     );
     expect(agentPanel).toContain("<ModelIntentsPanel");
     expect(agentPanel).toContain("intents={modelIntents}");

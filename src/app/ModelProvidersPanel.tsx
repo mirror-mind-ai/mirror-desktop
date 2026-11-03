@@ -17,7 +17,7 @@ import type { PiInstallView } from "./PiInstallStep";
 
 /** The select's value for Claude through Claude Code, which no Pi provider id can take. */
 export const CLAUDE_CODE = "mirror-desktop:claude-code";
-const CLAUDE_CODE_NAME = "Claude · through Claude Code";
+export const CLAUDE_CODE_NAME = "Claude · through Claude Code";
 
 export type ClaudeCodeConnection = {
   installed: boolean;
@@ -58,6 +58,29 @@ export function disconnectWarning(provider: PiProviderStatus, providers: PiProvi
   const others = providers.filter((other) => other.id !== provider.id && other.ready);
   const last = others.length === 0 && !claudeConnected ? " It is your only connected provider, so Mirror Desktop will ask you to connect one." : "";
   return `Disconnect ${provider.name}? Pi forgets this sign-in, in Mirror Desktop and in Pi in a terminal.${last}`;
+}
+
+/** Connecting Claude through Claude Code: what Connect does, then its progress. Setup and Settings share it. */
+export function ClaudeCodeConnect({ claude, disabled = false }: { claude: ClaudeCodeConnection; disabled?: boolean }) {
+  return (
+    <>
+      <p className="provider-note">Use your Claude subscription. Mirror Desktop TS installs its own copy of Claude Code into its folder (about 135 MB, each package checked) and uses the Claude sign-in already on this Mac.</p>
+      <p className="provider-note">Your own Claude Code, its plugins and its hooks are left alone, and stay out of Mirror Desktop's turns.</p>
+      {claude.view.kind === "installing" ? (
+        <div className="pi-install-progress" role="status">
+          <progress max={claude.view.total || 1} value={claude.view.phase === "check" ? claude.view.total : claude.view.done} />
+          <p>{claudeProgressLabel(claude.view)}</p>
+        </div>
+      ) : (
+        <>
+          {claude.view.kind === "failed" ? <p className="provider-error" role="alert">{claude.view.message}</p> : null}
+          <div className="provider-actions">
+            <button type="button" disabled={disabled} onClick={claude.onConnect}>{claude.view.kind === "failed" ? "Try again" : "Connect"}</button>
+          </div>
+        </>
+      )}
+    </>
+  );
 }
 
 export function ModelProvidersPanel({ providers, state, login, message, busy, onSignIn, onAnswer, onCancel, onOpenAgain, onDisconnect, onReload, claude, initialConfirming }: ModelProvidersPanelProps) {
@@ -125,23 +148,7 @@ export function ModelProvidersPanel({ providers, state, login, message, busy, on
             </select>
           </label>
           {claudeChosen && claude ? (
-            <>
-              <p className="provider-note">Use your Claude subscription. Mirror Desktop TS installs its own copy of Claude Code into its folder (about 135 MB, each package checked) and uses the Claude sign-in already on this Mac.</p>
-              <p className="provider-note">Your own Claude Code, its plugins and its hooks are left alone, and stay out of Mirror Desktop's turns.</p>
-              {claude.view.kind === "installing" ? (
-                <div className="pi-install-progress" role="status">
-                  <progress max={claude.view.total || 1} value={claude.view.phase === "check" ? claude.view.total : claude.view.done} />
-                  <p>{claudeProgressLabel(claude.view)}</p>
-                </div>
-              ) : (
-                <>
-                  {claude.view.kind === "failed" ? <p className="provider-error" role="alert">{claude.view.message}</p> : null}
-                  <div className="provider-actions">
-                    <button type="button" disabled={busy !== undefined} onClick={claude.onConnect}>{claude.view.kind === "failed" ? "Try again" : "Connect"}</button>
-                  </div>
-                </>
-              )}
-            </>
+            <ClaudeCodeConnect claude={claude} disabled={busy !== undefined} />
           ) : (
           <div className="provider-actions">
             {chosen?.oauth ? <button type="button" disabled={busy !== undefined} onClick={() => onSignIn(chosen, "oauth")}>Sign in{chosen.oauthName ? ` · ${chosen.oauthName}` : ""}</button> : null}

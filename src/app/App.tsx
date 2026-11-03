@@ -834,7 +834,7 @@ export function App({ model }: AppProps) {
   const [journeyThinkingDraft, setJourneyThinkingDraft] = useState<AgentThinkingLevel | "inherit">("inherit");
   const [journeyAgentProfileOpen, setJourneyAgentProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("models");
   const [reviewedUpdate, setReviewedUpdate] = useState<SelfUpdateCheckResult & { status: "available" }>();
   const [whatsNewState, setWhatsNewState] = useState<ResolvedWhatsNewState>();
   // CR133: structural visibility and selection are two states reduced by two functions, so
@@ -979,11 +979,11 @@ export function App({ model }: AppProps) {
   const [piDisconnecting, setPiDisconnecting] = useState<string>();
   // Slice 3c-2: the OpenRouter key for Mirror's context (decision 4); its status only, never the key.
   const [openRouterKey, setOpenRouterKey] = useState<OpenRouterKeyStatus>();
-  // Slice 4a: the last learning run, read each time Connections is shown. No cleanup: the read
+  // Slice 4a: the last learning run, read each time Mirror (CR175; was Connections) is shown. No cleanup: the read
   // changes no dependency of this effect, so nothing re-runs it (the 3c defect's lesson).
   const [mirrorLearning, setMirrorLearning] = useState<MirrorLearningRun | null>(null);
   useEffect(() => {
-    if (settingsTab !== "connections") return;
+    if (settingsTab !== "mirror") return;
     void loadMirrorLearningStatus().then(setMirrorLearning).catch(() => setMirrorLearning(null));
   }, [settingsTab]);
   const [openRouterState, setOpenRouterState] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -2352,9 +2352,9 @@ export function App({ model }: AppProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsOpen, settingsTab]);
 
-  // Slice 3c-2: Connections asks Pi again each time it opens, since Pi in a terminal may have changed them.
+  // Slice 3c-2: Models (CR175; was Connections) asks Pi again each time it opens, since Pi in a terminal may have changed them.
   useEffect(() => {
-    if (!settingsOpen || settingsTab !== "connections") return;
+    if (!settingsOpen || settingsTab !== "models") return;
     setPiProvidersState((current) => (current === "ready" || current === "error" ? "idle" : current));
   }, [settingsOpen, settingsTab]);
 
@@ -5679,8 +5679,11 @@ export function App({ model }: AppProps) {
     && (runtimeChannel?.status !== "validated" || runtimeOnboardingEditing);
   const runtimeSetupNeedsPi = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === false;
   // Slice 3c-1: with Pi installed, a provider must be connected before the model is chosen.
+  // CR175: Claude through the app's own Claude Code is a connected provider too, so a person whose
+  // only subscription is Claude finishes setup without Pi's own Anthropic sign-in.
   const runtimeSetupNeedsProvider = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === true
-    && (providerStepOpen || piLogin?.origin === "setup" || !piProvidersLoadedOnce || !piProviders.some((provider) => provider.ready));
+    && (providerStepOpen || piLogin?.origin === "setup" || !piProvidersLoadedOnce ||
+      !(piProviders.some((provider) => provider.ready) || runtimeChannel?.anthropicInstalled === true));
   // Slice 3c-2: then the OpenRouter key for Mirror's context, until one is kept or the person goes on without it.
   const runtimeSetupNeedsOpenRouter = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === true && !runtimeSetupNeedsProvider
     && !openRouterSkipped && (!openRouterKey || (!openRouterKey.configured && !openRouterKey.declined));
@@ -5837,6 +5840,9 @@ export function App({ model }: AppProps) {
                 onCancel={() => { if (piLogin) void cancelPiLogin(piLogin.session); }}
                 onOpenAgain={(url) => void openSignInPage(url)}
                 onContinue={continueWithProviders}
+                claude={runtimeChannel?.anthropicInstalled !== undefined
+                  ? { installed: runtimeChannel.anthropicInstalled, view: claudeCodeView, onConnect: () => void connectClaudeCode() }
+                  : undefined}
               />
             )
           ) : runtimeSetupNeedsOpenRouter ? (
@@ -7590,76 +7596,29 @@ export function App({ model }: AppProps) {
 
             <SettingsTabList selected={settingsTab} onSelect={setSettingsTab} />
 
-            {settingsTab === "appearance" ? (
+            {settingsTab === "models" ? (
               <div
                 className="settings-tab-panel"
-                id="settings-panel-appearance"
+                id="settings-panel-models"
                 role="tabpanel"
-                aria-labelledby="settings-tab-appearance"
+                aria-labelledby="settings-tab-models"
               >
-                <section className="settings-section appearance-card" aria-label="Application appearance">
-              <h3>Appearance</h3>
-              <div className="theme-family-list" role="radiogroup" aria-label="Application color theme">
-                {applicationThemeGroups.map((group) => (
-                  <section className="theme-family" role="group" aria-label={`${group.label} themes`} key={group.family}>
-                    <h4>{group.label}</h4>
-                    <div className="theme-choice-grid">
-                      {group.themes.map((theme) => (
-                        <button
-                          className={`theme-choice ${applicationTheme === theme.id ? "selected" : ""}`}
-                          type="button"
-                          role="radio"
-                          aria-checked={applicationTheme === theme.id}
-                          onClick={() => setApplicationTheme(theme.id)}
-                          key={theme.id}
-                        >
-                          <span className="theme-swatches" aria-hidden="true">
-                            {theme.colors.map((color) => <span key={color} style={{ backgroundColor: color }} />)}
-                          </span>
-                          <span>{theme.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-              <button
-                className="secondary-button appearance-reset"
-                type="button"
-                onClick={() => setApplicationTheme("channel")}
-                disabled={applicationTheme === "channel"}
-                aria-label="Restore default theme"
-              >
-                Restore default
-              </button>
-                </section>
-              </div>
-            ) : null}
-
-            {settingsTab === "user-profile" ? (
-              <div
-                className="settings-tab-panel"
-                id="settings-panel-user-profile"
-                role="tabpanel"
-                aria-labelledby="settings-tab-user-profile"
-              >
-                <UserAvatarSettings
-                  avatar={userAvatar}
-                  busy={userAvatarBusy}
-                  message={userAvatarMessage}
-                  onChoose={() => void chooseUserAvatar()}
-                  onRemove={() => void clearUserAvatar()}
+                <ModelProvidersPanel
+                  providers={piProviders}
+                  state={piProvidersState}
+                  login={piLogin?.origin === "settings" ? piLogin : undefined}
+                  message={piProvidersMessage}
+                  busy={piDisconnecting ?? (piLogin ? piLogin.provider : undefined)}
+                  onSignIn={(provider, loginType) => void signInToProvider(provider, loginType, "settings")}
+                  onAnswer={answerProviderPrompt}
+                  onCancel={() => { if (piLogin) void cancelPiLogin(piLogin.session); }}
+                  onOpenAgain={(url) => void openSignInPage(url)}
+                  onDisconnect={(provider) => void disconnectProvider(provider)}
+                  onReload={() => { setPiProvidersMessage(undefined); setPiProvidersState("idle"); }}
+                  claude={runtimeChannel?.anthropicInstalled !== undefined
+                    ? { installed: runtimeChannel.anthropicInstalled, view: claudeCodeView, onConnect: () => void connectClaudeCode() }
+                    : undefined}
                 />
-              </div>
-            ) : null}
-
-            {settingsTab === "agent" ? (
-              <div
-                className="settings-tab-panel"
-                id="settings-panel-agent"
-                role="tabpanel"
-                aria-labelledby="settings-tab-agent"
-              >
                 <section className="settings-section provider-card" aria-label="Global agent defaults">
               <h3>Global defaults</h3>
               <label className="provider-field">
@@ -7715,29 +7674,33 @@ export function App({ model }: AppProps) {
               </div>
             ) : null}
 
-            {settingsTab === "connections" ? (
+            {settingsTab === "mirror" ? (
               <div
                 className="settings-tab-panel"
-                id="settings-panel-connections"
+                id="settings-panel-mirror"
                 role="tabpanel"
-                aria-labelledby="settings-tab-connections"
+                aria-labelledby="settings-tab-mirror"
               >
-                <ModelProvidersPanel
-                  providers={piProviders}
-                  state={piProvidersState}
-                  login={piLogin?.origin === "settings" ? piLogin : undefined}
-                  message={piProvidersMessage}
-                  busy={piDisconnecting ?? (piLogin ? piLogin.provider : undefined)}
-                  onSignIn={(provider, loginType) => void signInToProvider(provider, loginType, "settings")}
-                  onAnswer={answerProviderPrompt}
-                  onCancel={() => { if (piLogin) void cancelPiLogin(piLogin.session); }}
-                  onOpenAgain={(url) => void openSignInPage(url)}
-                  onDisconnect={(provider) => void disconnectProvider(provider)}
-                  onReload={() => { setPiProvidersMessage(undefined); setPiProvidersState("idle"); }}
-                  claude={runtimeChannel?.anthropicInstalled !== undefined
-                    ? { installed: runtimeChannel.anthropicInstalled, view: claudeCodeView, onConnect: () => void connectClaudeCode() }
-                    : undefined}
-                />
+                {/* CR175: where the Mirror lives, moved here from the runtime channel's diagnostic list. */}
+                <section className="settings-section runtime-channel-card" aria-label="Mirror home">
+                  <h3>Mirror home</h3>
+                  {runtimeChannel?.status === "validated" ? (
+                    <dl className="runtime-channel-diagnostic">
+                      <div><dt>Mirror home</dt><dd>{runtimeChannel.mirrorHome}</dd></div>
+                      <div><dt>Database</dt><dd>{runtimeChannel.dbPath}</dd></div>
+                    </dl>
+                  ) : <p className="provider-note">{runtimeChannel?.message ?? "Inspecting the bound Mirror home…"}</p>}
+              {/* CV-010.DS-005 slice 2d-1: the 0.3 line binds a Mirror home made for it, nothing else. */}
+              <div className="runtime-binding-form" aria-label="Mirror home binding">
+                {homeAdoptionReview}
+                {runtimeChannelError && !homeAdoptionReview ? <p className="provider-error">{runtimeChannelError}</p> : null}
+                <div className="settings-actions">
+                  <button type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void chooseAndBindMirrorHome()}>
+                    {runtimeBindingState === "idle" ? "Choose Mirror home…" : "Opening…"}
+                  </button>
+                </div>
+              </div>
+                </section>
                 <section className="settings-section provider-card" aria-label="Mirror's context · OpenRouter">
                   <OpenRouterKeyPanel
                     variant="settings"
@@ -7755,57 +7718,56 @@ export function App({ model }: AppProps) {
               </div>
             ) : null}
 
-            {settingsTab === "runtime" ? (
+            {settingsTab === "you" ? (
               <div
                 className="settings-tab-panel"
-                id="settings-panel-runtime"
+                id="settings-panel-you"
                 role="tabpanel"
-                aria-labelledby="settings-tab-runtime"
+                aria-labelledby="settings-tab-you"
               >
-                <section className="settings-section runtime-channel-card" aria-label="Runtime channel">
-              <h3>Runtime channel {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : evaluationChannel ? <span className="evaluation-badge">{EVALUATION_BADGE_LABEL}</span> : null}</h3>
-              {runtimeChannel ? (
-                <dl className="runtime-channel-diagnostic">
-                  <div><dt>Channel</dt><dd>{runtimeChannel.channel}</dd></div>
-                  <div><dt>Bundle</dt><dd>{runtimeChannel.bundleIdentifier}</dd></div>
-                  <div><dt>App data</dt><dd>{runtimeChannel.appDataRoot}</dd></div>
-                  {runtimeChannel.status === "validated" ? <>
-                    <div><dt>Mirror home</dt><dd>{runtimeChannel.mirrorHome}</dd></div>
-                    <div><dt>Database</dt><dd>{runtimeChannel.dbPath}</dd></div>
-                  </> : null}
-                  <div><dt>Status</dt><dd>{runtimeChannel.status}</dd></div>
-                  {runtimeChannel.message ? <div><dt>Correction</dt><dd>{runtimeChannel.message}</dd></div> : null}
-                </dl>
-              ) : <p className="provider-note">{runtimeChannelError ?? "Inspecting the native runtime channel…"}</p>}
-              {/* CV-010.DS-005 slice 2d-1: the 0.3 line binds a Mirror home made for it, nothing else. */}
-              <div className="runtime-binding-form" aria-label="Mirror home binding">
-                {homeAdoptionReview}
-                {runtimeChannelError && !homeAdoptionReview ? <p className="provider-error">{runtimeChannelError}</p> : null}
-                <div className="settings-actions">
-                  <button type="button" disabled={runtimeBindingState !== "idle"} onClick={() => void chooseAndBindMirrorHome()}>
-                    {runtimeBindingState === "idle" ? "Choose Mirror home…" : "Opening…"}
-                  </button>
-                </div>
+                <section className="settings-section appearance-card" aria-label="Application appearance">
+              <h3>Appearance</h3>
+              <div className="theme-family-list" role="radiogroup" aria-label="Application color theme">
+                {applicationThemeGroups.map((group) => (
+                  <section className="theme-family" role="group" aria-label={`${group.label} themes`} key={group.family}>
+                    <h4>{group.label}</h4>
+                    <div className="theme-choice-grid">
+                      {group.themes.map((theme) => (
+                        <button
+                          className={`theme-choice ${applicationTheme === theme.id ? "selected" : ""}`}
+                          type="button"
+                          role="radio"
+                          aria-checked={applicationTheme === theme.id}
+                          onClick={() => setApplicationTheme(theme.id)}
+                          key={theme.id}
+                        >
+                          <span className="theme-swatches" aria-hidden="true">
+                            {theme.colors.map((color) => <span key={color} style={{ backgroundColor: color }} />)}
+                          </span>
+                          <span>{theme.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ))}
               </div>
-            </section>
-
-            <section className="settings-section provider-card" aria-label="Current session invocation controls">
-              <h3>Current session controls</h3>
-              <p className="provider-note"><strong>Effective model:</strong> {describeEffectiveAgentProfile(effectiveAgentProfile)}</p>
-              <label className="provider-field">Command<input value={providerCommand} onChange={(event) => setProviderCommand(event.target.value)} disabled={providerSafeTestMode} /></label>
-              <label className="provider-field">Arguments<input value={providerArgsText} onChange={(event) => setProviderArgsText(event.target.value)} disabled={providerSafeTestMode} /></label>
-              {profileOwnedArgumentFlags(providerArgsText).length > 0 ? (
-                <p className="provider-note">{profileOwnedArgumentFlags(providerArgsText).join(", ")} typed here will be replaced at send time by the effective model above.</p>
-              ) : null}
-              <label className="provider-check"><input type="checkbox" checked={providerUseStdin} onChange={(event) => setProviderUseStdin(event.target.checked)} disabled={providerSafeTestMode} />Send prompt through stdin</label>
-              <label className="provider-check"><input type="checkbox" checked={providerSafeTestMode} onChange={(event) => setProviderSafeTestMode(event.target.checked)} />Safe test mode (cat)</label>
-              {providerErrors.length > 0 ? <p className="provider-error">{providerErrors.join(" ")}</p> : null}
-              <div className="provider-actions">
-                <button type="button" onClick={applyProviderConfiguration} disabled={runtimeBusy}>Apply for this session</button>
-                <button className="secondary-button" type="button" onClick={resetProviderConfiguration} disabled={runtimeBusy}>Reset session controls</button>
-              </div>
-              <p className="provider-note">Command, arguments, stdin and test mode are never persisted. Provider, model and thinking are owned by the agent profile above and applied at send time; use this field for other invocation arguments.</p>
+              <button
+                className="secondary-button appearance-reset"
+                type="button"
+                onClick={() => setApplicationTheme("channel")}
+                disabled={applicationTheme === "channel"}
+                aria-label="Restore default theme"
+              >
+                Restore default
+              </button>
                 </section>
+                <UserAvatarSettings
+                  avatar={userAvatar}
+                  busy={userAvatarBusy}
+                  message={userAvatarMessage}
+                  onChoose={() => void chooseUserAvatar()}
+                  onRemove={() => void clearUserAvatar()}
+                />
               </div>
             ) : null}
 
@@ -7910,6 +7872,46 @@ export function App({ model }: AppProps) {
                 aria-labelledby="settings-tab-updates"
               >
                 <SelfUpdatePanel runtimeBusy={runtimeBusy} selfUpdates={!developmentChannel && !evaluationChannel} buildName={buildName} reviewedUpdate={reviewedUpdate} installedReleaseReading={whatsNewState?.installed} />
+              </div>
+            ) : null}
+
+            {settingsTab === "diagnostics" ? (
+              <div
+                className="settings-tab-panel"
+                id="settings-panel-diagnostics"
+                role="tabpanel"
+                aria-labelledby="settings-tab-diagnostics"
+              >
+                <section className="settings-section runtime-channel-card" aria-label="Runtime channel">
+              <h3>Runtime channel {developmentChannel ? <span className="development-badge">{DEVELOPMENT_BADGE_LABEL}</span> : evaluationChannel ? <span className="evaluation-badge">{EVALUATION_BADGE_LABEL}</span> : null}</h3>
+              {runtimeChannel ? (
+                <dl className="runtime-channel-diagnostic">
+                  <div><dt>Channel</dt><dd>{runtimeChannel.channel}</dd></div>
+                  <div><dt>Bundle</dt><dd>{runtimeChannel.bundleIdentifier}</dd></div>
+                  <div><dt>App data</dt><dd>{runtimeChannel.appDataRoot}</dd></div>
+                  <div><dt>Status</dt><dd>{runtimeChannel.status}</dd></div>
+                  {runtimeChannel.message ? <div><dt>Correction</dt><dd>{runtimeChannel.message}</dd></div> : null}
+                </dl>
+              ) : <p className="provider-note">{runtimeChannelError ?? "Inspecting the native runtime channel…"}</p>}
+            </section>
+
+            <section className="settings-section provider-card" aria-label="Current session invocation controls">
+              <h3>Current session controls</h3>
+              <p className="provider-note"><strong>Effective model:</strong> {describeEffectiveAgentProfile(effectiveAgentProfile)}</p>
+              <label className="provider-field">Command<input value={providerCommand} onChange={(event) => setProviderCommand(event.target.value)} disabled={providerSafeTestMode} /></label>
+              <label className="provider-field">Arguments<input value={providerArgsText} onChange={(event) => setProviderArgsText(event.target.value)} disabled={providerSafeTestMode} /></label>
+              {profileOwnedArgumentFlags(providerArgsText).length > 0 ? (
+                <p className="provider-note">{profileOwnedArgumentFlags(providerArgsText).join(", ")} typed here will be replaced at send time by the effective model above.</p>
+              ) : null}
+              <label className="provider-check"><input type="checkbox" checked={providerUseStdin} onChange={(event) => setProviderUseStdin(event.target.checked)} disabled={providerSafeTestMode} />Send prompt through stdin</label>
+              <label className="provider-check"><input type="checkbox" checked={providerSafeTestMode} onChange={(event) => setProviderSafeTestMode(event.target.checked)} />Safe test mode (cat)</label>
+              {providerErrors.length > 0 ? <p className="provider-error">{providerErrors.join(" ")}</p> : null}
+              <div className="provider-actions">
+                <button type="button" onClick={applyProviderConfiguration} disabled={runtimeBusy}>Apply for this session</button>
+                <button className="secondary-button" type="button" onClick={resetProviderConfiguration} disabled={runtimeBusy}>Reset session controls</button>
+              </div>
+              <p className="provider-note">Command, arguments, stdin and test mode are never persisted. Provider, model and thinking are owned by the agent profile in Models and applied at send time; use this field for other invocation arguments.</p>
+                </section>
               </div>
             ) : null}
           </section>

@@ -79,7 +79,8 @@ describe("a sign-in's events", () => {
 describe("the setup sequence", () => {
   it("connects a provider after Pi and before Journeys and the model, and offers another one later", () => {
     expect(appSource).toContain("const runtimeSetupNeedsProvider = !runtimeSetupNeedsConnection && runtimeChannel?.piInstalled === true");
-    expect(appSource).toContain("(providerStepOpen || piLogin?.origin === \"setup\" || !piProvidersLoadedOnce || !piProviders.some((provider) => provider.ready));");
+    // CR175: an installed Claude through Claude Code counts as a connected provider too.
+    expect(appSource).toContain("(providerStepOpen || piLogin?.origin === \"setup\" || !piProvidersLoadedOnce ||\n      !(piProviders.some((provider) => provider.ready) || runtimeChannel?.anthropicInstalled === true));");
     expect(appSource).toMatch(/\|\| runtimeSetupNeedsPi\n\s+\|\| runtimeSetupNeedsProvider/);
     const pi = appSource.indexOf("<PiInstallStep");
     const provider = appSource.indexOf("<ProviderConnectStep");

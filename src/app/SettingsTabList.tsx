@@ -1,17 +1,18 @@
 import type { KeyboardEvent } from "react";
 
 export const settingsTabs = [
-  { id: "appearance", label: "Appearance" },
-  { id: "user-profile", label: "User Profile" },
-  { id: "agent", label: "Agent" },
-  // CV-010.DS-005 slice 3c-2: model providers and the OpenRouter key for Mirror's context.
-  { id: "connections", label: "Connections" },
-  { id: "runtime", label: "Runtime" },
-  // CR151: renamed at the Navigator's request after the completion-sound settings moved here. The
-  // `id` is deliberately unchanged, so panel ids, `aria-controls` and the keyboard navigation order
-  // are untouched and only the label moves.
+  // CR175: one tab per question the person brings, instead of one per part of the machine. Models
+  // is who you talk to, Mirror is where your Mirror lives and what it learns, You is how it sees and
+  // shows you, Diagnostics is what is running. Ids changed with the contents, since a kept id would
+  // name a panel that no longer holds what it says.
+  { id: "models", label: "Models" },
+  { id: "mirror", label: "Mirror" },
+  { id: "you", label: "You" },
+  // CR151: renamed at the Navigator's request after the completion-sound settings moved here; the
+  // id was kept, since only the label moved.
   { id: "voice", label: "Sound & Voice" },
   { id: "updates", label: "Updates" },
+  { id: "diagnostics", label: "Diagnostics" },
 ] as const;
 
 export type SettingsTab = (typeof settingsTabs)[number]["id"];
