@@ -2,7 +2,7 @@
 
 # CR175: Organize Settings by What the Person Wants to Do
 
-**Status:** captured
+**Status:** in progress
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -47,3 +47,29 @@ wants the names above.
   navigation covers the new order.
 - Setup offers Claude through Claude Code (component test).
 - Navigator check in dev: find each setting the first time, by intent.
+
+## Decisions (Navigator, 2026-11-03: "construa")
+
+- The names above, in English like the rest of the app.
+- Tab ids change with the contents (`models`, `mirror`, `you`, `voice`, `updates`, `diagnostics`).
+  Unlike CR151, the contents move, so a kept id would name a panel that no longer holds what it
+  says. The selected tab is not persisted, and the two places that open a tab directly use `voice`
+  and `updates`, which are kept.
+- Settings opens on Models.
+
+## Built (2026-11-03)
+
+- `SettingsTabList`: six tabs in the order above. The Mirror home and its database left the runtime
+  channel's list for a Mirror home section in Mirror, with the binding control; Diagnostics keeps
+  the channel, bundle, app data, status and session controls. Providers are re-read when Models
+  opens, learning when Mirror opens.
+- Setup: `ProviderConnectStep` offers Claude through Claude Code first, as Settings does, with the
+  same Connect block (`ClaudeCodeConnect`, extracted from `ModelProvidersPanel`). An installed Claude
+  counts as a connected provider, in the step and in `runtimeSetupNeedsProvider`.
+- Spec `src/tests/cr175SettingsByIntent.test.tsx`, failing first: each section under its tab and in
+  no other, the keyboard order, the opening tab, setup's Claude. Seven mutation controls, all caught.
+  Guards re-aimed to the new ids, intent kept: `settingsTabList`, `agentProfileSettings`,
+  `cv010Connections`, `cv010MirrorLearning`, `turnCompletionSound`, `cv010ProviderConnectStep`.
+- TS suite 2,516. No Rust change.
+
+Check owed: the Navigator finds each setting the first time, by intent, in the development app.
