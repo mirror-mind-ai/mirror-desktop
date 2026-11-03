@@ -73,7 +73,10 @@ commitment the settlement added (`upgradeMirrorCommitments(projectionAtFrontier,
 - `convergeDelivery` publishes a projection rebuilt with the `complete` scope; that is the recovery
   route, not the ordinary end of a turn.
 
-## Check (owed)
+## Check (2026-11-03, rehearsal at production's size)
 
-The same rehearsal (`ensaio-cr185`), the same timeline: at the end of a turn, no task over a second
-and no burst of `inspect_local_references`.
+The remount is gone: no `inspect_local_references` at all, no layout over a second, longest task
+1.5 s against 12 s. The acceptance's "no task over a second" is **not** met yet: the remaining
+stalls (0.8–1.5 s, four of them) are each the renderer parsing a 34 MB read of the projection, of
+which a turn makes nine. See the measurement record. Next: stop reading the whole projection where
+the renderer already holds it.

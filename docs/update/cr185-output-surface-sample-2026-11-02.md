@@ -146,3 +146,24 @@ were light: draft saves, the turn journal and the Pi leaf, a few per 10 s.
 - **CR185 is the size of what the page keeps live.** During the turn, the page spends a fifth of
   its time compositing and about 34 ms per streamed event; both grow with the conversation the DOM
   holds, and they leave fewer than seven frames per second for scrolling and typing.
+
+## After the CR184 repair (`07dc639`, same rehearsal, 2026-11-03 00:50Z)
+
+One turn, 00:50:22Z to settlement acknowledged at 00:52:19Z; timeline 5.8–178.5 s.
+
+| end of a turn | before | after |
+|---|---:|---:|
+| `inspect_local_references` calls | 3,754 | **0** |
+| longest task | 12.0 s (`message` handler) | 1.5 s (microtask) |
+| layouts over 1 s | 4 (4.1–5.2 s) + forced 2.6 s | **0** (longest 0.13 s total in the window) |
+| reads of the 34 MB projection, start to settled | 9 | 9 |
+
+The transcript is no longer mounted again. Every remaining stall over 0.8 s lines up, after aligning
+the timeline to the network clock (offset 00:49:52.8Z), with the end of a
+`load_dedicated_journey_conversation` response: 00:51:02.5Z ↔ 69.9 s (0.91 s), 00:51:42.5Z ↔
+109.8 s (0.96 s), 00:52:07.3Z ↔ 134.5 s (0.83 s), 00:52:26.3Z ↔ 153.5 s (1.53 s), each followed by a
+composite of 0.6–1.3 s. The renderer parses 34 MB on its main thread every time it reads the
+projection.
+
+During the turn the page still drew about 5 frames per second, compositing 11–12% of the time. That
+is CR185, untouched by this repair.
