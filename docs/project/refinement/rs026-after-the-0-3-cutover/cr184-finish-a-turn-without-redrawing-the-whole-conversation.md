@@ -105,3 +105,12 @@ A turn read the 34 MB projection eight times, and the renderer parsed each on it
 
 Check owed: the same rehearsal and timeline; one read of the projection per turn, no task over a
 second at the end of a turn.
+
+## Second Check (2026-11-03)
+
+One full read per turn instead of nine; no task over a second after the lease is released (longest
+0.75 s); the remount stays gone. One task of 1.0 s remains during the turn. The remaining stalls are
+the saves, still 28.2 MB each because the renderer carries the action evidence of all 475 turns of
+the generation (28.4 MB) while showing 73 messages. Next candidate: keep in the renderer only the
+evidence of the loaded window and let the native save preserve the rest, as it now does for
+messages.

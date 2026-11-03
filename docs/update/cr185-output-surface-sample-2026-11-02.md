@@ -167,3 +167,30 @@ projection.
 
 During the turn the page still drew about 5 frames per second, compositing 11–12% of the time. That
 is CR185, untouched by this repair.
+
+## After the second CR184 repair (`1ada90c`, same rehearsal, 2026-11-03 01:13Z)
+
+One turn, 01:13:37Z to acknowledged 01:15:12Z; timeline 13.2–132.6 s.
+
+| per turn | first recording | after `07dc639` | after `1ada90c` |
+|---|---:|---:|---:|
+| full reads of the projection (34 MB) | 9 | 9 | **1** (before Send) |
+| metadata reads (0.47 MB) | — | — | 3, ~0.7 s native each |
+| `inspect_local_references` | 3,754 | 0 | 0 |
+| longest task | 12.0 s | 1.5 s | **1.0 s** (during the turn) |
+| longest task after the lease is released | 12.0 s | 1.5 s | 0.75 s |
+
+What remains is the saves: each payload is still **28.2 MB**, for a surface of 73 messages. The
+stored projection's weight is `terminalAgentActionEvidence`: 28.4 MB for 475 turns (median 37 KB,
+largest 545 KB, mostly `operations`), against 4.7 MB of messages. The renderer holds the evidence
+of every turn of the generation and stringifies it on every save; the remaining stalls (1.0, 0.75,
+0.65 s) fall on those saves.
+
+### A correction to the CR185 reading
+
+The first recording's saves held 6,188 messages because the renderer composed the stored history
+into them before writing (the read that `1ada90c` removed). The surface itself was the current
+chapter all along: 73 messages here. So the page does **not** keep the whole conversation in the
+DOM, and CR185's cost during a turn (7.4 frames per second, compositing 8–11%) is not explained by
+transcript size. What the renderer does hold at generation size is the evidence map. CR185 needs
+its own reading before any repair.

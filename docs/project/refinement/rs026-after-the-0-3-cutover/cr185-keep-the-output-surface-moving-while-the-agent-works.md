@@ -74,3 +74,10 @@ Owed: the page timeline during a turn, then removing the rehearsal and restoring
 During the turn, at production's size: 20.7% compositing, 34 ms per streamed event, 6.9 frames per
 second. Native commands were light. The cost is what the page keeps live, the whole conversation;
 see the measurement record.
+
+## Correction (2026-11-03)
+
+The earlier reading, "the page keeps the whole conversation live", was wrong: it came from save
+payloads that the renderer padded with stored history. The surface is the current chapter (73
+messages in the third recording) and the page still drew about 7 frames per second during the turn.
+The cause is open again; see the measurement record.
