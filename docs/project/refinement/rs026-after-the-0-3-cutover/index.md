@@ -62,7 +62,7 @@ is proposed and awaits the Navigator.
 | F4 | [CR182](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) | RS026 | done | closed on the field sentence after v0.3.0-alpha.10; no code change |
 | F5 | [CR184](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) | RS026 | done | on `main` (`07dc639`, `1ada90c`, `68c9437`); dev-validated 2026-11-03; shipped in v0.3.0-alpha.10 |
 | F6 | [CR185](cr185-keep-the-output-surface-moving-while-the-agent-works.md) | RS026 | done | on `main` (`32d7163`, `ebfa0a3`); dev-validated 2026-11-03 at production size; shipped in v0.3.0-alpha.10 |
-| F7 | [CR186](cr186-honour-a-project-path-written-from-the-home-folder.md) | RS026 | in progress | on `main` (`cfe6212`); production check owed with the next release |
+| F7 | [CR186](cr186-honour-a-project-path-written-from-the-home-folder.md) | RS026 | in progress | shipped in v0.3.0-alpha.11; production check owed |
 | F8 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | captured | measure the early refusal first |
 | 1 | [CR166](../rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | in_progress | an exit offered that does nothing; seen in the field on 0.3. First half on `main` (`11f8b96`): the exit now says which guard held it |
 | 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | done | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; validated and closed by the Navigator the same day |
@@ -72,7 +72,7 @@ is proposed and awaits the Navigator.
 | 3c2 | [CR177](cr177-keep-the-persons-mirror-skills-from-reaching-another-home.md) | RS026 | done | the bound home (Navigator); on `main` (`09ae441`); dev-validated 2026-11-02 |
 | 3c3 | [CR178](cr178-a-chapter-may-begin-at-mirrors-context.md) | RS026 | done | shipped in alpha.6; chapters confirmed in production 2026-11-02 |
 | 3b | [CR174](cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) | RS026 | done | on `main` (`be81e1c`); dev-validated 2026-11-02 |
-| 3d | [CR175](cr175-organize-settings-by-what-the-person-wants-to-do.md) | RS026 | done | Settings by intent; setup offers Claude through Claude Code; dev-validated 2026-11-03 |
+| 3d | [CR175](cr175-organize-settings-by-what-the-person-wants-to-do.md) | RS026 | done | Settings by intent; setup offers Claude through Claude Code; dev-validated 2026-11-03; shipped in v0.3.0-alpha.11 |
 | 3e | [CR179](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) | RS026 | done | shipped in alpha.6; confirmed in production 2026-11-02 |
 | 4 | [CR159](../rs025-legible-endings-for-a-turn-that-ends-badly/cr159-say-why-the-provider-refused-a-turn.md) | RS025 | in_progress | the real refusal arrived on 2026-11-01 ("Third-party apps now draw from your extra usage"); attach it and read it on 0.3 |
 | 5 | [CR163](../rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md) | RS025 | in_progress | field check owed, now on the TypeScript append |

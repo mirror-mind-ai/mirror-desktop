@@ -48,5 +48,5 @@ is created. The folder already created there is the Navigator's to keep or delet
   Four mutations, all caught.
 - Suites: TS 2,518, Rust 468 plus 10 ignored.
 
-Check owed: the falsifier above, in production after the next release; development has no Journey
+Shipped in v0.3.0-alpha.11. Check owed: the falsifier above, in production; development has no Journey
 written with `~`.

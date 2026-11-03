@@ -76,4 +76,4 @@ wants the names above.
 
 The Navigator checked it in the development app: "Ficou bom." One adjustment, the person's avatar
 before the app's appearance in You (`0c76508`, a spec case failing first), then "pode fechar a CR".
-Shipped with the next release.
+Shipped in v0.3.0-alpha.11.
