@@ -2,7 +2,7 @@
 
 # CR175: Organize Settings by What the Person Wants to Do
 
-**Status:** in progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -72,4 +72,8 @@ wants the names above.
   `cv010Connections`, `cv010MirrorLearning`, `turnCompletionSound`, `cv010ProviderConnectStep`.
 - TS suite 2,516. No Rust change.
 
-Check owed: the Navigator finds each setting the first time, by intent, in the development app.
+## Closed (2026-11-03)
+
+The Navigator checked it in the development app: "Ficou bom." One adjustment, the person's avatar
+before the app's appearance in You (`0c76508`, a spec case failing first), then "pode fechar a CR".
+Shipped with the next release.
