@@ -147,4 +147,4 @@ entries, 499 turns, no duplicate ids, first message 2026-09-20. The native saves
 because they read and merge the 34 MB file, but off the renderer's main thread; no frame stalls on
 them. The page still draws about 8 frames per second during the turn; that is CR185.
 
-**Shipped in:** v0.3.0-alpha.10 (2026-11-03). Production check owed after the update.
+**Shipped in:** v0.3.0-alpha.10 (2026-11-03). Checked in production on 2026-11-03: the Navigator updated, ran a turn in `mirror-desktop` and reported "Tudo parece ter funcionado perfeitamente".

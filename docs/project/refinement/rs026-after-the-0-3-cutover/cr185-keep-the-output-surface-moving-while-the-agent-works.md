@@ -170,4 +170,4 @@ in recordings, the Screenshots instrument. The per-frame flush (about 34% while 
 stream handler (p90 38 ms) remain measured costs with no felt friction; they are not repaired
 without one. Production confirmation comes with the next alpha.
 
-**Shipped in:** v0.3.0-alpha.10 (2026-11-03). Production check owed after the update.
+**Shipped in:** v0.3.0-alpha.10 (2026-11-03). Checked in production on 2026-11-03: the Navigator updated, ran a turn in `mirror-desktop` and reported "Tudo parece ter funcionado perfeitamente".
