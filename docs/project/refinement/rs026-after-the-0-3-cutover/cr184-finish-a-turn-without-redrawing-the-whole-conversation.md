@@ -2,7 +2,7 @@
 
 # CR184: Finish a Turn Without Redrawing the Whole Conversation
 
-**Status:** in progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -130,3 +130,19 @@ messages.
 - Suites: TS 2,504, Rust 466.
 
 Check owed: the save payload should fall from 28.2 MB to the window's size.
+
+## Third Check (2026-11-03): Acceptance Met
+
+Same rehearsal (`ensaio-cr185`), one turn, 01:40:16Z to acknowledged 01:42:01Z; fourth timeline.
+
+| per turn | first recording | after the reads | after the evidence |
+|---|---:|---:|---:|
+| save payload | 32.6 MB | 28.2 MB | **1.08 MB** (75 messages) |
+| full reads of the projection | 9 | 1 | 1 (before Send) |
+| longest task | 12.0 s | 1.0 s | **0.21 s** |
+| tasks over 0.3 s | many | 3 | **0** |
+
+The stored projection kept everything the surface no longer carries: 6,196 messages, 476 evidence
+entries, 499 turns, no duplicate ids, first message 2026-09-20. The native saves still take 3–6 s
+because they read and merge the 34 MB file, but off the renderer's main thread; no frame stalls on
+them. The page still draws about 8 frames per second during the turn; that is CR185.

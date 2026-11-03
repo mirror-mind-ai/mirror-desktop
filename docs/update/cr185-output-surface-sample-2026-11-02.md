@@ -194,3 +194,9 @@ chapter all along: 73 messages here. So the page does **not** keep the whole con
 DOM, and CR185's cost during a turn (7.4 frames per second, compositing 8–11%) is not explained by
 transcript size. What the renderer does hold at generation size is the evidence map. CR185 needs
 its own reading before any repair.
+
+## After the third CR184 repair (`68c9437`, 2026-11-03 01:40Z)
+
+Save payload 1.08 MB for 75 messages (was 28.2 MB). Longest main-thread task 0.21 s, none over
+0.3 s. During the turn: frames median 124 ms (about 8 per second), compositing 12.6 s of 132 s.
+The end of the turn is clean; the slowness during the turn remains and is CR185's.
