@@ -2,7 +2,7 @@
 
 # CR188: Name the Persona at the Top of the Answer
 
-**Status:** in progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -108,7 +108,11 @@ restored answer is stripped of the signature. `projectAgentComments` now strips 
 the same way, and drops one that was only the signature. Spec failed first; one mutation, caught.
 TS suite 2,530.
 
-Check owed: in production with the next release, no `◇` line in the comments at any moment.
+## Closed (2026-11-03)
+
+The Navigator checked the fourth build in development ("deu certo") and closed the CR. The persona
+above the answer was already confirmed in production on v0.3.0-alpha.12. The comment fix
+(`fcccc99`) is on `main` and reaches production with the next release.
 
 ## Falsifier
 
