@@ -101,3 +101,24 @@ the page's script, either by the compositor on this GPU or by the recording itse
 Screenshots instrument captures every frame. The recordings so far cannot separate the two. The next
 measurement drops the Screenshots instrument; if frames stay near 115 ms, the cost is the app's
 compositing; if they fall, CR185 reduces to the 28% layer flush during streaming.
+
+## Fifth Timeline, Without Screenshots (2026-11-03)
+
+Same rehearsal, one turn (Send 01:51:34Z, lease released 01:52:58Z), Screenshots instrument off.
+
+- **The ~115 ms frames were the recording.** Without Screenshots, frames last 27–39 ms and the page
+  draws 30–38 per second during the turn. The earlier "5–8 frames per second" readings measured the
+  instrument, not the app.
+- **Working without streaming text (75–118 s):** 35 frames per second, main thread 36% busy, of
+  which `composite` (the layer-tree flush) is 30%: about 8.6 ms on every frame, while scripts are
+  under 1%. The frames are driven by the infinite indicator animations; the flush cost per frame
+  is paid whether anything on the transcript changed or not.
+- **Streaming text (118–143 s):** main thread 40% mean and up to 92% in five-second buckets;
+  `composite` 42%, `message` handlers 29% (19 events per second, median 2 ms, p90 38 ms); 23 frames
+  per second.
+
+So CR185 is two costs: a flush of roughly 9 ms per frame that scales with what the page keeps
+composited, multiplied by animations that keep frames coming; and the stream handler during text.
+The stylesheet promotes almost nothing explicitly (no `will-change`, no 3D transforms, one
+`isolation`), and the transcript has no `content-visibility`, so every row of the chapter stays in
+the tree each frame walks.
