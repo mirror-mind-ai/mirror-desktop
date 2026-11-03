@@ -113,3 +113,30 @@ describe("CR188: the live run puts the delivered persona on the surface settleme
     expect(body).toMatch(/responsePersonas: \{ \.\.\.(\w+)\.responsePersonas, \[assistantMessage\.id\]: event\.persona \}/);
   });
 });
+
+// CR188, production check: while a turn was live, the model's own `◇ <persona>` line showed inside
+// the agent comments, read straight from the stream, and vanished once the surface reloaded from
+// the answer's text, which is stripped. The live comments are now stripped the same way.
+import { initialRuntimeProjectionState } from "../app/runtimeActivityModel";
+
+describe("CR188: the live comments do not show the model's signature", () => {
+  const live = (status: "working" | "completed", agentComments: string[]) => projectAgentTurnPresentation({
+    messageId: "m",
+    content: "",
+    createdAt: "2026-11-03T18:00:00.000Z",
+    linkedActivity: [],
+    runtimeProjection: { ...initialRuntimeProjectionState, status, agentComments },
+  });
+
+  it("strips a signature from the closing comment and from every note", () => {
+    const settled = live("completed", ["Vou olhar.\n\n◇ ai-engineer", "Feito.\n\n◇ ai-engineer"]);
+    expect(settled.commentTrail).toEqual(["Vou olhar."]);
+    expect(settled.closingComment).toBe("Feito.");
+    const running = live("working", ["Lendo.", "Quase.\n◇ ai-engineer"]);
+    expect(running.commentTrail).toEqual(["Lendo.", "Quase."]);
+  });
+
+  it("drops a comment that was only the signature", () => {
+    expect(live("completed", ["Feito.", "◇ ai-engineer"]).closingComment).toBe("Feito.");
+  });
+});

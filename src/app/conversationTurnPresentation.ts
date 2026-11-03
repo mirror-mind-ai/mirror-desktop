@@ -90,8 +90,10 @@ function projectAgentComments(
   restoredComment: string,
   restoredRole: "trail" | undefined,
 ): Pick<AgentTurnPresentation, "commentTrail" | "closingComment"> {
+  // CR188: the live comments come straight from the stream, with the model's own `◇ <persona>`
+  // line; the restored answer is stripped of it, so these are too, or it shows and then vanishes.
   const comments = (projection?.agentComments ?? [])
-    .map((comment) => comment.trim())
+    .map((comment) => stripMessageSpeakerSignature(comment.trim()))
     .filter(Boolean);
   if (comments.length === 0) {
     return restoredRole === "trail" && restoredComment.trim()
