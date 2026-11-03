@@ -2,7 +2,7 @@
 
 # CR186: Honour a Project Path Written From the Home Folder
 
-**Status:** captured
+**Status:** in progress
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -33,3 +33,20 @@ not a folder, inside the Mirror home) still hold after expansion.
 
 A turn in `venda-de-livros` writes in `~/Code/szen_play`, and no `~/Mirror Journeys/venda-de-livros`
 is created. The folder already created there is the Navigator's to keep or delete.
+
+## Built (2026-11-03, `cfe6212`)
+
+- `registered_project_path(raw, user_home)` in `main.rs`: a leading `~/` and a bare `~` name the
+  home folder; `~user` is left as written, so CR176 still refuses it as not absolute.
+- `registered_journey_root` reads the path through it, with the home folder the turn already uses
+  (`app.path().home_dir()`). All nine readers go through that function: the turn's folder, the
+  Journey's documents, canvas, projections, local references and the open/reveal actions.
+- Tests first, both failing on a stub: `cr186_a_project_path_written_from_the_home_folder_names_a_folder_in_it`,
+  and `cr186_the_turn_runs_in_a_project_written_from_the_home_folder`, which composes it with CR176's
+  `resolve_journey_workspace` (no `~/Mirror Journeys` is created; a `~/` path inside the Mirror home
+  is still refused). `src/tests/cr186RegisteredProjectPath.test.ts` guards that the reader expands.
+  Four mutations, all caught.
+- Suites: TS 2,518, Rust 468 plus 10 ignored.
+
+Check owed: the falsifier above, in production after the next release; development has no Journey
+written with `~`.

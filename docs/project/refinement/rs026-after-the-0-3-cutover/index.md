@@ -45,7 +45,7 @@ delivering anything.
 - [CR183: Give Back a Message Whose Turn Was Cancelled Before Any Answer](cr183-give-back-a-message-whose-turn-was-cancelled-before-any-answer.md) — **done** · Desktop · Navigator, 2026-11-02; cancelling during Working loses the sent message
 - [CR184: Finish a Turn Without Redrawing the Whole Conversation](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) — **done** · Desktop · Navigator, 2026-11-02; the conversation flashes when the agent finishes; remount and projection reads removed, longest end-of-turn task 0.21 s
 - [CR185: Keep the Output Surface Moving While the Agent Works](cr185-keep-the-output-surface-moving-while-the-agent-works.md) — **done** · Desktop · Navigator, 2026-11-02; closed on "não está lento" after CR184 and the glow change; the output stalls during a turn, in production's long conversations
-- [CR186: Honour a Project Path Written From the Home Folder](cr186-honour-a-project-path-written-from-the-home-folder.md) — **captured** · Desktop · Navigator, 2026-11-03; a `~/` project path sends the agent to `~/Mirror Journeys/`
+- [CR186: Honour a Project Path Written From the Home Folder](cr186-honour-a-project-path-written-from-the-home-folder.md) — **in progress** · Desktop · Navigator, 2026-11-03; a `~/` project path sends the agent to `~/Mirror Journeys/`
 - [CR187: Take a Correction Sent in the First Seconds of a Turn](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) — **captured** · Desktop · Navigator, 2026-11-03; a correction 3 s after Send is rejected
 
 ## Queue After the Cutover
@@ -62,7 +62,7 @@ is proposed and awaits the Navigator.
 | F4 | [CR182](cr182-store-the-composer-draft-when-the-person-leaves-the-field.md) | RS026 | done | closed on the field sentence after v0.3.0-alpha.10; no code change |
 | F5 | [CR184](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) | RS026 | done | on `main` (`07dc639`, `1ada90c`, `68c9437`); dev-validated 2026-11-03; shipped in v0.3.0-alpha.10 |
 | F6 | [CR185](cr185-keep-the-output-surface-moving-while-the-agent-works.md) | RS026 | done | on `main` (`32d7163`, `ebfa0a3`); dev-validated 2026-11-03 at production size; shipped in v0.3.0-alpha.10 |
-| F7 | [CR186](cr186-honour-a-project-path-written-from-the-home-folder.md) | RS026 | captured | the agent writes outside the Journey's project; cause known, small repair |
+| F7 | [CR186](cr186-honour-a-project-path-written-from-the-home-folder.md) | RS026 | in progress | on `main` (`cfe6212`); production check owed with the next release |
 | F8 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | captured | measure the early refusal first |
 | 1 | [CR166](../rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | in_progress | an exit offered that does nothing; seen in the field on 0.3. First half on `main` (`11f8b96`): the exit now says which guard held it |
 | 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | done | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; validated and closed by the Navigator the same day |
