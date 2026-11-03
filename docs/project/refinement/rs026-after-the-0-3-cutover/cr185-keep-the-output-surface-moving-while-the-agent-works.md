@@ -171,3 +171,10 @@ stream handler (p90 38 ms) remain measured costs with no felt friction; they are
 without one. Production confirmation comes with the next alpha.
 
 **Shipped in:** v0.3.0-alpha.10 (2026-11-03). Checked in production on 2026-11-03: the Navigator updated, ran a turn in `mirror-desktop` and reported "Tudo parece ter funcionado perfeitamente".
+
+## Rehearsal Removed (2026-11-03)
+
+On the Navigator's word ("limpe o ensaio"): the `ensaio-cr185` home, its development app-data
+folder (`home-cb4f0735…`, 488 MB with the copied conversation) and the measurement scripts and
+samples under `/private/tmp` were deleted; the development app is bound to `ensaio-5c-2` again.
+The timeline exports on the Navigator's Desktop are theirs to keep or delete.
