@@ -81,3 +81,23 @@ The earlier reading, "the page keeps the whole conversation live", was wrong: it
 payloads that the renderer padded with stored history. The surface is the current chapter (73
 messages in the third recording) and the page still drew about 7 frames per second during the turn.
 The cause is open again; see the measurement record.
+
+## Reading of the Fourth Timeline (2026-11-03)
+
+Per five-second bucket (script `timeline8.py`), the fourth recording shows:
+
+- Frames run back to back (median gap 2 ms) at 7–8.6 per second, each about 115–130 ms long,
+  **whether or not the page is working**: before Send, while the Navigator only typed, the main
+  thread was 7–8% busy; after the turn, 2–5%. Frame length does not follow main-thread work.
+- Only while text streams (65–85 s) does the main thread rise to 52%, of which the layer-tree
+  flush (`composite`) is 28%; frames stretch to 160 ms and drop to 6 per second.
+- Infinite CSS animations (the Working and Finishing indicators, the runtime dots) fire 8–13
+  iterations per second from Send to the end of finishing, so the page never stops producing frames
+  during a turn. All animate `opacity`/`transform` except `journey-agent-working`, which animates
+  `background` and `box-shadow`, a repaint each frame.
+
+Open question before any repair: a frame that lasts ~115 ms with an idle main thread is paid outside
+the page's script, either by the compositor on this GPU or by the recording itself, since the
+Screenshots instrument captures every frame. The recordings so far cannot separate the two. The next
+measurement drops the Screenshots instrument; if frames stay near 115 ms, the cost is the app's
+compositing; if they fall, CR185 reduces to the 28% layer flush during streaming.
