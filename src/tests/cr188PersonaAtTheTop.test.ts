@@ -100,3 +100,16 @@ describe("CR188: the delivered persona survives settlement and reload", () => {
     expect(transcriptSource).toMatch(/const speaker = personaSpeaker\(\{\s*\.\.\.closing\.message,[\s\S]{0,160}\}, closing\.responsePersona\);/);
   });
 });
+
+// CR188, third build: the dev check failed again. An ordinary turn settles on the reader's surface
+// (CR184) and is not reprojected from Pi, so the derived map never held the new answer. The live
+// run records the delivered persona on that surface itself, where settlement keeps it.
+import appSource from "../app/App.tsx?raw";
+
+describe("CR188: the live run puts the delivered persona on the surface settlement keeps", () => {
+  it("records the persona event against the run's answer in responsePersonas", () => {
+    const handler = appSource.slice(appSource.indexOf('if (event.type === "persona_context") {'));
+    const body = handler.slice(0, handler.indexOf('if (event.type === "message_delta"'));
+    expect(body).toMatch(/responsePersonas: \{ \.\.\.(\w+)\.responsePersonas, \[assistantMessage\.id\]: event\.persona \}/);
+  });
+});

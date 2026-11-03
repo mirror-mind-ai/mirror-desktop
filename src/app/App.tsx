@@ -3615,8 +3615,10 @@ export function App({ model }: AppProps) {
           });
         }
         if (event.type === "persona_context") {
-          updateRunConversation((currentConversation) =>
-            replaceJourneyConversationMessages(
+          // CR188: the turn settles on this surface (CR184) without reading Pi again, so the persona
+          // is put where the transcript reads it, not only in the live text the settlement replaces.
+          updateRunConversation((currentConversation) => ({
+            ...replaceJourneyConversationMessages(
               currentConversation,
               currentConversation.messages.map((message) =>
                 message.id === assistantMessage.id
@@ -3624,7 +3626,8 @@ export function App({ model }: AppProps) {
                   : message,
               ),
             ),
-          );
+            responsePersonas: { ...currentConversation.responsePersonas, [assistantMessage.id]: event.persona },
+          }));
         }
         if (event.type === "message_delta" || event.type === "agent_comment_boundary") {
           streamedAssistantContent = reduceStreamedAssistantMessage(streamedAssistantContent, event);

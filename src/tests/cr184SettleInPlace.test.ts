@@ -46,6 +46,8 @@ function settlementWorld() {
     chapterDividers: { "pi-earlier-user": { title: "The first chapter." } },
     agentCommentRoles: { "pi-earlier-note": "trail" },
     responseModels: { "pi-earlier-answer": { provider: "anthropic", model: "claude-opus-5-5" } },
+    // CR188: the live run's persona is only on this surface; settlement must keep it.
+    responsePersonas: { "pi-earlier-answer": "pensadora", "assistant-run-1": "pensadora" },
   };
   const authority = createJourneySettlementAuthority(
     createRunAuthority(correlation, base.liveIdentity, thread.generations[0]),
@@ -144,6 +146,7 @@ describe("CR184: a turn settles in place", () => {
     expect(settled?.chapterDividers).toEqual(surface.chapterDividers);
     expect(settled?.agentCommentRoles).toEqual(surface.agentCommentRoles);
     expect(settled?.responseModels).toEqual(surface.responseModels);
+    expect(settled?.responsePersonas).toEqual(surface.responsePersonas);
     // And its messages are the very ones on screen, so no row has a reason to be drawn again.
     expect(settled?.messages.slice(0, 3)).toEqual(surface.messages.slice(0, 3));
     settled?.messages.slice(0, 3).forEach((message, index) => {
