@@ -2064,15 +2064,6 @@ h3 {
   scroll-padding-bottom: 24px;
 }
 
-/*
-  CR185: a row off screen is skipped by every frame's layout and paint; once drawn, its real height
-  is remembered, so scrolling back does not move the reading position.
-*/
-.conversation-row {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 320px;
-}
-
 .chat-stream > :first-child:not(.conversation-search-panel):not(.conversation-turn-panel):not(.conversation-chapter-panel) {
   margin-top: auto;
 }

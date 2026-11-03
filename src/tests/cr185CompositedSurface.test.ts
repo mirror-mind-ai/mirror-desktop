@@ -53,9 +53,10 @@ describe("CR185: the page does less on every frame of a turn", () => {
     expect(reduced.slice(0, reduced.indexOf("}\n}"))).toContain(".journey-agent-status.working::after");
   });
 
-  it("lets the transcript skip rows that are off screen", () => {
-    expect(rule(".conversation-row")).toContain("content-visibility: auto");
-    expect(rule(".conversation-row")).toContain("contain-intrinsic-size: auto");
+  // The sixth recording: with `content-visibility: auto` on every row, the flush rose from 30% to
+  // 72% of a Working turn. Withdrawn while the two halves of the first repair are measured apart.
+  it("does not ask the engine to track every row's visibility", () => {
+    expect(cssSource).not.toContain("content-visibility");
     expect(transcriptSource.match(/className=\{?[`"]conversation-row/g)).toHaveLength(2);
   });
 });
