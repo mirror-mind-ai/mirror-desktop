@@ -9041,6 +9041,57 @@ fn merge_persisted_mirror_evidence(
     merge_persisted_mirror_evidence_except(persisted, candidate, None)
 }
 
+/// CR184: CR114's rule for what a save keeps when the renderer's surface is only the current
+/// chapter. The surface owns the messages it loaded, removals inside it included; everything before
+/// it is preserved exactly. When the window cannot be placed, what it does not mention is kept,
+/// because a later complete load can correct that and nothing can restore a deletion. It lives here
+/// because this save already reads the stored projection: done in the renderer, it cost a read and
+/// a main-thread parse of the whole generation before every write.
+fn preserve_durable_conversation_history(persisted: &Value, candidate: &mut Value) -> Result<bool, String> {
+    let Some(previous) = persisted.pointer("/conversation/messages").and_then(Value::as_array)
+        .filter(|messages| !messages.is_empty()) else { return Ok(false); };
+    let projected = candidate.pointer("/conversation/messages").and_then(Value::as_array)
+        .ok_or_else(|| "dedicated_projection_invalid".to_string())?;
+    let merged: Vec<Value> = match projected.first() {
+        None => previous.clone(),
+        Some(first) => match previous.iter().position(|message| message.get("id") == first.get("id")) {
+            Some(0) => return Ok(false),
+            Some(boundary) => previous[..boundary].iter().chain(projected.iter()).cloned().collect(),
+            None => {
+                let projected_ids: HashSet<&str> = projected.iter()
+                    .filter_map(|message| message.get("id").and_then(Value::as_str)).collect();
+                previous.iter()
+                    .filter(|message| !message.get("id").and_then(Value::as_str)
+                        .is_some_and(|id| projected_ids.contains(id)))
+                    .chain(projected.iter()).cloned().collect()
+            }
+        },
+    };
+    let changed = merged.len() != projected.len();
+    if changed {
+        candidate["conversation"]["messages"] = Value::Array(merged);
+    }
+    Ok(changed)
+}
+
+/// CR184: what settlement checks against durable state, the identity and the turn ledger, without
+/// the bodies. The renderer received the whole 34 MB generation for that and parsed it on its main
+/// thread.
+fn projection_settlement_metadata(persisted: &Value) -> Result<Value, String> {
+    let conversation = persisted.get("conversation").and_then(Value::as_object)
+        .ok_or_else(|| "dedicated_projection_invalid".to_string())?;
+    let mut head = serde_json::Map::new();
+    for key in ["id", "journeyId", "createdAt", "liveIdentity", "reconciliation"] {
+        if let Some(value) = conversation.get(key) { head.insert(key.to_string(), value.clone()); }
+    }
+    head.insert("messages".to_string(), json!([]));
+    Ok(json!({
+        "schemaVersion": persisted.get("schemaVersion"),
+        "conversation": head,
+        "savedAt": persisted.get("savedAt"),
+    }))
+}
+
 fn merge_persisted_mirror_evidence_except(
     persisted: &Value,
     candidate: &mut Value,
@@ -9463,10 +9514,14 @@ fn save_dedicated_journey_conversation(
             let merged =
                 merge_post_frontier_receipt_into_persisted(&persisted, &parsed, authority)?;
             serde_json::to_vec(&merged).map_err(|_| "dedicated_projection_invalid".to_string())?
-        } else if merge_persisted_mirror_evidence_except(&persisted, &mut parsed, None)? {
-            serde_json::to_vec(&parsed).map_err(|_| "dedicated_projection_invalid".to_string())?
         } else {
-            payload.into_bytes()
+            let preserved = preserve_durable_conversation_history(&persisted, &mut parsed)?;
+            let merged = merge_persisted_mirror_evidence_except(&persisted, &mut parsed, None)?;
+            if preserved || merged {
+                serde_json::to_vec(&parsed).map_err(|_| "dedicated_projection_invalid".to_string())?
+            } else {
+                payload.into_bytes()
+            }
         }
     } else {
         payload.into_bytes()
@@ -9602,6 +9657,27 @@ fn load_or_migrate_root_projection_at(
     }
     publish_receipt(canonical, &payload, journey_id, root_thread_id, generation, nonce.wrapping_add(1))?;
     Ok(Some(payload))
+}
+
+#[tauri::command(async)]
+fn load_dedicated_journey_conversation_metadata(
+    app: AppHandle,
+    journey_id: String,
+    generation: u64,
+    thread_id: String,
+) -> Result<Option<String>, String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    let path = conversation_projection_path(&app, &journey_id, &thread_id, generation)?;
+    if !path.exists() { return Ok(None); }
+    let metadata = fs::symlink_metadata(&path).map_err(|_| "dedicated_projection_unavailable".to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 128 * 1024 * 1024 {
+        return Err("dedicated_projection_invalid".to_string());
+    }
+    let persisted: Value = serde_json::from_str(
+        &fs::read_to_string(&path).map_err(|_| "dedicated_projection_unavailable".to_string())?,
+    ).map_err(|_| "dedicated_projection_invalid".to_string())?;
+    serde_json::to_string(&projection_settlement_metadata(&persisted)?)
+        .map(Some).map_err(|_| "dedicated_projection_invalid".to_string())
 }
 
 #[tauri::command(async)]
@@ -10219,6 +10295,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             save_dedicated_journey_conversation,
             load_dedicated_journey_conversation,
+            load_dedicated_journey_conversation_metadata,
             save_journey_thread,
             load_journey_thread,
             provision_journey_thread,
@@ -10476,6 +10553,7 @@ mod tests {
         unwrap_persisted_thread, validate_acknowledged_projection_authority_at,
         validate_composer_drafts_payload, validate_external_url, validate_journey_registry_payload,
         merge_persisted_mirror_evidence, merge_post_frontier_receipt_into_persisted, mirror_rpc_args,
+        preserve_durable_conversation_history, projection_settlement_metadata,
         pi_invocation_start_error_message, PiInvocationStartError,
         validate_active_pre_frontier_projection_at,
         validate_current_projection_turn_authority, validate_mirror_append_item,
@@ -13120,6 +13198,89 @@ mod tests {
             persisted.pointer("/conversation/terminalAgentActionEvidence"),
         );
         fs::remove_dir_all(root).unwrap();
+    }
+
+    // CR184: the rule CR114 wrote in the renderer (`preserveDurableConversationHistory`), moved into
+    // the save that already reads the stored projection, so the renderer no longer reads and parses
+    // the whole generation before every write. The cases are CR114's, one for one.
+    fn cr184_messages(ids: &[&str]) -> Value {
+        json!({"conversation": {"messages": ids.iter()
+            .map(|id| json!({"id": id, "role": "user", "content": id}))
+            .collect::<Vec<_>>()}})
+    }
+
+    fn cr184_ids(value: &Value) -> Vec<String> {
+        value.pointer("/conversation/messages").and_then(Value::as_array).unwrap().iter()
+            .map(|message| message["id"].as_str().unwrap().to_string()).collect()
+    }
+
+    #[test]
+    fn cr184_a_save_keeps_the_history_the_window_never_covered() {
+        let persisted = cr184_messages(&["pi-1", "pi-2", "pi-3", "pi-4"]);
+        let mut window = cr184_messages(&["pi-3", "pi-4", "pi-5"]);
+        assert!(preserve_durable_conversation_history(&persisted, &mut window).unwrap());
+        assert_eq!(cr184_ids(&window), ["pi-1", "pi-2", "pi-3", "pi-4", "pi-5"]);
+    }
+
+    #[test]
+    fn cr184_the_window_owns_the_content_and_the_removals_inside_it() {
+        let persisted = cr184_messages(&["pi-1", "pi-2", "pi-3", "pi-4"]);
+        let mut window = cr184_messages(&["pi-3", "pi-5"]);
+        window["conversation"]["messages"][0]["content"] = json!("corrected");
+        preserve_durable_conversation_history(&persisted, &mut window).unwrap();
+        assert_eq!(cr184_ids(&window), ["pi-1", "pi-2", "pi-3", "pi-5"]);
+        assert_eq!(window.pointer("/conversation/messages/2/content"), Some(&json!("corrected")));
+    }
+
+    #[test]
+    fn cr184_a_window_that_starts_where_history_starts_is_written_as_it_is() {
+        let persisted = cr184_messages(&["pi-1", "pi-2", "pi-3"]);
+        let mut complete = cr184_messages(&["pi-1", "pi-2"]);
+        assert!(!preserve_durable_conversation_history(&persisted, &mut complete).unwrap());
+        assert_eq!(cr184_ids(&complete), ["pi-1", "pi-2"]);
+        let mut fresh = cr184_messages(&["pi-1"]);
+        assert!(!preserve_durable_conversation_history(&cr184_messages(&[]), &mut fresh).unwrap());
+        assert!(!preserve_durable_conversation_history(&json!({"conversation": {}}), &mut fresh).unwrap());
+        assert_eq!(cr184_ids(&fresh), ["pi-1"]);
+    }
+
+    #[test]
+    fn cr184_an_unplaceable_window_keeps_what_it_does_not_mention_and_never_duplicates() {
+        let persisted = cr184_messages(&["pi-1", "pi-2", "pi-3", "pi-4"]);
+        let mut detached = cr184_messages(&["fresh-1", "pi-4"]);
+        assert!(preserve_durable_conversation_history(&persisted, &mut detached).unwrap());
+        assert_eq!(cr184_ids(&detached), ["pi-1", "pi-2", "pi-3", "fresh-1", "pi-4"]);
+    }
+
+    #[test]
+    fn cr184_an_empty_window_never_erases_history() {
+        let persisted = cr184_messages(&["pi-1", "pi-2"]);
+        let mut empty = cr184_messages(&[]);
+        assert!(preserve_durable_conversation_history(&persisted, &mut empty).unwrap());
+        assert_eq!(cr184_ids(&empty), ["pi-1", "pi-2"]);
+    }
+
+    #[test]
+    fn cr184_settlement_metadata_is_identity_and_reconciliation_without_the_bodies() {
+        let persisted = json!({
+            "schemaVersion": "0.9.0", "savedAt": "2026-11-02T10:00:00Z",
+            "conversation": {
+                "id": "thread", "journeyId": "journey", "createdAt": "2026-09-20T00:00:00Z",
+                "liveIdentity": {"generation": 4}, "reconciliation": {"turns": [{"turnId": "t"}]},
+                "messages": [{"id": "m", "role": "user", "content": "a long body"}],
+                "terminalAgentActionEvidence": {"m": {}}, "steeringEvidence": [], "importedActivity": {},
+            }
+        });
+        let metadata = projection_settlement_metadata(&persisted).unwrap();
+        assert_eq!(metadata, json!({
+            "schemaVersion": "0.9.0", "savedAt": "2026-11-02T10:00:00Z",
+            "conversation": {
+                "id": "thread", "journeyId": "journey", "createdAt": "2026-09-20T00:00:00Z",
+                "liveIdentity": {"generation": 4}, "reconciliation": {"turns": [{"turnId": "t"}]},
+                "messages": [],
+            }
+        }));
+        assert!(projection_settlement_metadata(&json!({})).is_err());
     }
 
     #[test]

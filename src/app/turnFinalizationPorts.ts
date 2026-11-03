@@ -5,7 +5,7 @@ import {
   enqueueMirrorAppendItem,
 } from "./mirrorAppendOutboxStorage";
 import {
-  loadDedicatedJourneyConversation,
+  loadDedicatedJourneyConversationMetadata,
   savePostFrontierReceiptProjection,
 } from "./journeyConversationStorage";
 import type { TurnFinalizationPorts } from "./turnFinalizationCoordinator";
@@ -25,11 +25,12 @@ export function createProductionFinalizationPorts(overrides: Pick<
     acknowledgeOutboxItem: async (itemId, conversationId, authority) => {
       await acknowledgeMirrorAppendItem(itemId, conversationId, authority);
     },
-    loadPersistedProjection: (authority) => loadDedicatedJourneyConversation(
+    // CR184: the post-frontier read checks authority and takes the receipt; the native save keeps
+    // the stored messages, so the bodies are never needed here.
+    loadPersistedProjection: (authority) => loadDedicatedJourneyConversationMetadata(
       authority.journeyId,
       authority.generation,
       authority.threadId,
-      { sessionId: authority.piSessionId, sessionFile: authority.piSessionFile },
     ),
     savePostFrontierProjection: savePostFrontierReceiptProjection,
   };

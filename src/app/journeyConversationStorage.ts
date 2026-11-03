@@ -3,27 +3,18 @@ import {
   createPersistedJourneyConversation,
   parsePersistedJourneyConversation,
 } from "../domain/persistedJourneyConversation";
-import { preserveDurableConversationHistory } from "../domain/durableConversationHistory";
 import type { JourneyConversation } from "../domain/journeyConversation";
 import type { JourneySettlementAuthority } from "../domain/journeySettlementAuthority";
 
 /**
  * CR114: the single seam where a bounded surface meets durable storage. Every write path hands
- * over whatever it currently has on screen, which used to be the complete generation. Now it can
- * be only the current chapter, so the stored record is composed rather than replaced: the surface
- * owns the messages it loaded, and everything before them is preserved. See
- * `preserveDurableConversationHistory` for why that ordering is the honest one.
+ * over whatever it currently has on screen, which can be only the current chapter, so the stored
+ * record is composed rather than replaced: the surface owns the messages it loaded, and everything
+ * before them is preserved.
+ * CR184: the composing is the native save's (`preserve_durable_conversation_history`), which
+ * already reads the stored record. Done here, it read and parsed the whole generation on the main
+ * thread before every write.
  */
-async function projectionForStorage(conversation: JourneyConversation): Promise<JourneyConversation> {
-  const stored = await loadDedicatedJourneyConversation(
-    conversation.journeyId,
-    conversation.liveIdentity.generation,
-    conversation.id,
-  ).catch(() => undefined);
-  const messages = preserveDurableConversationHistory(stored?.messages, conversation.messages);
-  return messages.length === conversation.messages.length ? conversation : { ...conversation, messages };
-}
-
 async function saveProjection(
   conversation: JourneyConversation,
   options: {
@@ -32,11 +23,10 @@ async function saveProjection(
     outbox?: { itemId: string; conversationId: string };
   },
 ): Promise<void> {
-  const durable = await projectionForStorage(conversation);
   await invoke("save_dedicated_journey_conversation", {
     journeyId: conversation.journeyId,
     generation: conversation.liveIdentity.generation,
-    payload: JSON.stringify(createPersistedJourneyConversation(durable)),
+    payload: JSON.stringify(createPersistedJourneyConversation(conversation)),
     mode: options.mode,
     runAuthority: options.authority?.runAuthority,
     outboxItemId: options.outbox?.itemId,
@@ -68,6 +58,26 @@ export async function savePostFrontierReceiptProjection(
   outbox: { itemId: string; conversationId: string },
 ): Promise<void> {
   await saveProjection(conversation, { mode: "generation_scoped_post_frontier", authority, outbox });
+}
+
+/**
+ * CR184: identity and the turn ledger, with no messages. For the reads that only check durable
+ * authority, which used to receive and parse the whole generation to do it.
+ */
+export async function loadDedicatedJourneyConversationMetadata(
+  journeyId: string,
+  generation: number,
+  threadId: string,
+): Promise<JourneyConversation | undefined> {
+  const payload = await invoke<string | null>("load_dedicated_journey_conversation_metadata", {
+    journeyId, generation, threadId,
+  });
+  if (!payload) return undefined;
+  try {
+    return parsePersistedJourneyConversation(JSON.parse(payload))?.conversation;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function loadDedicatedJourneyConversation(

@@ -152,7 +152,9 @@ mod tests {
         // CV-010.DS-005 slice 5a added `inspect_home_for_adoption` and `adopt_mirror_home`, serialised and
         // off the main thread: 102 → 104.
         // CR173 added `install_anthropic_provider`, async, its long work on a blocking thread: 104 → 105.
-        assert_eq!(v.len(), 105, "the command census changed; update SOURCES or this count");
+        // CR184 added `load_dedicated_journey_conversation_metadata`, serialised and off the main
+        // thread: 105 → 106.
+        assert_eq!(v.len(), 106, "the command census changed; update SOURCES or this count");
         v
     }
 

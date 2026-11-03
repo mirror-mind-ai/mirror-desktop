@@ -18,7 +18,8 @@ describe("authority does not depend on what is loaded", () => {
 
   it("settles a turn from durable metadata rather than from the surface", () => {
     const settlement = body("loadActiveSettlementEvidence");
-    expect(settlement).toContain("loadDedicatedJourneyConversation(");
+    // CR184: re-aimed, not relaxed. Still durable state, now without the bodies it never checked.
+    expect(settlement).toContain("loadDedicatedJourneyConversationMetadata(");
     expect(settlement).not.toContain("conversationRef.current");
     expect(settlement).not.toContain("loadedHistoryScopeRef");
   });

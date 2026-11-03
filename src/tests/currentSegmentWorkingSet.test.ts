@@ -10,7 +10,6 @@ import {
   loadDedicatedJourneyConversation,
   saveDedicatedJourneyConversation,
 } from "../app/journeyConversationStorage";
-import { createPersistedJourneyConversation } from "../domain/persistedJourneyConversation";
 import type { JourneyConversation } from "../domain/journeyConversation";
 import type { ConversationMessage } from "../agent/piTaskPacket";
 import appSource from "../app/App.tsx?raw";
@@ -75,43 +74,16 @@ describe("the current Segment as the default working set", () => {
     }));
   });
 
+  // CR184: the composing moved into the native save, which already reads the stored record, so
+  // CR114's cases are pinned there (`cr184_*` in main.rs) and the renderer writes in one call.
   it("never lets a bounded surface delete the durable history it did not load", async () => {
-    const stored = createPersistedJourneyConversation(
-      conversation([message("pi-1"), message("pi-2"), message("pi-3", "assistant")]),
-      new Date("2026-10-02T10:00:00.000Z"),
-    );
-    invoke.mockResolvedValueOnce(JSON.stringify(stored)).mockResolvedValueOnce(undefined);
+    invoke.mockResolvedValueOnce(undefined);
     await saveDedicatedJourneyConversation(conversation([message("pi-3", "assistant"), message("pi-4")]));
 
-    expect(invoke).toHaveBeenNthCalledWith(1, "load_dedicated_journey_conversation", {
-      journeyId: authority.journeyId, generation: authority.generation, threadId: authority.threadId,
-    });
-    const written = JSON.parse((invoke.mock.calls[1]![1] as { payload: string }).payload);
-    expect(written.conversation.messages.map((item: ConversationMessage) => item.id))
-      .toEqual(["pi-1", "pi-2", "pi-3", "pi-4"]);
-  });
-
-  it("writes the surface unchanged when it already covers the stored history", async () => {
-    const complete = conversation([message("pi-1"), message("pi-2")]);
-    invoke.mockResolvedValueOnce(JSON.stringify(createPersistedJourneyConversation(complete))).mockResolvedValueOnce(undefined);
-    await saveDedicatedJourneyConversation(complete);
-    const written = JSON.parse((invoke.mock.calls[1]![1] as { payload: string }).payload);
-    expect(written.conversation.messages.map((item: ConversationMessage) => item.id)).toEqual(["pi-1", "pi-2"]);
-  });
-
-  it("still writes when there is nothing stored to preserve", async () => {
-    invoke.mockResolvedValueOnce(null).mockResolvedValueOnce(undefined);
-    await saveDedicatedJourneyConversation(conversation([message("pi-1")]));
-    const written = JSON.parse((invoke.mock.calls[1]![1] as { payload: string }).payload);
-    expect(written.conversation.messages.map((item: ConversationMessage) => item.id)).toEqual(["pi-1"]);
-  });
-
-  it("writes rather than failing when the stored projection cannot be read", async () => {
-    invoke.mockRejectedValueOnce(new Error("dedicated_projection_unavailable")).mockResolvedValueOnce(undefined);
-    await saveDedicatedJourneyConversation(conversation([message("pi-1")]));
-    expect(invoke).toHaveBeenNthCalledWith(2, "save_dedicated_journey_conversation", expect.objectContaining({
-      mode: "lifecycle",
-    }));
+    expect(invoke).toHaveBeenCalledTimes(1);
+    const written = JSON.parse((invoke.mock.calls[0]![1] as { payload: string }).payload);
+    expect(written.conversation.messages.map((item: ConversationMessage) => item.id)).toEqual(["pi-3", "pi-4"]);
+    expect(tauriSource).toContain("let preserved = preserve_durable_conversation_history(&persisted, &mut parsed)?;");
   });
 
   it("loads the stored projection without the maps Pi rebuilds", async () => {

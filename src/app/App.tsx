@@ -341,6 +341,7 @@ import {
 } from "./journeyNavigationCoordinator";
 import {
   loadDedicatedJourneyConversation,
+  loadDedicatedJourneyConversationMetadata,
   saveActiveSettlementProjection,
   saveAdmittedTurnProjection,
   saveDedicatedJourneyConversation,
@@ -4097,9 +4098,8 @@ export function App({ model }: AppProps) {
   async function loadActiveSettlementEvidence(authority: JourneySettlementAuthority) {
     const [thread, persisted] = await Promise.all([
       loadConversationThreadAuthority(authority.journeyId, authority.threadId),
-      loadDedicatedJourneyConversation(authority.journeyId, authority.generation, authority.threadId, {
-        sessionId: authority.piSessionId, sessionFile: authority.piSessionFile,
-      }),
+      // CR184: identity and the turn ledger are all this checks.
+      loadDedicatedJourneyConversationMetadata(authority.journeyId, authority.generation, authority.threadId),
     ]);
     const classified = classifyNautilusJourneyThread(thread, authority.journeyId);
     const currentTurn = lastItem(persisted?.reconciliation.turns ?? []);

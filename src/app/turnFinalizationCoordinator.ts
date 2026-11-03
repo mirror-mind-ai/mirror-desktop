@@ -232,7 +232,9 @@ export async function appendAndAcknowledgeProjection(
       await ports.advanceJournal(authority, "outbox_enqueued", "settled");
     }
     await ports.acknowledgeOutboxItem(summary.itemId, summary.conversationId, authority);
-    return settled;
+    // CR184: the read above is metadata, so the settled turn is the projection this was given with
+    // the commitments durable state now holds.
+    return upgradeMirrorCommitments(projection, settled);
   });
 }
 
