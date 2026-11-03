@@ -444,7 +444,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             .flatMap((part) => index.steeringByAssistantMessageId.get(part.message.id) ?? EMPTY_STEERING)
             .sort((left, right) => left.sequence - right.sequence);
           return (
-            <div key={leadId}>
+            <div key={leadId} className="conversation-row">
               {divider}
               <AgentRunRow
                 parts={parts}
@@ -466,7 +466,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
           <div
             key={message.id}
             ref={(element) => registerMessageElement(message.id, element)}
-            className={activeMatch?.messageId === message.id ? "conversation-message-search-current" : undefined}
+            className={`conversation-row${activeMatch?.messageId === message.id ? " conversation-message-search-current" : ""}`}
             data-conversation-message-id={message.id}
           >
             {divider}

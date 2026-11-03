@@ -1323,6 +1323,7 @@ textarea {
    signal. Pinning moved to the exact-Journey context menu. */
 .journey-agent-status {
   align-items: center;
+  isolation: isolate;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
@@ -1384,8 +1385,25 @@ button.journey-agent-status:focus-visible {
   outline-offset: 2px;
 }
 
-.journey-agent-status.working {
+/*
+  CR185: the Working glow used to animate background and box-shadow, a repaint on every frame of a
+  turn. It now lives on a layer that only fades, which the compositor animates on its own.
+*/
+.journey-agent-status.working::after,
+.focused-conversation-work.working::after {
   animation: journey-agent-working 1.6s ease-in-out infinite;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-radius: inherit;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 9%, transparent);
+  content: "";
+  inset: -1px;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+.journey-agent-status.working {
   background: color-mix(in srgb, var(--accent) 13%, transparent);
   border-color: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.12));
   color: var(--accent);
@@ -1485,10 +1503,7 @@ button.journey-agent-status:focus-visible {
 }
 
 @keyframes journey-agent-working {
-  50% {
-    background: color-mix(in srgb, var(--accent) 22%, transparent);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 9%, transparent);
-  }
+  50% { opacity: 1; }
 }
 
 @keyframes journey-agent-core-pulse {
@@ -1512,6 +1527,8 @@ button.journey-agent-status:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .journey-agent-status.working::after,
+  .focused-conversation-work.working::after,
   .journey-agent-status.working,
   .journey-agent-status.working .journey-agent-status-dot,
   .journey-agent-status.finishing,
@@ -2045,6 +2062,15 @@ h3 {
   overflow-y: auto;
   padding: 16px 34px 24px;
   scroll-padding-bottom: 24px;
+}
+
+/*
+  CR185: a row off screen is skipped by every frame's layout and paint; once drawn, its real height
+  is remembered, so scrolling back does not move the reading position.
+*/
+.conversation-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
 }
 
 .chat-stream > :first-child:not(.conversation-search-panel):not(.conversation-turn-panel):not(.conversation-chapter-panel) {
@@ -9073,6 +9099,8 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 
 .focused-conversation-work {
   align-self: center;
+  isolation: isolate;
+  position: relative;
   border: 1px solid color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, 0.12));
   border-radius: 999px;
   color: var(--accent);
@@ -9084,7 +9112,6 @@ body.is-resizing-sidebar .app-shell { transition: none; }
 }
 
 .focused-conversation-work.working {
-  animation: journey-agent-working 1.6s ease-in-out infinite;
   background: color-mix(in srgb, var(--accent) 13%, transparent);
 }
 
