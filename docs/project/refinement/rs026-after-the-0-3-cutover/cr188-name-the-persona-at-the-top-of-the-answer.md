@@ -60,8 +60,27 @@ me ajude a refletir sobre… Kundera". The answer showed no persona. Evidence fr
   with the answer projected from Pi's transcript. So an unsigned answer loses its persona when the
   turn settles. This is the gap noted above, now observed.
 
-Next: keep the delivered persona as the turn's own durable field, written with the turn and read by
-the speaker row, instead of a marker inside the text.
+## Second Build (2026-11-03, `5031670`)
+
+Pi already records the context it was given, as the `mirror-context` entry after the request, and
+its first line carries `sign ◇ <persona>` when the Core chose one. So the persona is read from
+there, not stored anew:
+
+- The native transcript inspection reads that line and carries the persona id, and nothing else of
+  the context, on the request entry (`mirrorPersona`). Only a signed persona id crosses; a persona
+  section in the body does not count.
+- `projectPiBackedConversationSurface` derives `responsePersonas` for every answer of the run, like
+  `responseModels`: on every reconstruction, dropped on write. Settlement already reconstructs
+  from Pi (`turnFinalizationCoordinator`), so the new answer has it when the turn ends.
+- The run card names the delivered persona, and falls back to the text's own signature for
+  answers without one (the 0.2 history).
+- Tests first: Rust `cr188_the_persona_the_mirror_delivered_rides_on_the_turns_request` and four
+  new TS cases failed before the change. Eight mutations, all caught (two after adding a body-only
+  persona and a context attached to an answer). Suites: TS 2,527, Rust 470 plus 10 ignored.
+
+What the persona is stays the Core's choice: naming one in the prompt does not choose it (CR189).
+
+Check owed: in development, an answer keeps its persona after the turn ends and after a reload.
 
 ## Falsifier
 
