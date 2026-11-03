@@ -395,7 +395,10 @@ export function createTurnFinalizationCoordinator(
               appendAndAcknowledgeProjection(projection, exactAuthority, summary, ports)
             ),
           });
-          settled = settlement.projection;
+          // CR184: settling adds the Mirror commitment and nothing else the reader can see. The
+          // projection read back from disk holds none of what the surface derives from Pi (CR114),
+          // so adopting it reshaped nearly every message and the whole transcript was drawn again.
+          settled = upgradeMirrorCommitments(projectionAtFrontier, settlement.projection);
           publish(authority, settled, "settled");
           emit({ type: "durable_evidence_changed", journeyId: authority.journeyId });
           return settled;
