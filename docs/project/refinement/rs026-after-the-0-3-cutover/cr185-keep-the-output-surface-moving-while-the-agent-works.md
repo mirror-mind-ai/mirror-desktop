@@ -137,3 +137,19 @@ the tree each frame walks.
 
 Check owed: a recording without Screenshots; `composite` should fall well below 30% while Working,
 and scrolling back through the chapter must not jump.
+
+## Sixth Timeline: the First Repair Made It Worse (2026-11-03)
+
+Same rehearsal, no Screenshots, one turn (Send 02:05:02Z, lease released 02:06:32Z).
+
+| Working, no text yet | fifth (before) | sixth (after `32d7163`) |
+|---|---:|---:|
+| frames per second | 35 | 48 |
+| `composite` share of the window | 30% | 72% |
+| flush per frame | ~8.6 ms | ~15 ms |
+
+While text streamed the main thread was saturated (records overlap past 100%). After the turn it
+returned to 1–8%. Both more frames and costlier frames, so the repair added work rather than
+removing it. The two halves were not measured apart. `content-visibility: auto` is withdrawn
+first, because its cost scales with the number of rows (the engine decides each row's relevance on
+every rendering update); the glow change stays and is measured alone next.
