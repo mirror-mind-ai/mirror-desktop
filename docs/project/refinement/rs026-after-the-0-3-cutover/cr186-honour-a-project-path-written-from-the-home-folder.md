@@ -2,7 +2,7 @@
 
 # CR186: Honour a Project Path Written From the Home Folder
 
-**Status:** in progress
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -48,5 +48,6 @@ is created. The folder already created there is the Navigator's to keep or delet
   Four mutations, all caught.
 - Suites: TS 2,518, Rust 468 plus 10 ignored.
 
-Shipped in v0.3.0-alpha.11. Check owed: the falsifier above, in production; development has no Journey
+Shipped in v0.3.0-alpha.11. Checked in production by the Navigator on 2026-11-03: "is not an absolute
+path" did not appear, and a new Journey answered with its own path. "Pode fechar." Before that: development has no Journey
 written with `~`.
