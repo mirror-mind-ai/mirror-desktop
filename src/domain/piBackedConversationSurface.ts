@@ -25,6 +25,8 @@ export type PiConversationSurfaceEntry = {
   // unattributed.
   provider?: string | null;
   model?: string | null;
+  // CR188: on a request, the persona the Mirror's context for that turn speaks as.
+  mirrorPersona?: string | null;
 };
 
 /** CR080: one per compaction on the active branch, in order. */
@@ -448,6 +450,9 @@ export function projectPiBackedConversationSurface(
   const messages: ConversationMessage[] = [];
   const reconstructedAgentActions: Record<string, TerminalAgentActionProjection> = {};
   const responseModels: Record<string, ResponseModelAttribution> = {};
+  // CR188: every answer of a run speaks as the persona delivered with the run's request.
+  const responsePersonas: Record<string, string> = {};
+  let runPersona: string | undefined;
   // A chapter opens at the first entry Pi retained. If that entry projects to nothing
   // visible, the divider waits for the next message that does, so the moment is never lost.
   const closuresByRetainedEntryId = new Map(
@@ -557,6 +562,7 @@ export function projectPiBackedConversationSurface(
       closeRun();
       runUntil = entry.timestamp;
       runUserEntryId = entry.entryId;
+      runPersona = entry.mirrorPersona ?? undefined;
     }
     // CR097: live, a correction is never a message — it lives in its own durable evidence and is
     // drawn inside the run it corrected. A reload must restore the same thing, so the entry Pi
@@ -586,6 +592,7 @@ export function projectPiBackedConversationSurface(
       if (entry.provider && entry.model) {
         responseModels[id] = { provider: entry.provider, model: entry.model };
       }
+      if (runPersona) responsePersonas[id] = runPersona;
     }
 
     if (pendingDivider) {
@@ -640,6 +647,7 @@ export function projectPiBackedConversationSurface(
       : { correctionAnchors: undefined }),
     ...(Object.keys(reconstructedAgentActions).length > 0 ? { reconstructedAgentActions } : {}),
     ...(Object.keys(responseModels).length > 0 ? { responseModels } : {}),
+    ...(Object.keys(responsePersonas).length > 0 ? { responsePersonas } : { responsePersonas: undefined }),
     ...(Object.keys(chapterDividers).length > 0 ? { chapterDividers } : {}),
   };
 }

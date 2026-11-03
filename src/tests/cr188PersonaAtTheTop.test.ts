@@ -54,3 +54,49 @@ describe("CR188: the persona at the top of the answer", () => {
     expect(branch.indexOf("persona_event_line")).toBeGreaterThan(branch.indexOf("context_file = Some(file)"));
   });
 });
+
+// CR188, second build: the dev check showed an unsigned answer lose its persona when the turn
+// settled, because the marker the live event writes lives only in the live message. The persona is
+// now read from Pi's own record of the context the Mirror delivered, like the response model.
+import { projectPiBackedConversationSurface } from "../domain/piBackedConversationSurface";
+import { createJourneyConversation } from "../domain/journeyConversation";
+import { withoutPiDerivedProjections } from "../domain/persistedJourneyConversation";
+import { personaSpeaker } from "../app/conversationPresentation";
+import transcriptSource from "../app/ConversationTranscript.tsx?raw";
+
+describe("CR188: the delivered persona survives settlement and reload", () => {
+  const base = createJourneyConversation({ journeyId: "vida-interior", initialMessages: [], now: new Date("2026-11-03T15:00:00Z") });
+
+  it("attributes every answer of a run to the persona delivered with its request, and no other", () => {
+    const surface = projectPiBackedConversationSurface(base, {
+      schemaVersion: "0.1.0",
+      entries: [
+        { entryId: "u1", role: "user", visibleText: "Pensadora, me ajude", timestamp: "2026-11-03T15:26:26Z", mirrorPersona: "pensadora" },
+        { entryId: "a1", role: "assistant", visibleText: "Vou ler.", timestamp: "2026-11-03T15:26:30Z" },
+        { entryId: "a2", role: "assistant", visibleText: "Minha leitura", timestamp: "2026-11-03T15:26:34Z" },
+        { entryId: "u2", role: "user", visibleText: "Sem Mirror", timestamp: "2026-11-03T15:30:00Z" },
+        { entryId: "a3", role: "assistant", visibleText: "Resposta", timestamp: "2026-11-03T15:30:05Z" },
+      ],
+    });
+    const [, first, second, , third] = surface.messages;
+    expect(surface.responsePersonas?.[first.id]).toBe("pensadora");
+    expect(surface.responsePersonas?.[second.id]).toBe("pensadora");
+    expect(surface.responsePersonas?.[third.id]).toBeUndefined();
+  });
+
+  it("is derived from Pi, never stored", () => {
+    expect(withoutPiDerivedProjections({ responsePersonas: { a: "pensadora" } })).toEqual({});
+  });
+
+  it("names the delivered persona over the text's, and falls back to the text when none was delivered", () => {
+    const unsigned = { role: "assistant" as const, content: "Minha leitura" };
+    expect(personaSpeaker(unsigned, "pensadora")).toEqual({ label: "pensadora", avatar: "P", kind: "persona" });
+    expect(personaSpeaker({ role: "assistant", content: "Feito.\n\n◇ ai-engineer" }, undefined).label).toBe("ai-engineer");
+    expect(personaSpeaker(unsigned, undefined).kind).toBe("agent");
+  });
+
+  it("gives the run card the persona of its closing answer", () => {
+    expect(transcriptSource).toContain("const responsePersona = conversation.responsePersonas?.[messageId];");
+    expect(transcriptSource).toMatch(/const speaker = personaSpeaker\(\{\s*\.\.\.closing\.message,[\s\S]{0,160}\}, closing\.responsePersona\);/);
+  });
+});

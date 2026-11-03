@@ -133,6 +133,9 @@ export type JourneyConversation = {
   // on every surface reconstruction for the same reason as the map above: Pi JSONL is the
   // authority, so storage carries no duplicate and existing Conversations gain it for free.
   responseModels?: Record<string, ResponseModelAttribution>;
+  // CR188: the persona each answer spoke as, from the Mirror context Pi recorded with its request.
+  // Derived and never stored, like the map above.
+  responsePersonas?: Record<string, string>;
   chapterDividers?: Record<string, ChapterDivider>;
   /** CR083: assistant messages that did not close their turn, so they read as notes. */
   agentCommentRoles?: Record<string, "trail">;

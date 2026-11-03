@@ -26,6 +26,17 @@ export function inferMessageSpeaker(message: Pick<ConversationMessage, "role" | 
   return { label: "Agent", avatar: "π", kind: "agent" };
 }
 
+/** CR188: the persona the Mirror delivered names the speaker; the text's own signature is the fallback. */
+export function personaSpeaker(
+  message: Pick<ConversationMessage, "role" | "content">,
+  deliveredPersona: string | undefined,
+): MessageSpeaker {
+  if (message.role === "assistant" && deliveredPersona) {
+    return { label: deliveredPersona, avatar: personaAvatar(deliveredPersona), kind: "persona" };
+  }
+  return inferMessageSpeaker(message);
+}
+
 export function stripMessageSpeakerSignature(content: string): string {
   return content
     .replace(personaSignaturePattern, "")

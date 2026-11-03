@@ -78,6 +78,7 @@ export function partitionConversationBySegments(
         ...(steeringEvidence?.length ? { steeringEvidence } : { steeringEvidence: undefined }),
         reconstructedAgentActions: ownedByMessage(conversation.reconstructedAgentActions),
         responseModels: ownedByMessage(conversation.responseModels),
+        responsePersonas: ownedByMessage(conversation.responsePersonas),
         agentCommentRoles: ownedByMessage(conversation.agentCommentRoles),
         interruptedFragments: ownedByMessage(conversation.interruptedFragments),
         chapterDividers: ownedByMessage(conversation.chapterDividers),

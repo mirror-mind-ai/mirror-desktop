@@ -467,6 +467,10 @@ struct DedicatedPiTranscriptEntry {
     // entry it did not attribute stays unattributed rather than inheriting a guess.
     provider: Option<String>,
     model: Option<String>,
+    // CR188: on a request, the persona the Mirror's context for that turn speaks as. Only the id
+    // crosses; the context does not. Absent when no context named one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mirror_persona: Option<String>,
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
@@ -497,6 +501,8 @@ struct PiBranchEntry {
     // chapter that closed was about.
     first_kept_entry_id: Option<String>,
     summary: Option<String>,
+    // CR188: on Mirror's context (`custom_message`, `mirror-context`), the persona it signs as.
+    mirror_persona: Option<String>,
 }
 
 // CR080: a chapter closing, as the transcript needs it to draw a named divider.
@@ -5077,6 +5083,7 @@ fn project_active_pi_branch(content: &str) -> Result<Vec<PiBranchEntry>, String>
             model: message.and_then(|item| item.get("model")).and_then(Value::as_str).map(str::to_string),
             first_kept_entry_id: value.get("firstKeptEntryId").and_then(Value::as_str).map(str::to_string),
             summary: value.get("summary").and_then(Value::as_str).map(str::to_string),
+            mirror_persona: delivered_context_persona(&value),
         });
     }
     if entries.is_empty() { return Ok(Vec::new()); }
@@ -5206,7 +5213,28 @@ fn first_visible_entry_from(branch: &[PiBranchEntry], retained: &str) -> Option<
     branch[start..].iter().find(|entry| entry.role.is_some()).map(|entry| entry.id.clone())
 }
 
+/// CR188: the persona a delivered Mirror context signs as, read from its first line
+/// (`… answer as the mirror; sign ◇ <persona> ===`), when it is a persona id.
+fn delivered_context_persona(value: &Value) -> Option<String> {
+    if value.get("type").and_then(Value::as_str) != Some("custom_message")
+        || value.get("customType").and_then(Value::as_str) != Some("mirror-context")
+    {
+        return None;
+    }
+    let text = extract_pi_visible_text(value);
+    let first = text.lines().next()?;
+    let (_, signed) = first.split_once("sign \u{25c7} ")?;
+    let persona = signed.split_whitespace().next()?;
+    let id = !persona.is_empty()
+        && persona.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-');
+    id.then(|| persona.to_string())
+}
+
 fn project_pi_transcript_entries(branch: &[PiBranchEntry]) -> Vec<DedicatedPiTranscriptEntry> {
+    // The context is Pi's next entry after the request, its child.
+    let personas_by_request = branch.iter()
+        .filter_map(|entry| Some((entry.parent_id.clone()?, entry.mirror_persona.clone()?)))
+        .collect::<std::collections::HashMap<_, _>>();
     branch.iter().filter_map(|entry| {
         let role = entry.role.clone()?;
         let (visible_text, prompt_envelope) = if role == "user" {
@@ -5230,6 +5258,11 @@ fn project_pi_transcript_entries(branch: &[PiBranchEntry]) -> Vec<DedicatedPiTra
             is_error: entry.is_error,
             provider: entry.provider.clone(),
             model: entry.model.clone(),
+            mirror_persona: if entry.role.as_deref() == Some("user") {
+                personas_by_request.get(&entry.id).cloned()
+            } else {
+                None
+            },
         })
     }).collect()
 }
@@ -14372,6 +14405,33 @@ mod tests {
         })];
         assert_eq!(find_registered_journey_path(&roots, "selected").as_deref(), Some("/journeys/selected"));
         assert_eq!(find_registered_journey_path(&roots, "unknown"), None);
+    }
+
+    #[test]
+    fn cr188_the_persona_the_mirror_delivered_rides_on_the_turns_request() {
+        let line = |value: Value| value.to_string();
+        let context = |id: &str, parent: &str, text: &str| line(json!({"type":"custom_message","id":id,"parentId":parent,"timestamp":"2026-11-03T15:26:26.001Z","customType":"mirror-context","content":text,"display":false}));
+        let session = [
+            line(json!({"type":"message","id":"u1","parentId":null,"timestamp":"2026-11-03T15:26:26Z","message":{"role":"user","content":[{"type":"text","text":"Pensadora, me ajude"}]}})),
+            context("c1", "u1", "=== mirror context delivered by the runtime for this turn: delta (persona: pensadora · journey: vida-interior) \u{2014} answer as the mirror; sign \u{25c7} pensadora ===\n\n=== persona/pensadora ===\nprivate words"),
+            line(json!({"type":"message","id":"a1","parentId":"c1","timestamp":"2026-11-03T15:26:34Z","message":{"role":"assistant","content":[{"type":"text","text":"Minha leitura"}],"stopReason":"stop"}})),
+            line(json!({"type":"message","id":"u2","parentId":"a1","timestamp":"2026-11-03T15:30:00Z","message":{"role":"user","content":[{"type":"text","text":"E agora?"}]}})),
+            context("c2", "u2", "=== mirror context delivered by the runtime for this turn: full \u{2014} answer as the mirror ===\n\n=== persona/estrategista ===\nwords"),
+            line(json!({"type":"message","id":"a2","parentId":"c2","timestamp":"2026-11-03T15:30:05Z","message":{"role":"assistant","content":[{"type":"text","text":"Sem persona"}],"stopReason":"stop"}})),
+            context("c4", "a2", "=== mirror context delivered by the runtime for this turn: delta \u{2014} answer as the mirror; sign \u{25c7} tesoureira ==="),
+            line(json!({"type":"message","id":"u3","parentId":"c4","timestamp":"2026-11-03T15:31:00Z","message":{"role":"user","content":[{"type":"text","text":"Outro"}]}})),
+            context("c3", "u3", "=== mirror context delivered by the runtime for this turn: delta \u{2014} answer as the mirror; sign \u{25c7} ../escape ==="),
+        ].join("\n");
+        let inspection = inspect_pi_transcript_with_scope(&session, PiTranscriptScope::Complete).unwrap();
+        let persona = |id: &str| inspection.entries.iter().find(|entry| entry.entry_id == id).unwrap().mirror_persona.clone();
+        assert_eq!(persona("u1").as_deref(), Some("pensadora"));
+        assert_eq!(persona("a1"), None, "the persona rides on the request, not on what answered it");
+        assert_eq!(persona("u2"), None, "only the signature names it, not a persona section in the body");
+        assert_eq!(persona("a2"), None, "an answer is never a request");
+        assert_eq!(persona("u3"), None, "only a persona id crosses");
+        let serialized = serde_json::to_string(&inspection.entries).unwrap();
+        assert!(!serialized.contains("private words"), "the context itself never crosses");
+        assert!(serialized.contains("\"mirrorPersona\":\"pensadora\""));
     }
 
     #[test]

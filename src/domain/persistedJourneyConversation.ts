@@ -57,6 +57,7 @@ export type PersistedJourneyConversation = {
 const PI_DERIVED_CONVERSATION_KEYS = [
   "reconstructedAgentActions",
   "responseModels",
+  "responsePersonas",
   "chapterDividers",
   "agentCommentRoles",
   "interruptedFragments",

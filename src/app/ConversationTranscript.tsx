@@ -18,7 +18,7 @@ import { MessageCopyAction } from "./MessageCopyAction";
 import { MessageFileAttachments } from "./MessageFileAttachments";
 import { SteeringMessages } from "./SteeringMessages";
 import { MessageSpeakerAvatar } from "./UserAvatar";
-import { inferMessageSpeaker, stripMessageSpeakerSignature } from "./conversationPresentation";
+import { inferMessageSpeaker, personaSpeaker, stripMessageSpeakerSignature } from "./conversationPresentation";
 import { projectAgentTurnPresentation } from "./conversationTurnPresentation";
 import type { RuntimeProjectionState } from "./runtimeActivityModel";
 import type { AssistantTurnProximity } from "./turnProximity";
@@ -92,6 +92,7 @@ type AgentRunMessagePart = {
   commentRole?: "trail";
   interruptedFragment?: string;
   responseModel?: ResponseModelBadge;
+  responsePersona?: string;
 };
 
 type AgentRunRowProps = {
@@ -136,10 +137,10 @@ const AgentRunRow = memo(function AgentRunRow({
     presentation: presentations[index],
     ...(part.responseModel ? { model: part.responseModel } : {}),
   }));
-  const speaker = inferMessageSpeaker({
+  const speaker = personaSpeaker({
     ...closing.message,
     content: stripMirrorModeBlocks(stripMirrorSurfaceBlocks(closing.message.content)),
-  });
+  }, closing.responsePersona);
 
   return (
     <AgentTurn
@@ -419,6 +420,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             const commentRole = conversation.agentCommentRoles?.[messageId];
             const interruptedFragment = conversation.interruptedFragments?.[messageId];
             const responseModel = responseModelBadges[messageId];
+            const responsePersona = conversation.responsePersonas?.[messageId];
             return [{
               message,
               linkedActivity: importedActivity.byMessageId.get(messageId) ?? EMPTY_ACTIVITY,
@@ -432,6 +434,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
               ...(commentRole ? { commentRole } : {}),
               ...(interruptedFragment ? { interruptedFragment } : {}),
               ...(responseModel ? { responseModel } : {}),
+              ...(responsePersona ? { responsePersona } : {}),
             }];
           });
           if (parts.length === 0) return null;
