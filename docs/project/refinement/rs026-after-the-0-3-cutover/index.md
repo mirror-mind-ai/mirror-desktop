@@ -47,8 +47,8 @@ delivering anything.
 - [CR185: Keep the Output Surface Moving While the Agent Works](cr185-keep-the-output-surface-moving-while-the-agent-works.md) — **done** · Desktop · Navigator, 2026-11-02; closed on "não está lento" after CR184 and the glow change; the output stalls during a turn, in production's long conversations
 - [CR186: Honour a Project Path Written From the Home Folder](cr186-honour-a-project-path-written-from-the-home-folder.md) — **done** · Desktop · Navigator, 2026-11-03; a `~/` project path sends the agent to `~/Mirror Journeys/`
 - [CR187: Take a Correction Sent in the First Seconds of a Turn](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) — **captured** · Desktop · Navigator, 2026-11-03; a correction 3 s after Send is rejected
-- [CR188: Name the Persona at the Top of the Answer](cr188-name-the-persona-at-the-top-of-the-answer.md) — **captured** · Desktop · Navigator, 2026-11-03; the persona shows at the end of the answer
-- [CR189: Route the Persona by What the Turn Is About](cr189-route-the-persona-by-what-the-turn-is-about.md) — **captured** · Desktop and Core · Navigator, 2026-11-03; one stray keyword picks the persona
+- [CR188: Name the Persona at the Top of the Answer](cr188-name-the-persona-at-the-top-of-the-answer.md) — **in progress** · Desktop · Navigator, 2026-11-03; the persona shows at the end of the answer
+- [CR189: Route the Persona by What the Turn Is About](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) — captured here, **moved to RS022** (Core) by the Navigator, 2026-11-03
 
 ## Queue After the Cutover
 
@@ -65,8 +65,8 @@ is proposed and awaits the Navigator.
 | F5 | [CR184](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) | RS026 | done | on `main` (`07dc639`, `1ada90c`, `68c9437`); dev-validated 2026-11-03; shipped in v0.3.0-alpha.10 |
 | F6 | [CR185](cr185-keep-the-output-surface-moving-while-the-agent-works.md) | RS026 | done | on `main` (`32d7163`, `ebfa0a3`); dev-validated 2026-11-03 at production size; shipped in v0.3.0-alpha.10 |
 | F7 | [CR186](cr186-honour-a-project-path-written-from-the-home-folder.md) | RS026 | done | shipped in v0.3.0-alpha.11; checked in production 2026-11-03 |
-| F9 | [CR188](cr188-name-the-persona-at-the-top-of-the-answer.md) | RS026 | captured | Desktop names the delivered persona; small |
-| F10 | [CR189](cr189-route-the-persona-by-what-the-turn-is-about.md) | RS026 | captured | routing replayed on production's turns; Core PR and keyword data |
+| F9 | [CR188](cr188-name-the-persona-at-the-top-of-the-answer.md) | RS026 | in progress | on `main` (`78cbe33`); dev check owed |
+| F10 | [CR189](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) | RS022 | parked | Core; may be replaced by the Core's persona-management work |
 | F8 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | captured | measure the early refusal first |
 | 1 | [CR166](../rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | in_progress | an exit offered that does nothing; seen in the field on 0.3. First half on `main` (`11f8b96`): the exit now says which guard held it |
 | 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | done | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; validated and closed by the Navigator the same day |

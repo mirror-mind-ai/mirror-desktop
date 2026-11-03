@@ -2,7 +2,7 @@
 
 # CR188: Name the Persona at the Top of the Answer
 
-**Status:** captured
+**Status:** in progress
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -28,8 +28,27 @@ belongs at the start.
 The Desktop names the persona from what the Core delivered, not from what the model wrote: the
 turn's persona travels from `prepare_turn` as the existing `persona_context` event, and the speaker
 row shows it. A trailing `◇ <persona>` line is stripped from the body like a leading one. The Core
-is not changed. Test first: an answer signed last renders with the persona in the row and no
-signature in the body; a turn with a delivered persona shows it even unsigned.
+is not changed.
+
+The Navigator joined to it the Desktop's part of CR189; the replay, redone with each context paired
+to its own prompt, showed there is none (CR189, moved to RS022).
+
+## Built (2026-11-03, `78cbe33`)
+
+- `mirror_context::prepare_in` keeps the persona of a delivery that reached the turn (a persona id
+  only); `persona_event_line` writes it as the Mirror context event `piProcessStream` already maps
+  to `persona_context`, and the native start emits it before Pi starts, only when the context file
+  goes to Pi.
+- `conversationPresentation`: a last-line `◇ <persona-id>` names the speaker and is stripped from
+  the body; a diamond inside the text, or a last line that is not a persona id, is left alone.
+- Tests first (`src/tests/cr188PersonaAtTheTop.test.ts`, Rust `cr188_*`): three cases failed before
+  the change; the two passing guards keep ordinary text out and pin the event line. Six mutations,
+  all caught (one after tightening the source guard). Suites: TS 2,523, Rust 469 plus 10 ignored.
+
+Not known yet: whether a live turn's persona survives a reload for an answer the model did not sign
+(32 of 126 since the cutover). Signed answers are read from their own text, so they do.
+
+Check owed: the falsifier, in development, then in production with the next release.
 
 ## Falsifier
 

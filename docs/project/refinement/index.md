@@ -272,8 +272,8 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR185](rs026-after-the-0-3-cutover/cr185-keep-the-output-surface-moving-while-the-agent-works.md) | RS026 | Keep the Output Surface Moving While the Agent Works | done | @alissonvale | `main`, dev-validated |
 | — | [CR186](rs026-after-the-0-3-cutover/cr186-honour-a-project-path-written-from-the-home-folder.md) | RS026 | Honour a Project Path Written From the Home Folder | done | @alissonvale | v0.3.0-alpha.11, production-checked |
 | — | [CR187](rs026-after-the-0-3-cutover/cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | Take a Correction Sent in the First Seconds of a Turn | captured | — | — |
-| — | [CR188](rs026-after-the-0-3-cutover/cr188-name-the-persona-at-the-top-of-the-answer.md) | RS026 | Name the Persona at the Top of the Answer | captured | — | — |
-| — | [CR189](rs026-after-the-0-3-cutover/cr189-route-the-persona-by-what-the-turn-is-about.md) | RS026 | Route the Persona by What the Turn Is About | captured | — | — |
+| — | [CR188](rs026-after-the-0-3-cutover/cr188-name-the-persona-at-the-top-of-the-answer.md) | RS026 | Name the Persona at the Top of the Answer | in progress | @alissonvale | `main` |
+| — | [CR189](rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) | RS022 | Route the Persona by What the Turn Is About | parked | — | — |
 | — | [CR165](rs025-legible-endings-for-a-turn-that-ends-badly/cr165-a-turn-after-an-unanswered-request-never-settles.md) | RS025 | A Turn After an Unanswered Request Never Settles | done | @alissonvale | `main` (`4078eef`) |
 | — | [CR147](rs016-ongoing-product-improvements-and-adjustments/cr147-stop-a-run-loop-thread-from-dying-in-silence.md) | RS016 | Stop a Run-Loop Thread from Dying in Silence | done | — | — |
 | — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | done | @alissonvale | `refinement/rs023-cr133-stop-a-disclosure-from-selecting-a-journey` |
