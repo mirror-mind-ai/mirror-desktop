@@ -97,7 +97,7 @@ value from Pi. Spec failed first; one mutation, caught. Suites: TS 2,528, Rust 4
 The Navigator, on the third build: "conferido. Funcionou." The persona shows above the answer after
 the turn ends, after reopening the Conversation and after relaunching the app.
 
-Check owed: the falsifier, in production with the next release.
+Shipped in v0.3.0-alpha.12. Check owed: the falsifier, in production.
 
 ## Falsifier
 
