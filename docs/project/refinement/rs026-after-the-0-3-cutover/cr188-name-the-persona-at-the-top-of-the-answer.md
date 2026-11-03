@@ -70,8 +70,8 @@ there, not stored anew:
   the context, on the request entry (`mirrorPersona`). Only a signed persona id crosses; a persona
   section in the body does not count.
 - `projectPiBackedConversationSurface` derives `responsePersonas` for every answer of the run, like
-  `responseModels`: on every reconstruction, dropped on write. Settlement already reconstructs
-  from Pi (`turnFinalizationCoordinator`), so the new answer has it when the turn ends.
+  `responseModels`: on every reconstruction, dropped on write. (This build also claimed that
+  settlement reconstructs from Pi; only the recovery path does. See below.)
 - The run card names the delivered persona, and falls back to the text's own signature for
   answers without one (the 0.2 history).
 - Tests first: Rust `cr188_the_persona_the_mirror_delivered_rides_on_the_turns_request` and four
@@ -80,7 +80,20 @@ there, not stored anew:
 
 What the persona is stays the Core's choice: naming one in the prompt does not choose it (CR189).
 
-Check owed: in development, an answer keeps its persona after the turn ends and after a reload.
+## Second Development Check (2026-11-03): Not Passed; Third Build (`c22beff`)
+
+The Navigator sent a prompt the Core routes to `pensadora` (it did: Pi recorded `sign ◇ pensadora`),
+on a build with the second change. No persona showed. A probe of the native reading on that very
+session returned `pensadora` on the request, so the reading was right. The gap: an ordinary turn
+settles on the reader's surface (CR184) and is not reprojected from Pi, and reopening the
+Conversation inside the same launch reuses that surface; only recovery and a fresh load reproject.
+
+The persona event of the live run now also writes `responsePersonas[answer]` on the run's surface,
+which settlement keeps (`cr184SettleInPlace` extended to say so). A fresh load derives the same
+value from Pi. Spec failed first; one mutation, caught. Suites: TS 2,528, Rust 470 plus 10 ignored.
+
+Check owed: in development, an answer keeps its persona after the turn ends, after reopening the
+Conversation, and after relaunching the app.
 
 ## Falsifier
 
