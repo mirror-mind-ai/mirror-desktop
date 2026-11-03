@@ -8,6 +8,8 @@ export type MessageSpeaker = {
 
 const personaSignaturePattern = /^(?:\s|[│|╭╮╰╯─━═┌┐└┘╔╗╚╝╠╣╦╩╬])*[◇✦]\s*(?:Persona:\s*)?([^\n]+?)\s*(?:\n|$)/i;
 const embeddedCertifiedPersonaPattern = /✦\s*Persona:\s*([a-z0-9-]+)\s*/i;
+// CR188: the 0.3 Core asks the model to `sign ◇ <persona>`, and the model signs on the last line.
+const trailingPersonaSignaturePattern = /\n[ \t]*[◇✦][ \t]*(?:Persona:[ \t]*)?([a-z0-9]+(?:-[a-z0-9]+)*)[ \t]*\s*$/i;
 
 export function inferMessageSpeaker(message: Pick<ConversationMessage, "role" | "content">): MessageSpeaker {
   if (message.role === "user") {
@@ -15,7 +17,8 @@ export function inferMessageSpeaker(message: Pick<ConversationMessage, "role" | 
   }
 
   const persona = message.content.match(personaSignaturePattern)?.[1]?.trim()
-    ?? message.content.match(embeddedCertifiedPersonaPattern)?.[1]?.trim();
+    ?? message.content.match(embeddedCertifiedPersonaPattern)?.[1]?.trim()
+    ?? message.content.match(trailingPersonaSignaturePattern)?.[1]?.trim();
   if (persona) {
     return { label: persona, avatar: personaAvatar(persona), kind: "persona" };
   }
@@ -24,7 +27,12 @@ export function inferMessageSpeaker(message: Pick<ConversationMessage, "role" | 
 }
 
 export function stripMessageSpeakerSignature(content: string): string {
-  return content.replace(personaSignaturePattern, "").replace(embeddedCertifiedPersonaPattern, "").trimStart().trimEnd();
+  return content
+    .replace(personaSignaturePattern, "")
+    .replace(embeddedCertifiedPersonaPattern, "")
+    .replace(trailingPersonaSignaturePattern, "")
+    .trimStart()
+    .trimEnd();
 }
 
 export function withCertifiedPersona(content: string, persona: string): string {

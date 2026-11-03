@@ -33,6 +33,9 @@ pub(crate) struct TurnContext {
     pub note: Option<String>,
     /// The note is the person's own choice (no key kept), said once per Conversation.
     pub chosen: bool,
+    /// CR188: the persona the delivered context speaks as, so the surface names it before the model
+    /// writes; None when no context reaches the turn.
+    pub persona: Option<String>,
 }
 
 /// Conversations already told that no key is kept, for this launch of the app.
@@ -64,6 +67,19 @@ pub(crate) fn parse_delivery(result: &Value) -> Result<Delivery, String> {
     }
 }
 
+/// The session's persona after the delivery, when it is a persona id.
+fn delivered_persona(result: &Value) -> Option<String> {
+    let persona = result.get("persona")?.as_str()?;
+    let id = !persona.is_empty() && persona.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-');
+    id.then(|| persona.to_string())
+}
+
+/// CR188: the persona as the Mirror context event the stream already reads (`persona_context`).
+pub(crate) fn persona_event_line(journey_id: &str, persona: &str) -> String {
+    let event = json!({"type": "mirror_context", "schemaVersion": "0.1.0", "mode": "mirror", "journeyId": journey_id, "persona": persona});
+    format!("{event}\n")
+}
+
 /// A file name of this turn's own, unguessable, so two turns never share one.
 pub(crate) fn context_file_in(dir: &Path) -> PathBuf {
     use std::io::Read;
@@ -90,7 +106,7 @@ pub(crate) fn prepare_in(
     key: Result<Option<String>, String>,
     ask: impl FnOnce(&str) -> Result<Value, String>,
 ) -> TurnContext {
-    let without = |why: String| TurnContext { file: None, note: Some(format!("{WITHOUT} {why}")), chosen: false };
+    let without = |why: String| TurnContext { file: None, note: Some(format!("{WITHOUT} {why}")), chosen: false, persona: None };
     let dir = match dir.and_then(|dir| {
         std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
         set_owner_only_dir(&dir).map(|()| dir)
@@ -106,26 +122,30 @@ pub(crate) fn prepare_in(
                 file: Some(file),
                 note: Some("Mirror's context is off in this Conversation: no OpenRouter key is kept. Add one in Settings › Connections.".to_string()),
                 chosen: true,
+                persona: None,
             }
         }
-        Err(error) => return TurnContext { file: Some(file), note: Some(format!("{WITHOUT} {error}")), chosen: false },
+        Err(error) => return TurnContext { file: Some(file), note: Some(format!("{WITHOUT} {error}")), chosen: false, persona: None },
     };
-    let delivery = ask(&key).and_then(|result| parse_delivery(&result));
+    let answer = ask(&key);
+    let persona = answer.as_ref().ok().and_then(delivered_persona);
+    let delivery = answer.and_then(|result| parse_delivery(&result));
     match delivery {
-        Ok(Delivery::Nothing) => TurnContext { file: Some(file), note: None, chosen: false },
+        Ok(Delivery::Nothing) => TurnContext { file: Some(file), note: None, chosen: false, persona: None },
         Ok(Delivery::Block(block)) if block.len() > MAX_BLOCK_BYTES => TurnContext {
             file: Some(file),
             note: Some(format!("{WITHOUT} the block exceeded {MAX_BLOCK_BYTES} bytes.")),
             chosen: false,
+            persona: None,
         },
         Ok(Delivery::Block(block)) => match write_owner_only(&file, &block) {
-            Ok(()) => TurnContext { file: Some(file), note: None, chosen: false },
+            Ok(()) => TurnContext { file: Some(file), note: None, chosen: false, persona },
             Err(error) => {
                 let _ = std::fs::remove_file(&file);
-                TurnContext { file: Some(file), note: Some(format!("{WITHOUT} it could not be written ({error}).")), chosen: false }
+                TurnContext { file: Some(file), note: Some(format!("{WITHOUT} it could not be written ({error}).")), chosen: false, persona: None }
             }
         },
-        Err(error) => TurnContext { file: Some(file), note: Some(format!("{WITHOUT} {error}")), chosen: false },
+        Err(error) => TurnContext { file: Some(file), note: Some(format!("{WITHOUT} {error}")), chosen: false, persona: None },
     }
 }
 
@@ -239,6 +259,23 @@ mod tests {
         assert_eq!(std::fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o600);
         assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777, 0o700);
         assert!(!std::fs::read_to_string(&file).unwrap().contains("sk-or"), "the key is never written");
+    }
+
+    #[test]
+    fn cr188_the_delivered_persona_travels_with_the_context() {
+        let ask = |persona: Value| move |_: &str| Ok(json!({"kind": "delta", "block": "=== delta ===", "persona": persona, "journey": "j"}));
+        let context = prepare_in(Ok(scratch("persona")), Ok(Some("k".into())), ask(json!("ai-engineer")));
+        assert_eq!(context.persona.as_deref(), Some("ai-engineer"));
+        for refused in [json!("../private"), json!("Ai Engineer"), json!(null), json!(7)] {
+            let context = prepare_in(Ok(scratch("persona-refused")), Ok(Some("k".into())), ask(refused));
+            assert_eq!(context.persona, None);
+        }
+        let nothing = prepare_in(Ok(scratch("persona-nothing")), Ok(Some("k".into())), |_| Ok(json!({"kind": "nothing", "block": "", "persona": "ai-engineer"})));
+        assert_eq!(nothing.persona, None, "a turn without context names no persona");
+        assert_eq!(
+            persona_event_line("mirror-desktop", "ai-engineer"),
+            "{\"journeyId\":\"mirror-desktop\",\"mode\":\"mirror\",\"persona\":\"ai-engineer\",\"schemaVersion\":\"0.1.0\",\"type\":\"mirror_context\"}\n"
+        );
     }
 
     #[test]

@@ -8083,6 +8083,16 @@ fn run_pi_process_unguarded(
                     args.push("--extension".to_string());
                     args.push(extension.to_string_lossy().into_owned());
                     context_file = Some(file);
+                    // CR188: the surface names the persona the context speaks as, before the model
+                    // writes, instead of waiting for a signature the model puts on its last line.
+                    if let Some(persona) = context.persona {
+                        emit(
+                            &app,
+                            &authority,
+                            PiProcessEventKind::Stdout,
+                            mirror_context::persona_event_line(&run_authority.journey_id, &persona),
+                        );
+                    }
                 }
             }
             Err(error) => emit(
