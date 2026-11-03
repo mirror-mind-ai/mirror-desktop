@@ -97,7 +97,18 @@ value from Pi. Spec failed first; one mutation, caught. Suites: TS 2,528, Rust 4
 The Navigator, on the third build: "conferido. Funcionou." The persona shows above the answer after
 the turn ends, after reopening the Conversation and after relaunching the app.
 
-Shipped in v0.3.0-alpha.12. Check owed: the falsifier, in production.
+Shipped in v0.3.0-alpha.12.
+
+## Production Observation (2026-11-03) and Fourth Build (`fcccc99`)
+
+The Navigator, on alpha.12: the persona is right in the card's header, next to the model, but for a
+few seconds the model's `◇ <persona>` line also shows inside the agent comments, then disappears
+when the surface reloads. Live comments come straight from the stream (`agentComments`); the
+restored answer is stripped of the signature. `projectAgentComments` now strips each live comment
+the same way, and drops one that was only the signature. Spec failed first; one mutation, caught.
+TS suite 2,530.
+
+Check owed: in production with the next release, no `◇` line in the comments at any moment.
 
 ## Falsifier
 
