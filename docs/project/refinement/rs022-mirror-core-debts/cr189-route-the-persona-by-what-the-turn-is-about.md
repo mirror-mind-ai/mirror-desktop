@@ -42,6 +42,10 @@ as if typed. It does not: `project_dedicated_user_text_and_envelope` cuts the pr
 doorman is called (`main.rs`, tested), and the replay that suggested otherwise paired each context
 with the next prompt. There is no Desktop part.
 
+**Observed in development (2026-11-03).** "Pensadora, me ajude a refletir sobre… Kundera" kept
+`software-engineer`: a persona named in the prompt is not chosen, because the persona's own key is
+not one of its routing keywords and the doorman reads keywords only.
+
 ## Desktop Containment
 
 None for the choice. CR188 (RS026) shows the chosen persona above the answer, so a poor choice is

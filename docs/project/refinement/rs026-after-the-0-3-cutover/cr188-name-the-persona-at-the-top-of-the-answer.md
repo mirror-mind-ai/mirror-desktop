@@ -48,7 +48,20 @@ to its own prompt, showed there is none (CR189, moved to RS022).
 Not known yet: whether a live turn's persona survives a reload for an answer the model did not sign
 (32 of 126 since the cutover). Signed answers are read from their own text, so they do.
 
-Check owed: the falsifier, in development, then in production with the next release.
+## Development Check (2026-11-03): Not Passed
+
+The Navigator sent, in `vida-interior` on the development app (built after `78cbe33`), "Pensadora,
+me ajude a refletir sobre… Kundera". The answer showed no persona. Evidence from the dev home:
+
+- The Core delivered `persona: software-engineer`, the session's earlier persona: "Pensadora" is
+  not a routing keyword of `pensadora`, and naming a persona does not choose it (CR189, Core).
+- The model did not sign. The stored answer begins "Minha leitura…" with no `✦ Persona:` marker:
+  the marker the event writes lives only in the live message, and settlement replaces the content
+  with the answer projected from Pi's transcript. So an unsigned answer loses its persona when the
+  turn settles. This is the gap noted above, now observed.
+
+Next: keep the delivered persona as the turn's own durable field, written with the turn and read by
+the speaker row, instead of a marker inside the text.
 
 ## Falsifier
 
