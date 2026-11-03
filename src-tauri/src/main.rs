@@ -2946,6 +2946,22 @@ fn find_registered_journey_path(nodes: &[Value], journey_id: &str) -> Option<Str
     None
 }
 
+/// CR186: a registered project path as a folder. The Mirror keeps the path as the person wrote it,
+/// so `~/…` names their home folder; a bare `~user` is left as written and refused downstream.
+fn registered_project_path(raw: &str, user_home: &Path) -> Option<PathBuf> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    if raw == "~" {
+        return Some(user_home.to_path_buf());
+    }
+    Some(match raw.strip_prefix("~/") {
+        Some(rest) => user_home.join(rest),
+        None => PathBuf::from(raw),
+    })
+}
+
 fn registered_journey_root(app: &AppHandle, journey_id: &str) -> Result<PathBuf, String> {
     if journey_id.trim().is_empty() || journey_id.contains('\0') {
         return Err("Journey id is required.".to_string());
@@ -2957,9 +2973,9 @@ fn registered_journey_root(app: &AppHandle, journey_id: &str) -> Result<PathBuf,
         .map_err(|_| "The local Journey registry is invalid.".to_string())?;
     let roots = payload.get("roots").and_then(Value::as_array)
         .ok_or_else(|| "The local Journey registry is invalid.".to_string())?;
-    find_registered_journey_path(roots, journey_id)
-        .filter(|path| !path.trim().is_empty())
-        .map(PathBuf::from)
+    let path = find_registered_journey_path(roots, journey_id).unwrap_or_default();
+    let user_home = app.path().home_dir().map_err(|error| format!("Could not resolve your home folder: {error}"))?;
+    registered_project_path(&path, &user_home)
         .ok_or_else(|| "The selected Journey has no configured workspace path.".to_string())
 }
 
@@ -10552,7 +10568,7 @@ mod tests {
         project_dedicated_user_text_and_envelope,
         replace_legacy_outbox_item_at, MIRROR_APPEND_CONFLICT_MAX_RECORDS, recovery_skip_is_new,
         extract_context_stats_from_pi_session,
-        extract_pi_mirror_commit_events, find_registered_journey_path,
+        extract_pi_mirror_commit_events, find_registered_journey_path, registered_project_path,
         legacy_outbox_item_matches_pi_backed_item, legacy_timestamp_compatibility_item,
         normalize_legacy_enqueue_item, outbox_item_matches_journal_record,
         StaleRecoveryReport,
@@ -14346,6 +14362,36 @@ mod tests {
         })];
         assert_eq!(find_registered_journey_path(&roots, "selected").as_deref(), Some("/journeys/selected"));
         assert_eq!(find_registered_journey_path(&roots, "unknown"), None);
+    }
+
+    #[test]
+    fn cr186_a_project_path_written_from_the_home_folder_names_a_folder_in_it() {
+        let home = Path::new("/Users/someone");
+        assert_eq!(registered_project_path("~/Code/szen_play", home), Some(home.join("Code/szen_play")));
+        assert_eq!(registered_project_path(" ~/Code/szen_play ", home), Some(home.join("Code/szen_play")));
+        assert_eq!(registered_project_path("~", home), Some(home.to_path_buf()));
+        assert_eq!(registered_project_path("/journeys/book", home), Some(PathBuf::from("/journeys/book")));
+        assert_eq!(registered_project_path("~other/book", home), Some(PathBuf::from("~other/book")));
+        assert_eq!(registered_project_path("  ", home), None);
+    }
+
+    #[test]
+    fn cr186_the_turn_runs_in_a_project_written_from_the_home_folder() {
+        let root = std::env::temp_dir().join(format!("cr186-{}", std::process::id()));
+        let project = root.join("Code/szen_play");
+        let mirror_home = root.join("Mirror Homes/me");
+        fs::create_dir_all(&project).unwrap();
+        fs::create_dir_all(&mirror_home).unwrap();
+        let registered = registered_project_path("~/Code/szen_play", &root);
+        let workspace = crate::journey_workspace::resolve_journey_workspace("venda-de-livros", registered.as_deref(), &mirror_home, &root).unwrap();
+        assert_eq!(workspace.path, fs::canonicalize(&project).unwrap());
+        assert_eq!(workspace.note, None);
+        assert!(!root.join(crate::journey_workspace::NEUTRAL_FOLDER).exists());
+        // CR176's refusals still hold once the path is expanded.
+        let inside = registered_project_path("~/Mirror Homes/me", &root);
+        let refused = crate::journey_workspace::resolve_journey_workspace("venda-de-livros", inside.as_deref(), &mirror_home, &root).unwrap();
+        assert!(refused.note.unwrap().contains("is inside your Mirror home"));
+        fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
