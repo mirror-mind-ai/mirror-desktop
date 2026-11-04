@@ -1,5 +1,7 @@
 // @ts-expect-error Vitest runs in Node; production code has no Node dependency.
 import { readFileSync } from "node:fs";
+// @ts-expect-error Vitest runs in Node; production code has no Node dependency.
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import packageJson from "../../package.json";
 import stableConfig from "../../src-tauri/tauri.conf.json";
@@ -77,23 +79,39 @@ describe("runtime channel configuration", () => {
     }
   });
 
-  it("uses the Mirror Desktop mirror artwork with explicit DEV and EVAL overlays", () => {
-    expect(stableIconSource).toContain("Mirror Desktop icon");
-    expect(stableIconSource).toContain('<ellipse cx="256" cy="246" rx="124" ry="156"');
-    expect(stableIconSource).toContain('<circle cx="256" cy="246" r="12"');
-    expect(stableIconSource).not.toContain("Nautilus Harness icon");
-    expect(stableIconSource).not.toContain(">DEV<");
-    expect(developmentIconSource).toContain("Mirror Desktop Dev icon");
-    expect(developmentIconSource).toContain('<ellipse cx="256" cy="246" rx="124" ry="156"');
-    expect(developmentIconSource).toContain('<circle cx="256" cy="246" r="12"');
-    expect(developmentIconSource).not.toContain("Nautilus Harness Dev icon");
+  // CV-013.DS-002: the Navigator brought back the last Nautilus Harness artwork (0c4684cb), the
+  // luminous violet spiral, in place of the Mirror Desktop mirror; DEV and EVAL stay as badges.
+  const spiralPath = '<path d="M141 350c-53-75-28-183 52-229 74-43 171-17 209 58 35 69 3 153-66 181-62 25-132-10-145-72-11-52 26-101 75-103 42-2 73 36 62 74-9 31-44 47-70 29-20-14-20-46 0-58"';
+  it("uses the Nautilus spiral artwork with explicit DEV and EVAL overlays", () => {
+    for (const [source, title] of [
+      [stableIconSource, "Nautilus for Mirror icon"],
+      [developmentIconSource, "Nautilus for Mirror Dev icon"],
+      [evaluationIconSource, "Nautilus for Mirror Eval icon"],
+    ]) {
+      expect(source).toContain(`<title id="title">${title}</title>`);
+      expect(source).toContain(spiralPath);
+      expect(source).not.toContain("<ellipse");
+    }
+    expect(stableIconSource).not.toMatch(/>DEV<|>EVAL</);
     expect(developmentIconSource).toContain(">DEV<");
-    expect(evaluationIconSource).toContain("Mirror Desktop Eval icon");
+    expect(developmentIconSource).toContain('fill="#a45bd3"');
     expect(evaluationIconSource).toContain(">EVAL<");
     expect(evaluationIconSource).toContain('fill="#2f9e5b"');
     expect(appSource).toContain('import appIconUrl from "../../src-tauri/icons/icon.svg"');
     expect(appSource).not.toContain("devAppIconUrl");
     expect(appSource).toContain('className="brand-channel-badge"');
+  });
+
+  it("ships the PNGs the Navigator chose, byte for byte, and an evaluation PNG of the same artwork", () => {
+    const png = (path: string) => readFileSync(new URL(`../../src-tauri/icons/${path}`, import.meta.url));
+    const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+    // 0c4684cb's icon.png and dev/icon.png, restored unchanged.
+    expect(sha256(png("icon.png"))).toBe("bb5071908a2632e47e748d1d0d022a61a837e1f78879fb3b64a99d6a1d9e4ac5");
+    expect(sha256(png("dev/icon.png"))).toBe("f8cd0140abc4e43e076b51678e0b82941fb8d748ce5650398c03396bac8dca30");
+    const evaluation = png("eval/icon.png");
+    expect(evaluation.subarray(1, 4).toString("latin1")).toBe("PNG");
+    expect(evaluation.readUInt32BE(16)).toBe(512);
+    expect(evaluation.readUInt32BE(20)).toBe(512);
   });
 
   it("always pairs channel commands with the closed native launcher", () => {
@@ -182,13 +200,15 @@ describe("runtime channel configuration", () => {
     expect(cssSource).toContain(".brand-channel-badge.is-evaluation");
     expect(appSource).not.toContain("Journey Navigation");
     expect(appSource).not.toContain("PRODUCT_DESCRIPTOR");
-    // CR169: the brand is the build's own name, every one of them Mirror Desktop's.
+    // CR169: the brand is the build's own name, every one of them Nautilus's.
     expect(appSource).toContain("<strong>{buildName} ");
     expect(appSource).toContain('const buildName = developmentChannel ? "Nautilus for Mirror Dev"');
     expect(appSource).not.toContain("<strong>Nautilus ");
     expect(appSource).not.toContain("Using Harness agent defaults.");
-    expect(appSource).not.toContain("channel-local Nautilus storage");
-    expect(appSource).not.toContain("Dedicated Nautilus conversation");
+    // These two were Nautilus Harness words the Mirror Desktop rename removed; CV-013.DS-002 names
+    // the app Nautilus again, so they now say what the app is called.
+    expect(appSource).toContain("channel-local Nautilus storage");
+    expect(appSource).toContain("Dedicated Nautilus conversation");
     expect(appSource).not.toContain('developmentChannel ? "npm run import:mirror:dev" : "npm run import:mirror"');
     expect(appSource).not.toContain('"Development cockpit"');
     expect(appSource).not.toContain('"Journey cockpit"');
