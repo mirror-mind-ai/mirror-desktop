@@ -5,7 +5,8 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | RS027 |
-| **RS026 · After the 0.3 Cutover** | 🔄 ativa · sem CR aberto |
+| **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🟡 |
+| ↳　CR193 · A Cancel Before Pi Takes the Message Still Loses It | 🟡 captured · causa em localização |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress |
 | ↳　CR163 · A Hung Mirror Append Freezes Every Exit | 🔵 in_progress |
