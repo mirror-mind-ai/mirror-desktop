@@ -26,6 +26,10 @@ the invocation contract), and the 0.3 decision adopted it for Mirror only: "Pi s
   provider).
 - How an embedded Pi is updated, and whether a person can still use their own Pi in the terminal.
 
+## Order (Navigator, 2026-11-04)
+
+After the launch, following CV-009. It changes how every turn runs, not what a person sees, so it is not worth its risk before promotion. It would move ahead of the rename only if first-run Pi installation fails for new users in the field.
+
 ## Delivery Stories
 
 None yet. An Explorer Mode pass comes first.
