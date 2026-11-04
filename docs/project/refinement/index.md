@@ -212,11 +212,11 @@ executes work.
 | 18 | [RS018](rs018-terminal-aligned-conversation-continuity/index.md) | Terminal-Aligned Conversation Continuity | closed |
 | 19 | [RS019](rs019-post-terminal-continuity/index.md) | Post-Terminal Continuity | closed |
 | 20 | [RS020](rs020-convergent-turn-synchronization/index.md) | Convergent Turn Synchronization | closed |
-| 21 | [RS021](rs021-ux-pre-beta-evolution/index.md) | UX Pre-Beta Evolution | active |
+| 21 | [RS021](rs021-ux-pre-beta-evolution/index.md) | UX Pre-Beta Evolution | closed |
 | 22 | [RS022](rs022-mirror-core-debts/index.md) | Mirror Core Debts | active |
 | 23 | [RS023](rs023-conversations-as-first-class-workspaces/index.md) | Conversations as First-Class Workspaces | closed |
 | 24 | [RS024](rs024-concurrent-work-inside-one-journey/index.md) | Concurrent Work Inside One Journey | closed |
-| 25 | [RS025](rs025-legible-endings-for-a-turn-that-ends-badly/index.md) | Legible Endings for a Turn That Ends Badly | active |
+| 25 | [RS025](rs025-legible-endings-for-a-turn-that-ends-badly/index.md) | Legible Endings for a Turn That Ends Badly | closed |
 | 26 | [RS026](rs026-after-the-0-3-cutover/index.md) | After the 0.3 Cutover | active |
 | 27 | [RS027](rs027-re-examine-the-older-open-work/index.md) | Re-examine the Older Open Work | active |
 | 28 | [RS028](rs028-journey-management/index.md) | Journey Management | active |

@@ -2,7 +2,7 @@
 
 # RS021: UX Pre-Beta Evolution
 
-**Status:** active
+**Status:** closed
 
 ## Framing
 
@@ -127,3 +127,7 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR113: Make Composer Typing Responsive in Large Journeys](cr113-make-composer-typing-responsive-in-large-journeys.md) — done
 - [CR114: Make the Current Segment the Default Working Set](cr114-make-the-current-segment-the-default-working-set.md) — done
 - [CR125: Keep the Reader's Place When a Turn Settles](cr125-keep-the-reader-s-place-when-a-turn-settles.md) — done
+
+## Closed (2026-11-03)
+
+Closed by the Navigator with no open Change Request left: its last open CRs, CR098 and CR099, moved to RS028.

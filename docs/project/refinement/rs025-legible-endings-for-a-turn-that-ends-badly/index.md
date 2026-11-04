@@ -2,7 +2,7 @@
 
 # RS025 — Legible Endings for a Turn That Ends Badly
 
-**Status:** active
+**Status:** closed
 
 ## Framing
 
@@ -108,3 +108,7 @@ never reached** — shipping them together makes the next hang untestable for A.
 rare and not provokable on command, so each field occurrence is a scarce measurement and must test
 one thing. The theme's own history is the argument: eighteen repairs that could not be attributed to
 a moving symptom is how it got here.
+
+## Closed (2026-11-03)
+
+Closed by the Navigator with no open Change Request left: its open CRs moved to RS027 for a verdict each; a silent abnormal ending seen on 0.3 is captured in RS027 or a new Story.
