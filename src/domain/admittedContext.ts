@@ -23,7 +23,7 @@ import { chapterTitleFromSummary } from "./compactionChapters";
  *   placed on this workspace's tree without inventing the claim that a workspace file was opened.
  */
 
-export type PromptEnvelopeClass = "mirror_desktop" | "nautilus_harness" | "unknown" | "raw";
+export type PromptEnvelopeClass = "nautilus" | "mirror_desktop" | "nautilus_harness" | "unknown" | "raw";
 
 /** How an item entered the agent's field. This is the grammar of the whole surface. */
 export type AdmissionEntryMode =

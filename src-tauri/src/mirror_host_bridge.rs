@@ -170,10 +170,13 @@ pub(crate) fn rebind_response(journey_id: &str, conversation_id: &str, result: &
 }
 
 /// The interface Desktop's Conversations carry; learning (slice 4a) asks for these alone.
-pub(crate) const CONVERSATION_INTERFACE: &str = "nautilus_harness";
+/// CV-013.DS-002 slice 3 (CR171): `nautilus`. The core rewrites a Conversation's interface when it
+/// is ensured again, so the ones already open keep the previous label until then.
+pub(crate) const CONVERSATION_INTERFACE: &str = "nautilus";
+pub(crate) const PREVIOUS_CONVERSATION_INTERFACE: &str = "nautilus_harness";
 
 /// `provision_mirror_conversation.py`, answered by `ensureConversation`: the Mirror Conversation
-/// bound to a Pi session. The interface stays `nautilus_harness`, as the script wrote it.
+/// bound to a Pi session.
 pub(crate) fn ensure_conversation(app: &AppHandle, session_id: &str, journey_id: &str, title: &str) -> Result<String, String> {
     let result = request(app, "ensureConversation", json!({"request": {
         "sessionId": session_id, "journeyId": journey_id, "title": title, "interface": CONVERSATION_INTERFACE,

@@ -704,7 +704,7 @@ describe("Pi process stream adapter", () => {
 
     const prompt = createPiInvocationPrompt(packet, "mirror");
 
-    expect(prompt).toContain("[Mirror Desktop Journey authority]");
+    expect(prompt).toContain("[Nautilus Journey authority]");
     expect(prompt).toContain("The selected Journey ID for this turn is exactly: software-zen");
     expect(prompt).toContain(
       "The selected Journey controls this turn's destination, Conversation persistence, run correlation, and implicit references such as \"this Journey\".",
@@ -778,7 +778,7 @@ describe("Pi process stream adapter", () => {
     });
     const prompt = createPiInvocationPrompt(packet, "mirror");
     // CR087: the native projection drops exactly one leading `/skill:` line.
-    expect(prompt.startsWith("/skill:ext-nautilus-synthesis journey-id=journey-a\n[Mirror Desktop Journey authority]\n")).toBe(true);
+    expect(prompt.startsWith("/skill:ext-nautilus-synthesis journey-id=journey-a\n[Nautilus Journey authority]\n")).toBe(true);
     expect(prompt).toContain("\n\nExplicit Navigator intent:\natualize a síntese tática desta jornada");
   });
 

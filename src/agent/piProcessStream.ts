@@ -76,7 +76,7 @@ export function createMirrorRuntimePrompt(packet: PiTaskPacket): string {
   if (!journeyId || !request) return request;
 
   const authority = [
-    "[Mirror Desktop Journey authority]",
+    "[Nautilus Journey authority]",
     `The selected Journey ID for this turn is exactly: ${journeyId}`,
     "The selected Journey controls this turn's destination, Conversation persistence, run correlation, and implicit references such as \"this Journey\".",
     "Do not infer or change the destination from global, sticky, cwd, recent, default, or loaded context.",

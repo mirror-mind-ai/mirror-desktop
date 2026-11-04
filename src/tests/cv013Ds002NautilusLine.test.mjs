@@ -17,6 +17,8 @@ import {
 import { alphaBuildPlan } from "../../scripts/alpha_build.mjs";
 import { inspectSelfUpdateConfig } from "../../scripts/self_update_preflight.mjs";
 import { parseRuntimeChannelDiagnostic } from "../app/runtimeChannelStorage";
+import { createMirrorRuntimePrompt } from "../agent/piProcessStream";
+import { dedicatedNativeNames } from "../domain/journeyThreadProvisioning";
 
 /**
  * CV-013.DS-002 slice 1: main builds Nautilus for Mirror, release line 0.4, under its own
@@ -270,7 +272,11 @@ describe("slice 2: the words the person reads", () => {
     /PRODUCT: &str = "Mirror Desktop"|PRODUCT = "Mirror Desktop"/,
     /Manifest product must be Mirror Desktop/,
   ];
-  const storedLabels = [/Mirror Desktop Journey authority/, /· Mirror Desktop/];
+  // After slice 3 only the readers of the old marker remain: they still recognise stored prompts.
+  const storedLabels = [
+    /body\.starts_with\("\[Mirror Desktop Journey authority\]"\)/,
+    /mirror_desktop: "Mirror Desktop Journey authority"/,
+  ];
   const sourceFiles = () => {
     const files = [];
     for (const root of ["src/app", "src/domain", "src/agent"]) {
@@ -312,5 +318,57 @@ describe("slice 2: the words the person reads", () => {
   it("keeps the other-build refusal one sentence on both sides of the bridge", () => {
     expect(read("src/domain/otherBuildRefusal.ts")).toContain('"This conversation belongs to another Nautilus build"');
     expect(read("src-tauri/src/main.rs")).toContain('"This conversation belongs to another Nautilus build: it was made by the {} build, and this is the {} build."');
+  });
+});
+
+/**
+ * Slice 3: labels written into data say Nautilus, and readers keep accepting the old ones.
+ *
+ * - The prompt envelope's marker is `[Nautilus Journey authority]`, classified `nautilus`; the
+ *   Mirror Desktop and Nautilus Harness markers are still read from stored sessions.
+ * - Pi session names end ` · Nautilus · Generation N`.
+ * - New Mirror Conversations carry the interface `nautilus` (CR171, absorbed). Learning asks for it
+ *   and for `nautilus_harness`, which the Conversations already open keep until they are ensured
+ *   again, within the same pieces per run.
+ * - The messages' `sourceInterface` stays `nautilus-harness`: the core stores it in each message's
+ *   metadata and compares that metadata when a message is replayed, so changing it would turn the
+ *   replay of a message written before the change into an idempotency conflict.
+ */
+describe("slice 3: labels written into data", () => {
+  const main = read("src-tauri/src/main.rs");
+  const bridge = read("src-tauri/src/mirror_host_bridge.rs");
+
+  it("writes the Nautilus marker at the head of the prompt envelope", () => {
+    const prompt = createMirrorRuntimePrompt({ journeyId: "atelier", conversation: [{ role: "user", content: "Olá" }] });
+    expect(prompt.split("\n")[0]).toBe("[Nautilus Journey authority]");
+    expect(prompt).toContain("The selected Journey ID for this turn is exactly: atelier");
+  });
+
+  it("reads the new marker and keeps reading both old ones", () => {
+    expect(main).toContain('body.starts_with("[Nautilus Journey authority]")');
+    expect(main).toContain('body.starts_with("[Mirror Desktop Journey authority]")');
+    expect(main).toContain('body.starts_with("[Nautilus Harness Journey authority]")');
+    expect(read("src/domain/admittedContext.ts")).toMatch(/PromptEnvelopeClass = "nautilus" \| "mirror_desktop" \| "nautilus_harness"/);
+    expect(read("src/app/AgenticMapField.tsx")).toContain('nautilus: "Nautilus Journey authority"');
+  });
+
+  it("names Pi sessions after Nautilus on both sides of the bridge", () => {
+    expect(dedicatedNativeNames("Atelier", 2)).toEqual({
+      piSessionName: "Atelier · Nautilus · Generation 2",
+      mirrorConversationName: "Atelier · Nautilus · Generation 2",
+    });
+    expect(main).toContain('let suffix = format!(" · Nautilus · Generation {}", generation);');
+    expect(main).not.toMatch(/· Mirror Desktop/);
+  });
+
+  it("labels new Conversations nautilus, and learns from both labels", () => {
+    expect(bridge).toContain('pub(crate) const CONVERSATION_INTERFACE: &str = "nautilus";');
+    expect(bridge).toContain('pub(crate) const PREVIOUS_CONVERSATION_INTERFACE: &str = "nautilus_harness";');
+    expect(read("src-tauri/src/mirror_learning.rs")).toContain("LEARNED_INTERFACES");
+  });
+
+  it("keeps the messages' sourceInterface, which replay compares", () => {
+    expect(read("src/domain/mirrorAppendOutbox.ts")).toContain('sourceInterface: "nautilus-harness",');
+    expect(bridge).toContain('"sourceInterface": "nautilus-harness",');
   });
 });

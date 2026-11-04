@@ -32,6 +32,7 @@ const PRESENCE: Record<AdmittedPresence | "available", PresenceDescriptor> = {
 };
 
 const ENVELOPE_NAMES: Record<PromptEnvelopeClass, string> = {
+  nautilus: "Nautilus Journey authority",
   mirror_desktop: "Mirror Desktop Journey authority",
   nautilus_harness: "Nautilus Harness Journey authority",
   unknown: "Unrecognised authority header",

@@ -32,7 +32,7 @@ export type DedicatedPiTranscriptTurn = {
   userEntryId: string;
   assistantEntryId: string;
   userText: string;
-  userPromptEnvelope: "mirror_desktop" | "nautilus_harness" | "raw" | "unknown";
+  userPromptEnvelope: "nautilus" | "mirror_desktop" | "nautilus_harness" | "raw" | "unknown";
   assistantText: string;
   entryCount: number;
   startedAt: string;
@@ -56,7 +56,7 @@ export type DedicatedPiTranscriptEntry = {
   parentEntryId: string | null;
   role: string;
   visibleText: string;
-  promptEnvelope: "mirror_desktop" | "nautilus_harness" | "raw" | "unknown" | null;
+  promptEnvelope: "nautilus" | "mirror_desktop" | "nautilus_harness" | "raw" | "unknown" | null;
   stopReason: string | null;
   /** CR159: the provider's refusal as Pi records it on the assistant entry; absent on an answer. */
   errorMessage?: string | null;

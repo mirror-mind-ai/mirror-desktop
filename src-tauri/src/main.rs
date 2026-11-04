@@ -582,7 +582,7 @@ fn validate_thread_runtime_channel_name(thread: &Value, active: &str) -> Result<
 fn dedicated_native_names(journey_name: &str, generation: u64) -> (String, String) {
     let readable = journey_name.split_whitespace().collect::<Vec<_>>().join(" ");
     let readable = if readable.is_empty() { "Journey" } else { readable.as_str() };
-    let suffix = format!(" · Mirror Desktop · Generation {}", generation);
+    let suffix = format!(" · Nautilus · Generation {}", generation);
     let bounded = |limit: usize| {
         let available = limit.saturating_sub(suffix.chars().count()).max(1);
         let prefix = readable.chars().take(available).collect::<String>();
@@ -1506,7 +1506,7 @@ async fn create_desktop_conversation(
     let thread_id = format!("desktop-thread-{}-{:x}", bounded_journey, nonce);
     let app_data_dir = crate::home_state::home_state_dir(&app).map_err(|error| error.to_string())?;
     let pi_session_dir = app_data_dir.join("pi-sessions");
-    let pi_name = format!("{} · {} · Mirror Desktop", journey_name.chars().take(36).collect::<String>(), title.chars().take(36).collect::<String>());
+    let pi_name = format!("{} · {} · Nautilus", journey_name.chars().take(36).collect::<String>(), title.chars().take(36).collect::<String>());
     let mirror_name = title.clone();
     let created_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let runtime_channel = active_runtime_channel()?.channel.as_str().to_string();
@@ -1615,7 +1615,7 @@ async fn restart_desktop_conversation(
     let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
     let bounded_journey = journey_id.chars().take(52).collect::<String>();
     let requested_pi_id = format!("desktop-{}-g{}-{:x}", bounded_journey, next_generation, nonce);
-    let pi_name = format!("{} · Mirror Desktop · Generation {}", title.chars().take(48).collect::<String>(), next_generation);
+    let pi_name = format!("{} · Nautilus · Generation {}", title.chars().take(48).collect::<String>(), next_generation);
     let mirror_name = format!("{} · Generation {}", title.chars().take(72).collect::<String>(), next_generation);
     let activated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let operation_path = desktop_conversation_reset_path(&app, &journey_id)?;
@@ -5439,7 +5439,10 @@ fn project_dedicated_user_text_and_envelope(value: &str) -> (String, String) {
     } else {
         value
     };
-    let envelope = if body.starts_with("[Mirror Desktop Journey authority]") {
+    // CV-013.DS-002 slice 3: new prompts carry the Nautilus marker; stored ones keep theirs.
+    let envelope = if body.starts_with("[Nautilus Journey authority]") {
+        "nautilus"
+    } else if body.starts_with("[Mirror Desktop Journey authority]") {
         "mirror_desktop"
     } else if body.starts_with("[Nautilus Harness Journey authority]") {
         "nautilus_harness"
@@ -10930,7 +10933,7 @@ mod tests {
             "schemaVersion":"1.0.0", "kind":"desktop_conversation_creation", "phase":"reserved",
             "journeyId":"journey-one", "journeyName":"Journey One", "conversationId":"desktop-conversation-one",
             "threadId":"desktop-thread-one", "title":"Focused work", "requestedPiSessionId":"desktop-session-one",
-            "piSessionName":"Journey One · Focused work · Mirror Desktop", "mirrorName":"Focused work",
+            "piSessionName":"Journey One · Focused work · Nautilus", "mirrorName":"Focused work",
             "runtimeChannel":"development", "createdAt":"2026-09-15T10:00:00.000Z",
             "sourceConversationId":null, "sourceMessageLimit":null
         });
@@ -13659,7 +13662,8 @@ mod tests {
         let first = dedicated_native_names("Livro   Liderança Soberana", 1);
         let second = dedicated_native_names("Livro   Liderança Soberana", 1);
         assert_eq!(first, second);
-        assert!(first.0.contains("Mirror Desktop"));
+        // CV-013.DS-002 slice 3: the session names say Nautilus.
+        assert!(first.0.ends_with(" · Nautilus · Generation 1"));
         assert!(first.0.chars().count() <= 80);
         assert!(first.1.chars().count() <= 100);
     }
@@ -14135,6 +14139,17 @@ mod tests {
         assert_eq!(turns[0].user_prompt_envelope, "nautilus_harness");
         assert_eq!(turns[0].assistant_text, "Resposta");
         assert_eq!(turns[0].entry_count, 2);
+    }
+
+    #[test]
+    fn reads_the_nautilus_marker_and_still_reads_the_older_ones() {
+        // CV-013.DS-002 slice 3: new prompts carry the Nautilus marker; stored ones keep theirs.
+        let nautilus = "[Nautilus Journey authority]\nThe selected Journey ID for this turn is exactly: j\n\nUser request:\nOlá";
+        assert_eq!(project_dedicated_user_text_and_envelope(nautilus), ("Olá".to_string(), "nautilus".to_string()));
+        let desktop = "[Mirror Desktop Journey authority]\nx\n\nUser request:\nOlá";
+        assert_eq!(project_dedicated_user_text_and_envelope(desktop), ("Olá".to_string(), "mirror_desktop".to_string()));
+        let harness = "[Nautilus Harness Journey authority]\nx\n\nUser request:\nOlá";
+        assert_eq!(project_dedicated_user_text_and_envelope(harness), ("Olá".to_string(), "nautilus_harness".to_string()));
     }
 
     #[test]

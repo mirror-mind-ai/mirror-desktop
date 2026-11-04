@@ -52,11 +52,19 @@ impl LearningRun {
     }
 }
 
-/// The request a run sends; the key goes only when one is kept.
-pub(crate) fn learning_params(key: Option<&str>) -> Value {
+/// The interfaces a run learns from, newest first. CV-013.DS-002: the core asks for one interface
+/// per call, and the Conversations already open keep `nautilus_harness` until they are ensured
+/// again, so a run asks for both, within the same pieces.
+pub(crate) const LEARNED_INTERFACES: [&str; 2] = [
+    crate::mirror_host_bridge::CONVERSATION_INTERFACE,
+    crate::mirror_host_bridge::PREVIOUS_CONVERSATION_INTERFACE,
+];
+
+/// The request a run sends for one interface; the key goes only when one is kept.
+pub(crate) fn learning_params(interface: &str, limit: u64, key: Option<&str>) -> Value {
     let mut params = json!({"request": {
-        "interface": crate::mirror_host_bridge::CONVERSATION_INTERFACE,
-        "limit": PIECES_PER_RUN,
+        "interface": interface,
+        "limit": limit,
     }});
     if let Some(key) = key {
         params["apiKey"] = json!(key);
@@ -81,6 +89,26 @@ pub(crate) fn classify(at: &str, answer: Result<Value, MirrorHostError>) -> Lear
     }
 }
 
+/// The pieces a run may still learn after the answers it has.
+pub(crate) fn remaining_pieces(answers: &[LearningRun]) -> u64 {
+    PIECES_PER_RUN.saturating_sub(answers.iter().map(|run| run.pieces).sum())
+}
+
+/// One run's answers as one: their counts summed, or the first that did not learn.
+pub(crate) fn combine(at: &str, answers: Vec<LearningRun>) -> LearningRun {
+    if let Some(stopped) = answers.iter().find(|run| run.outcome != "learned") {
+        return stopped.clone();
+    }
+    answers.into_iter().fold(LearningRun::empty(at, "learned", None), |sum, run| LearningRun {
+        pieces: sum.pieces + run.pieces,
+        memories: sum.memories + run.memories,
+        failed: sum.failed + run.failed,
+        skipped: sum.skipped + run.skipped,
+        waiting: sum.waiting + run.waiting,
+        ..sum
+    })
+}
+
 /// One run on the bound home, through the learning host. `None` when no home is bound.
 pub(crate) fn run_once(app: &AppHandle) -> Option<LearningRun> {
     let home = crate::mirror_host_bridge::active_home(app).ok()?;
@@ -91,12 +119,27 @@ pub(crate) fn run_once(app: &AppHandle) -> Option<LearningRun> {
     };
     let state = app.state::<MirrorLearningState>();
     // The host stops after each run: nothing idles between runs ten minutes apart.
-    let answer = crate::mirror_host_bridge::with_supervisor(&state.host, |host| {
-        let answer = host.request_for_home(&home, "learnFromConversations", learning_params(key.as_deref()));
+    let answers = crate::mirror_host_bridge::with_supervisor(&state.host, |host| {
+        let mut answers = Vec::new();
+        for interface in LEARNED_INTERFACES {
+            let limit = remaining_pieces(&answers);
+            if limit == 0 {
+                break;
+            }
+            let answer = classify(&at, host.request_for_home(&home, "learnFromConversations", learning_params(interface, limit, key.as_deref())));
+            let stop = answer.outcome != "learned";
+            answers.push(answer);
+            if stop {
+                break;
+            }
+        }
         host.shutdown();
-        answer
+        Ok(answers)
     });
-    Some(classify(&at, answer))
+    match answers {
+        Ok(answers) => Some(combine(&at, answers)),
+        Err(error) => Some(classify(&at, Err(error))),
+    }
 }
 
 /// Start the schedule. `turns_idle` says whether no turn is reserved or running.
@@ -126,6 +169,34 @@ pub(crate) async fn mirror_learning_status(app: AppHandle) -> Result<Option<Lear
 mod tests {
     use super::*;
 
+    fn learned(pieces: u64, memories: u64) -> LearningRun {
+        LearningRun { at: "t".into(), outcome: "learned", pieces, memories, failed: 0, skipped: 1, waiting: 2, message: None }
+    }
+
+    #[test]
+    fn learns_from_the_nautilus_label_first_and_then_the_previous_one() {
+        // CV-013.DS-002 slice 3: open Conversations keep nautilus_harness until ensured again.
+        assert_eq!(LEARNED_INTERFACES, ["nautilus", "nautilus_harness"]);
+        let params = learning_params("nautilus_harness", 7, Some("k"));
+        assert_eq!(params["request"]["interface"], "nautilus_harness");
+        assert_eq!(params["request"]["limit"], 7);
+        assert_eq!(params["apiKey"], "k");
+    }
+
+    #[test]
+    fn one_run_shares_its_pieces_between_the_labels_and_sums_their_counts() {
+        assert_eq!(remaining_pieces(&[]), PIECES_PER_RUN);
+        assert_eq!(remaining_pieces(&[learned(4, 1)]), PIECES_PER_RUN - 4);
+        assert_eq!(remaining_pieces(&[learned(PIECES_PER_RUN, 1)]), 0);
+        assert_eq!(combine("t", vec![learned(4, 1), learned(3, 2)]), LearningRun {
+            at: "t".into(), outcome: "learned", pieces: 7, memories: 3, failed: 0, skipped: 2, waiting: 4, message: None,
+        });
+        let failed = LearningRun::empty("t", "failed", Some("no".into()));
+        assert_eq!(combine("t", vec![learned(4, 1), failed.clone()]), failed);
+        let no_key = LearningRun::empty("t", "no_key", None);
+        assert_eq!(combine("t", vec![no_key.clone(), learned(0, 0)]), no_key);
+    }
+
     #[test]
     fn a_report_becomes_counts_and_nothing_else() {
         let run = classify("t", Ok(json!({"pieces": 2, "memories": 3, "tasks": 1, "failed": 1, "skipped": 0, "waiting": 4})));
@@ -151,11 +222,11 @@ mod tests {
 
     #[test]
     fn the_request_names_desktops_interface_and_carries_the_key_only_when_kept() {
-        let with = learning_params(Some("sk-test"));
-        assert_eq!(with["request"]["interface"], "nautilus_harness");
+        let with = learning_params(LEARNED_INTERFACES[0], PIECES_PER_RUN, Some("sk-test"));
+        assert_eq!(with["request"]["interface"], "nautilus");
         assert_eq!(with["request"]["limit"], 10);
         assert_eq!(with["apiKey"], "sk-test");
-        assert!(learning_params(None).get("apiKey").is_none());
+        assert!(learning_params(LEARNED_INTERFACES[0], PIECES_PER_RUN, None).get("apiKey").is_none());
     }
 
     /// The real host and core. Run with
@@ -174,7 +245,7 @@ mod tests {
         host.request("createMarkedHome", json!({"request": {"homePath": parent.join("ana"), "userName": "ana"}})).unwrap();
         let home = MarkedHome::open(&parent.join("ana")).unwrap();
 
-        let quiet = classify("t", host.request_for_home(&home, "learnFromConversations", learning_params(None)));
+        let quiet = classify("t", host.request_for_home(&home, "learnFromConversations", learning_params(LEARNED_INTERFACES[0], PIECES_PER_RUN, None)));
         assert_eq!((quiet.outcome, quiet.pieces, quiet.waiting), ("learned", 0, 0), "nothing to learn needs no key");
 
         let tree = host.request_for_home(&home, "readJourneyTree", json!({})).unwrap();
@@ -193,7 +264,7 @@ mod tests {
             "sourceInterface": "nautilus-harness", "messages": messages,
         }})).unwrap();
 
-        let waiting = classify("t", host.request_for_home(&home, "learnFromConversations", learning_params(None)));
+        let waiting = classify("t", host.request_for_home(&home, "learnFromConversations", learning_params(LEARNED_INTERFACES[0], PIECES_PER_RUN, None)));
         assert_eq!(waiting.outcome, "no_key", "an idle stretch with no key is refused, not learned");
         let _ = std::fs::remove_dir_all(&parent);
     }
