@@ -6,7 +6,7 @@
 | --- | --- |
 | **Fila até o lançamento** | RS027 |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🔵 |
-| ↳　CR193 · A Cancel Before Pi Takes the Message Still Loses It | 🔵 in_progress · corrigida no `main`, aguarda conferência no dev |
+| ↳　CR193 · A Cancel Before Pi Takes the Message Still Loses It | 🔵 in_progress · na v0.4.0-alpha.2 · aguarda conferência em produção |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress |
 | ↳　CR163 · A Hung Mirror Append Freezes Every Exit | 🔵 in_progress |

@@ -76,7 +76,7 @@ is proposed and awaits the Navigator.
 | 1 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
 | 2 | [CR190](cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
 | 3 | [CR191](cr191-notice-a-new-version-while-the-app-stays-open.md) | RS026 | done | shipped in v0.3.0-alpha.15; checked in production with alpha.16, 2026-11-04 |
-| 5 | [CR193](cr193-a-cancel-before-pi-takes-the-message-still-loses-it.md) | RS026 | in_progress | on `main` (`d9995705`); awaits the dev check |
+| 5 | [CR193](cr193-a-cancel-before-pi-takes-the-message-still-loses-it.md) | RS026 | in_progress | dev-checked; shipped in v0.4.0-alpha.2; awaits the production check |
 | 4 | [CR192](cr192-the-0-2-carry-left-segment-receipts-stale.md) | RS026 | done | repaired on proof by `carry_03_state.mjs`; applies when DS-004 carries the state |
 | 3 | [RS027](../rs027-re-examine-the-older-open-work/index.md): CR159, CR163, CR166, CR164, CR155, CR161, CR148, CR131, CR157 | RS027 | — | moved there by the Navigator, 2026-11-03; each needs a verdict before any build |
 | — | [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md) | RS016 | parked | absorbed by CV-012, Navigator, 2026-11-03 |
