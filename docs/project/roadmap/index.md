@@ -27,7 +27,8 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-007](cv-007-trusted-self-update/index.md) | Trusted Self-Update | Mirror Desktop can verify and apply an authorized compatible release while preserving application and Mirror rollback and explain what is new in the offered release | ✅ Done |
 | [CV-008](cv-008-conversation-spaces/index.md) | Conversation Spaces | Navigator can steer active work, operate more Journey turns concurrently, converse through Journey, conversation or persona destinations, search and navigate durable Conversation history and compose prompts by voice without weakening durable authority | 🟡 Planned |
 | [CV-009](cv-009-trusted-macos-distribution/index.md) | Trusted macOS Distribution | Mirror Desktop can produce a repeatable macOS release artifact signed in Software Zen's Apple developer identity, accepted by Apple notarization, stapled for offline Gatekeeper verification and connected to the existing release provenance and updater trust boundaries without exposing credentials or widening distribution implicitly | 🟡 Planned |
-| [CV-010](cv-010-first-run-assistant/index.md) | First-Run Assistant | A person opening Mirror Desktop for the first time is guided, without a terminal, from launch to a first answered turn: an existing Mirror is found and connected, and what is missing is installed and configured with them | 🟡 Planned |
+| [CV-010](cv-010-first-run-assistant/index.md) | First-Run Assistant | A person opening Mirror Desktop for the first time is guided, without a terminal, from launch to a first answered turn: an existing Mirror is found and connected, and what is missing is installed and configured with them | ✅ Done |
+| [CV-011](cv-011-embedded-pi/index.md) | Embedded Pi | Mirror Desktop hosts Pi inside the app, as it hosts the TypeScript Mirror, instead of installing a Pi CLI and running it as a separate process | 🟡 Candidate |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -88,7 +89,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 
 ## Baseline State and Next Horizon
 
-CV-010, First-Run Assistant, is the **selected** horizon from 2026-10-27. On 2026-10-28 it was re-based on a **0.3 line embedding the TypeScript Mirror**, with 0.2 frozen at alpha.58 ([decision](cv-010-first-run-assistant/decision-2026-10-28-the-0-3-line.md)). It was originally decided decided by the Navigator together with the Refinement Suspension. Its first Delivery Story serves people who already use Mirror; installation from nothing follows. CV-009's Apple enrollment is submitted and awaits Apple.
+**CV-010, First-Run Assistant, is Done** (Navigator, 2026-11-03): the 0.3 line runs production, phase 5 closed with the window back. **No horizon is selected.** CV-011, Embedded Pi, is captured as a candidate; the Navigator brings the next roadmap demands. History: CV-010 was the **selected** horizon from 2026-10-27. On 2026-10-28 it was re-based on a **0.3 line embedding the TypeScript Mirror**, with 0.2 frozen at alpha.58 ([decision](cv-010-first-run-assistant/decision-2026-10-28-the-0-3-line.md)). It was originally decided decided by the Navigator together with the Refinement Suspension. Its first Delivery Story serves people who already use Mirror; installation from nothing follows. CV-009's Apple enrollment is submitted and awaits Apple.
 
 CV-001 through CV-007 formed the completed Mirror Desktop baseline. CV-007 has since been reopened for one incremental Delivery Story, In-App What's New, without invalidating the trusted self-update evidence completed through DS-003. CV-001 through CV-006 remain completed historical contracts.
 
@@ -138,8 +139,8 @@ Software Zen is the intended Apple Developer Program organization and responsibl
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-010.DS-001](cv-010-first-run-assistant/ds-001-find-and-connect-an-existing-mirror/index.md) | Find and Connect an Existing Mirror | A person with Mirror already installed sees it found, every requirement checked in plain language, and connects with one confirmation | 🟠 Implemented |
-| [CV-010.DS-005](cv-010-first-run-assistant/ds-005-speak-to-the-typescript-core/index.md) | The 0.3 Line: Mirror Desktop on an Embedded TypeScript Mirror | A 0.3 line hosts the TypeScript Core in-app on its own database, never touching production; 0.2 is frozen at alpha.58 and production migrates last | 🟡 Planned |
+| [CV-010.DS-001](cv-010-first-run-assistant/ds-001-find-and-connect-an-existing-mirror/index.md) | Find and Connect an Existing Mirror | A person with Mirror already installed sees it found, every requirement checked in plain language, and connects with one confirmation | Superseded (0.3: DS-005 phase 5a) |
+| [CV-010.DS-005](cv-010-first-run-assistant/ds-005-speak-to-the-typescript-core/index.md) | The 0.3 Line: Mirror Desktop on an Embedded TypeScript Mirror | A 0.3 line hosts the TypeScript Core in-app on its own database, never touching production; 0.2 is frozen at alpha.58 and production migrates last | ✅ Done |
 
 ## Boundaries
 

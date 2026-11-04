@@ -2,7 +2,7 @@
 
 # CV-010 - First-Run Assistant
 
-**Status:** 🟡 Planned
+**Status:** ✅ Done — closed by the Navigator on 2026-11-03
 
 ## Outcome
 
@@ -26,11 +26,11 @@ Decided by the Navigator on 2026-10-27:
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-010.DS-001](ds-001-find-and-connect-an-existing-mirror/index.md) | Find and Connect an Existing Mirror | A person with Mirror already installed opens the Desktop and sees their Mirror found, every requirement checked in plain language, and connects with one confirmation instead of typing paths | 🟠 Implemented |
-| [CV-010.DS-005](ds-005-speak-to-the-typescript-core/index.md) | The 0.3 Line: Mirror Desktop on an Embedded TypeScript Mirror | A 0.3 line hosts the TypeScript Core in-app on its own database and installation, never touching production or Python Mirror; production migrates last; **the spine of CV-010 from 2026-10-28** | 🟡 Planned |
-| CV-010.DS-002 | Install the Toolchain | The assistant installs pinned uv, Node + Pi and Mirror Core into app-owned locations with visible, resumable progress and a log without secrets | 🟡 Candidate |
-| CV-010.DS-003 | Create the Mirror | The assistant takes a name, writes the Mirror configuration, runs `init` and `seed` through a fixed-argv allowlist and opens a first Journey | 🟡 Candidate |
-| CV-010.DS-004 | Connect the Providers | The assistant takes the OpenRouter key and connects a subscription through Pi's own login or a provider API key, verified by `pi auth check` and the model catalog | 🟡 Candidate |
+| [CV-010.DS-001](ds-001-find-and-connect-an-existing-mirror/index.md) | Find and Connect an Existing Mirror | A person with Mirror already installed opens the Desktop and sees their Mirror found, every requirement checked in plain language, and connects with one confirmation instead of typing paths | Superseded (0.3: DS-005 phase 5a) |
+| [CV-010.DS-005](ds-005-speak-to-the-typescript-core/index.md) | The 0.3 Line: Mirror Desktop on an Embedded TypeScript Mirror | A 0.3 line hosts the TypeScript Core in-app on its own database and installation, never touching production or Python Mirror; production migrates last; **the spine of CV-010 from 2026-10-28** | ✅ Done |
+| CV-010.DS-002 | Install the Toolchain | The assistant installs pinned uv, Node + Pi and Mirror Core into app-owned locations with visible, resumable progress and a log without secrets | Absorbed into DS-005 phase 3 |
+| CV-010.DS-003 | Create the Mirror | The assistant takes a name, writes the Mirror configuration, runs `init` and `seed` through a fixed-argv allowlist and opens a first Journey | Absorbed into DS-005 phase 3 |
+| CV-010.DS-004 | Connect the Providers | The assistant takes the OpenRouter key and connects a subscription through Pi's own login or a provider API key, verified by `pi auth check` and the model catalog | Absorbed into DS-005 phase 3 |
 
 Changes that could be carried to the frozen 0.2 line before 0.3 is promoted are listed in
 [Release 0.2 Backport Candidates](release-0-2-backport-candidates.md).
@@ -76,3 +76,19 @@ Navigator's rule. It is recorded here for a decision and is not planned.
 
 **Decision (2026-10-28, later the same day):** [freeze 0.2, build a 0.3 line on an embedded TypeScript
 Mirror](decision-2026-10-28-the-0-3-line.md). DS-001 belongs to the 0.2 line. DS-002 to DS-004 are rebuilt on 0.3 as phase 3 of DS-005.
+
+## Done (2026-11-03)
+
+Closed by the Navigator: *"O CV10 já não está pronto? Considero pronto aqui do meu lado. A não ser
+pela demanda de tornar o Pi embedded."*
+
+- **What was delivered** is DS-005, the 0.3 line: an embedded TypeScript Mirror, a first-run
+  assistant that installs Pi, creates or adopts a home and connects providers (phase 3, accepted on
+  the clean `mirror` account on 2026-10-30), and production moved onto it (phase 5).
+- **DS-002 to DS-004** were rebuilt as DS-005 phase 3 and are not separate stories any more.
+  **DS-001** belongs to the 0.2 line; on 0.3, its outcome is DS-005 phase 5a.
+- **The Done Condition says "signed".** Signing was always CV-009's, outside this CV's Boundary, and
+  waits on Apple. The Navigator accepted CV-010 on the unsigned build.
+- **Pi is not embedded.** The assistant installs a pinned Pi into a folder the app owns, and the app
+  runs it as a separate CLI. Embedding it, as the TypeScript Mirror is, is the Navigator's next
+  relevant demand, captured as [CV-011](../cv-011-embedded-pi/index.md).

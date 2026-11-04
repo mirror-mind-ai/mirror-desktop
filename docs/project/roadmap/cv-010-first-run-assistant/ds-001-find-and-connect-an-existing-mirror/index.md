@@ -2,7 +2,7 @@
 
 # CV-010.DS-001 - Find and Connect an Existing Mirror
 
-**Status:** 🟠 Implemented — on branch `cv-010-ds-001-find-and-connect-an-existing-mirror`, not integrated or released
+**Status:** Superseded — built for the 0.2 line and published in v0.2.0-alpha.58; on the 0.3 line, finding and adopting an existing Mirror is DS-005 phase 5a (Navigator closed CV-010, 2026-11-03)
 
 ## Outcome
 

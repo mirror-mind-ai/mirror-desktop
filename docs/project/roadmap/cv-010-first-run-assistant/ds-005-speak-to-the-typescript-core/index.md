@@ -2,7 +2,7 @@
 
 # CV-010.DS-005 - The 0.3 Line: Mirror Desktop on an Embedded TypeScript Mirror
 
-**Status:** 🟡 Planned — re-scoped by the Navigator on 2026-10-28 ([decision](../decision-2026-10-28-the-0-3-line.md)); nothing built
+**Status:** ✅ Done — closed by the Navigator on 2026-11-03 with phase 5; re-scoped on 2026-10-28 ([decision](../decision-2026-10-28-the-0-3-line.md))
 
 ## Outcome
 
@@ -189,7 +189,7 @@ including any Navigator check, is met.
 | 2 · The embedded host | ✅ Done | — (Navigator check of a packaged build passed 2026-10-29) |
 | 3 · The first-run assistant on 0.3 | ✅ Done | — (accepted 2026-10-30 on the clean `mirror` account; acceptance 4 evidenced only for the empty model catalog, the other failures covered by tests) |
 | 4 · Stable | ✅ Done | — (alpha.1 and alpha.2 published on `/mirror-desktop/ts/`; the installed app updated itself, checked by the Navigator 2026-10-31; 4d waived) |
-| 5 · Migration | 🟡 Candidate | Extensions ported; 5a checked by the Navigator; 5a-2 rehearsed on a copy of production (three Journeys continued their Conversations); 5b written and rehearsed (4 s, Python reads the restored copy); 5c run on 2026-11-01: production on 0.3.0-alpha.3 at 018, terminal on the TypeScript Core (Pi); closes when the Navigator closes the window back |
+| 5 · Migration | 🟡 Candidate | ✅ Done | — (5c run 2026-11-01; the window back closed by the Navigator 2026-11-03: "A 0.3 está estável e funcionando plenamente") |
 
 **Not carried into 0.3 at first:** Journey administration (`journey mutate` was removed upstream) and the
 Canvas and altitude read models (projections were removed). Each returns when a Core contract for it is
@@ -4024,3 +4024,22 @@ Finder to lay out the window. Run by an agent inside Mirror Desktop TS, it hung 
 granted that app Automation › Finder (Privacy & Security); 0.2 already held that grant. A
 forgotten mounted installer with the same volume name (`/Volumes/Mirror Desktop TS`) was ejected
 first, but it was not the cause.
+
+## The Window Back Closed; Phase 5 and DS-005 Done (2026-11-03)
+
+The Navigator, on 2026-11-03: *"Podemos encerrar a janela de transição de produção e considerar a
+Fase 5 concluída. Não há mais motivo para voltar atrás. A 0.3 está estável e funcionando
+plenamente."* Production had run on the 0.3 line for two days, through v0.3.0-alpha.12, with every
+fix made forward and no rollback.
+
+So phase 5 is Done, and with it all six phases and this Delivery Story.
+
+What closing the window changes, and what it does not:
+
+- **No way back is kept as a promise.** The 0.2-era home (`alisson-vale.pre-0.3`), `~/Mirror
+  Backups`, the 0.2 app data and the Python checkout `~/mirror` stay where they are. Each deletion
+  still needs its own word.
+- **Now open for decision**, one word each: the Python hooks and `mirror-logger` in `~/mirror`;
+  "Owed at the End of Phase 5" above; the rehearsal homes and `/private/tmp` leftovers; and the
+  machine-local `~/.pi/agent/AGENTS.md`, which still says to leave those paths untouched "until the
+  Navigator closes the window back".
