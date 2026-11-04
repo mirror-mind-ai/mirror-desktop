@@ -42,7 +42,8 @@ describe("CR183 · a turn cancelled before any answer", () => {
 
   it("is wired into the cancelled path, for an answer with neither prose nor work", () => {
     const cancelled = appSource.slice(appSource.indexOf("} else if (runWasCancelled || runFailed) {"), appSource.indexOf("// CR159 reopened"));
-    expect(cancelled).toContain("const unanswered = runWasCancelled && !performedWork && !interruptedFragment.trim()");
+    // CR193: the decision itself moved to `cancelledBeforeAnyAnswer`, tested there.
+    expect(cancelled).toContain("const unanswered = cancelledBeforeAnyAnswer({");
     expect(cancelled).toContain("persistOwnerComposerDraft(draftAfterUnansweredCancel(currentOwnerDraft(), content), true);");
     expect(cancelled).toContain("Message returned to the composer: the turn was cancelled before any answer.");
   });

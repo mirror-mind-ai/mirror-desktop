@@ -46,7 +46,7 @@ import {
 } from "./terminalAgentActionEvidence";
 import { ComposerRuntimeFooter, ComposerRuntimeStatus } from "./ComposerRuntimeFooter";
 import { ComposerDraftInput, type ComposerDraftHandle } from "./ComposerDraftInput";
-import { draftAfterAdmission, draftAfterUnansweredCancel } from "../domain/composerHandoff";
+import { cancelledBeforeAnyAnswer, draftAfterAdmission, draftAfterUnansweredCancel, hasAnswerProse } from "../domain/composerHandoff";
 import {
   clearScheduledNotice,
   scheduleTransientComposerNotice,
@@ -3884,8 +3884,9 @@ export function App({ model }: AppProps) {
         let interrupted = replaceJourneyConversationMessages(
           runConversation,
           runConversation.messages.filter(
+            // CR193: the persona CR188 names before Pi has the message is not something written.
             (message) => message.id !== assistantMessage.id
-              || message.content.trim().length > 0
+              || hasAnswerProse(message.content)
               || performedWork,
           ),
         );
@@ -3919,9 +3920,14 @@ export function App({ model }: AppProps) {
         }
         runConversation = interrupted;
         // CR183: cancelled before the agent wrote or did anything, the message goes back to the
-        // composer, before whatever the person typed since.
-        const unanswered = runWasCancelled && !performedWork && !interruptedFragment.trim()
-          && !runConversation.messages.some((message) => message.id === assistantMessage.id && message.content.trim());
+        // composer, before whatever the person typed since. CR193: a persona already named is not
+        // an answer.
+        const unanswered = cancelledBeforeAnyAnswer({
+          runWasCancelled,
+          performedWork,
+          interruptedFragment,
+          assistantContent: runConversation.messages.find((message) => message.id === assistantMessage.id)?.content,
+        });
         if (unanswered) {
           persistOwnerComposerDraft(draftAfterUnansweredCancel(currentOwnerDraft(), content), true);
           if (selectedJourneyRef.current === ownerJourneyId && fileAttachments.length) {

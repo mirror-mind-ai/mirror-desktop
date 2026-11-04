@@ -23,3 +23,25 @@ export function draftAfterUnansweredCancel(current: string, sent: string): strin
   if (!current.trim() || current.trim() === sent.trim()) return sent;
   return `${sent}\n\n${current}`;
 }
+
+// CR188 puts this marker at the head of the answer when the Mirror names the persona, before Pi
+// has the message.
+const certifiedPersonaMarker = /^\s*✦\s*Persona:[^\n]*(?:\n|$)/i;
+
+/** CR193: whether an answer holds anything the agent wrote, beyond the persona that will speak. */
+export function hasAnswerProse(content: string): boolean {
+  return content.replace(certifiedPersonaMarker, "").trim().length > 0;
+}
+
+/** CR183, CR193: a cancelled turn whose agent neither wrote nor did anything gives its message back. */
+export function cancelledBeforeAnyAnswer(turn: {
+  runWasCancelled: boolean;
+  performedWork: boolean;
+  interruptedFragment: string;
+  assistantContent: string | undefined;
+}): boolean {
+  return turn.runWasCancelled
+    && !turn.performedWork
+    && !turn.interruptedFragment.trim()
+    && !hasAnswerProse(turn.assistantContent ?? "");
+}
