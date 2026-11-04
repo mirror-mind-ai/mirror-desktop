@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { updateQuiescence } from "../domain/updateInstallation";
 import type { ReleaseReading } from "../domain/releaseReading";
-import { checkForTrustedSelfUpdate, currentMirrorDesktopVersion, installTrustedSelfUpdate, type SelfUpdateCheckResult, type SelfUpdateProgress } from "./selfUpdateStorage";
+import { checkForTrustedSelfUpdate, currentMirrorDesktopVersion, installTrustedSelfUpdate, type SelfUpdateCheckResult } from "./selfUpdateStorage";
+import { startUpdateRechecks, stateAfterRecheck, type UpdateChipState } from "./updateRecheck";
 
 export type SelfUpdateNotificationProps = {
   runtimeBusy: boolean;
@@ -16,13 +17,6 @@ export type SelfUpdateNotificationProps = {
   onReview: (update?: SelfUpdateCheckResult & { status: "available" }) => void;
   onAcknowledge?: () => void;
 };
-
-type UpdateChipState =
-  | { status: "idle" }
-  | { status: "checking" }
-  | { status: "available"; update: SelfUpdateCheckResult & { status: "available" } }
-  | { status: "installing"; update: SelfUpdateCheckResult & { status: "available" }; progress?: SelfUpdateProgress }
-  | { status: "error"; message: string };
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -83,6 +77,18 @@ export function SelfUpdateNotification({
         if (!cancelled) setState({ status: "idle" });
       });
     return () => { cancelled = true; };
+  }, [checkUpdates, initialUpdate]);
+
+  // CR191: the app stays open for days, so the channel is asked again while it does. A later check
+  // shows no "checking" state and is silent when it fails.
+  useEffect(() => {
+    if (initialUpdate) return undefined;
+    return startUpdateRechecks({
+      recheck: () => checkUpdates().then((result) => {
+        setState((current) => stateAfterRecheck(current, result));
+        if (result.status === "available") setCurrentVersion(result.currentVersion);
+      }),
+    });
   }, [checkUpdates, initialUpdate]);
 
   useEffect(() => {
