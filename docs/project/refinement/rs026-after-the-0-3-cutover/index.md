@@ -52,7 +52,7 @@ delivering anything.
 - [CR190: Show the Person in the Header and in Their Turns](cr190-show-the-person-in-the-header-and-in-their-turns.md) — **done** · Desktop · Navigator, 2026-11-03; avatar button, the person's name on their turns, Chapters in the menu, a plainer reset
 - [CR191: Notice a New Version While the App Stays Open](cr191-notice-a-new-version-while-the-app-stays-open.md) — **done** · Desktop · Navigator, 2026-11-04; shipped in v0.3.0-alpha.15, seen in production with alpha.16 without a restart; the update notice appears only when the app loads, and the app is rarely closed
 - [CR192: The 0.2 Carry Left Segment Receipts Stale](cr192-the-0-2-carry-left-segment-receipts-stale.md) — **done** · Desktop state · repaired by the 0.3 carry, on proof · found building CV-013.DS-003, 2026-11-04; 893 segments carried from 0.2 fail their recorded hash, provably only because their session paths moved
-- [CR193: A Cancel Before Pi Takes the Message Still Loses It](cr193-a-cancel-before-pi-takes-the-message-still-loses-it.md) — **captured** · Desktop · Navigator, 2026-11-04, in Nautilus; CR183's return does not happen for a cancel before Pi takes the message, which now takes 20 to 40 s
+- [CR193: A Cancel Before Pi Takes the Message Still Loses It](cr193-a-cancel-before-pi-takes-the-message-still-loses-it.md) — **in_progress** · Desktop · Navigator, 2026-11-04, in Nautilus; cause: CR188's persona marker read as an answer; CR183's return does not happen for a cancel before Pi takes the message, which now takes 20 to 40 s
 
 ## Queue After the Cutover
 
@@ -76,7 +76,7 @@ is proposed and awaits the Navigator.
 | 1 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
 | 2 | [CR190](cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
 | 3 | [CR191](cr191-notice-a-new-version-while-the-app-stays-open.md) | RS026 | done | shipped in v0.3.0-alpha.15; checked in production with alpha.16, 2026-11-04 |
-| 5 | [CR193](cr193-a-cancel-before-pi-takes-the-message-still-loses-it.md) | RS026 | captured | Navigator, 2026-11-04; cause being located |
+| 5 | [CR193](cr193-a-cancel-before-pi-takes-the-message-still-loses-it.md) | RS026 | in_progress | on `main` (`d9995705`); awaits the dev check |
 | 4 | [CR192](cr192-the-0-2-carry-left-segment-receipts-stale.md) | RS026 | done | repaired on proof by `carry_03_state.mjs`; applies when DS-004 carries the state |
 | 3 | [RS027](../rs027-re-examine-the-older-open-work/index.md): CR159, CR163, CR166, CR164, CR155, CR161, CR148, CR131, CR157 | RS027 | — | moved there by the Navigator, 2026-11-03; each needs a verdict before any build |
 | — | [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md) | RS016 | parked | absorbed by CV-012, Navigator, 2026-11-03 |

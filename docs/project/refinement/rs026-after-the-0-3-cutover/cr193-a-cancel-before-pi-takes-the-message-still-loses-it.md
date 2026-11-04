@@ -2,7 +2,7 @@
 
 # CR193: A Cancel Before Pi Takes the Message Still Loses It
 
-**Status:** captured
+**Status:** in_progress
 **Line:** 0.4 · Desktop only
 
 ## Friction
@@ -28,12 +28,35 @@ return and was checked in production on 2026-11-03 (v0.3.0-alpha.10).
   for the Journey's thread.
 - No App-level test covers CR183: its spec tests `draftAfterUnansweredCancel` alone.
 
-## Open
+The Navigator adds (2026-11-04): no notice appears; the composer simply stays empty.
 
-The exact path is not yet proven. Candidates, to be decided by a spec that drives a live run
-cancelled before `agent_start`: the CR183 branch not reached for a cancel in that window, or
-reached and its result overwritten afterwards. The 20 to 40 s before Pi takes a message is its own
-question (the Mirror context built before the prompt) and may deserve its own CR.
+## Cause
+
+[CR188](cr188-name-the-persona-at-the-top-of-the-answer.md) (v0.3.0-alpha.12, after CR183 was
+checked on alpha.10) writes `✦ Persona: <name>` into the answer when the native side reports the
+persona. That report is emitted right after `mirror_context::prepare_turn`, **before Pi is
+spawned**, so the answer already holds the marker during the whole window before Pi takes the
+message. CR183 asked whether the answer's content was empty; the marker made it non-empty, so a
+cancel in that window was read as answered: no return, no notice, and the persona-only answer
+stayed in the transcript.
+
+## Delivered on `main` (`{C}`)
+
+- `hasAnswerProse` (`src/domain/composerHandoff.ts`) reads an answer without the CR188 marker, and
+  `cancelledBeforeAnyAnswer` holds CR183's decision: cancelled, no work, no interrupted fragment,
+  no prose. The cancelled path in `App.tsx` uses both, for the return and for dropping the empty
+  answer.
+- Spec first (`src/tests/cr193CancelBeforePiTakesTheMessage.test.ts`, 6 tests, failing before the
+  change); 5 mutations, all caught. `tsc` clean; 2,632 tests pass. No native change, so `cargo
+  test` was not rerun.
+
+## Still Open
+
+- Check in development, then in production with the next alpha.
+- The short cancels' journal records stop at `terminal_durable` / `resume_projection` instead of
+  reaching `interrupted`. Not the cause of the lost message; to be read separately.
+- The 20 to 40 s between Send and Pi taking the message (the Mirror context built before the
+  prompt) may deserve its own CR: it is why this window is so easy to hit.
 
 ## Acceptance
 
