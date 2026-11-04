@@ -108,7 +108,11 @@ export function transitionSteering(
   requestId: string,
   status: SteeringStatus,
   now: Date = new Date(),
-  details: { piUserEntryId?: string; terminalReason?: SteeringEvidence["terminalReason"] } = {},
+  details: {
+    piUserEntryId?: string;
+    terminalReason?: SteeringEvidence["terminalReason"];
+    rejectionReason?: string;
+  } = {},
 ): JourneyConversation {
   if (!steeringAuthorityMatches(conversation, authority)) throw new Error("steering_authority_mismatch");
   let matched = false;
@@ -126,6 +130,9 @@ export function transitionSteering(
       ...(details.piUserEntryId ? { piUserEntryId: details.piUserEntryId } : {}),
       ...(status === "applied" ? { terminalReason: undefined } : {}),
       ...(details.terminalReason ? { terminalReason: details.terminalReason } : {}),
+      ...(status === "rejected" && details.rejectionReason
+        ? { rejectionReason: details.rejectionReason.slice(0, 2_000) }
+        : {}),
     };
   });
   if (!matched) throw new Error("steering_request_missing");

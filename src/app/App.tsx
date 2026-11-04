@@ -313,6 +313,7 @@ import {
   identityJourneyId,
   isJourneyRuntimeActiveOrFinalizing,
   isJourneyRuntimeStreaming,
+  sameJourneyRunIdentity,
   journeyRuntimeReducer,
   identityWorkspace,
   selectJourneyRuntime,
@@ -471,6 +472,7 @@ import {
   transitionSteering,
 } from "../domain/steeringState";
 import { applyQueueDepartureToLiveEvidence, mergeLiveSteeringEvidence } from "./liveSteeringEvidence";
+import { deliverSteeringWhenReady, settleSteeringDelivery } from "./steeringDelivery";
 import { createDedicatedTurnAuthority } from "../domain/dedicatedTurnAuthority";
 import { createRunAuthority, samePiProcessEventAuthority } from "../domain/runAuthority";
 import { classifyDedicatedTurnState, dedicatedTurnBlocksNewInvocation, interruptDedicatedTurn } from "../domain/dedicatedTurnCommit";
@@ -4310,29 +4312,50 @@ export function App({ model }: AppProps) {
       return;
     }
 
+    // CR187: a correction sent in the first seconds arrives before the native invocation can take
+    // it. It stays pending and is asked again until the invocation has written the turn's prompt,
+    // instead of being refused. The wait can outlive many stream updates, so its result is written
+    // onto the run's freshest conversation, never onto the copy staged before it.
+    const runId = identity.authority.runId;
+    const runtimeEntry = () => selectJourneyRuntimeEntries(journeyRuntimeStateRef.current, identity.authority.journeyId)
+      .find((entry) => sameJourneyRunIdentity(entry.identity, identity));
+    const evidence = staged.steeringEvidence?.find((item) => item.requestId === requestId);
+    const outcome = evidence
+      ? await deliverSteeringWhenReady({
+        steer: () => steerLivePiInvocation({
+          requestId,
+          sequence: evidence.sequence,
+          text: evidence.text,
+          runAuthority: identity.authority,
+        }),
+        runStillLive: () => {
+          const entry = runtimeEntry();
+          return Boolean(entry && isJourneyRuntimeStreaming(entry) && !entry.isFinalizingTurn);
+        },
+        sleep: (ms) => new Promise((resolve) => window.setTimeout(resolve, ms)),
+        now: () => Date.now(),
+      })
+      : { kind: "rejected" as const, reason: "steering_request_missing" };
     try {
-      const evidence = staged.steeringEvidence?.find((item) => item.requestId === requestId);
-      if (!evidence) throw new Error("steering_request_missing");
-      const admission = await steerLivePiInvocation({
-        requestId,
-        sequence: evidence.sequence,
-        text: evidence.text,
-        runAuthority: identity.authority,
-      });
-      const next = admission.status === "accepted"
-        ? transitionSteering(staged, identity.authority, requestId, "accepted")
-        : staged;
-      publishSteeringConversation(next, identity);
-      await saveDedicatedJourneyConversation(next);
+      const freshest = mergeLiveSteeringEvidence(
+        runtimeEntry()?.conversationSnapshot ?? staged,
+        runId,
+        steeringEvidenceByRunRef.current[runId],
+      );
+      const next = settleSteeringDelivery(freshest, identity.authority, requestId, outcome);
+      if (next) {
+        publishSteeringConversation(next, identity);
+        await saveDedicatedJourneyConversation(next).catch(() => undefined);
+      }
     } catch (error) {
-      const rejected = transitionSteering(staged, identity.authority, requestId, "rejected");
-      publishSteeringConversation(rejected, identity);
-      await saveDedicatedJourneyConversation(rejected).catch(() => undefined);
+      console.warn(`steering outcome not recorded for ${requestId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (outcome.kind === "rejected") {
       dispatchJourneyRuntime({
         type: "append_warning",
         workspace: identityWorkspace(identity),
         identity,
-        message: `Steering was rejected: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Steering was rejected: ${outcome.reason}`,
       });
     }
   }

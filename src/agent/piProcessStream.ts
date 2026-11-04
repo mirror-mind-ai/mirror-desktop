@@ -551,10 +551,15 @@ function extractToolOutput(result: PiJsonEvent["result"]): string | undefined {
   return text === undefined ? undefined : stripAnsiControlSequences(text);
 }
 
+/**
+ * CR187: `waiting` means the invocation cannot take a correction yet (it does not exist, has no
+ * child, or has not written the turn's prompt) and nothing was written to Pi, so asking again is
+ * safe.
+ */
 export type SteeringAdmission = {
   requestId: string;
   sequence: number;
-  status: "pending" | "accepted";
+  status: "pending" | "accepted" | "waiting";
 };
 
 export async function steerLivePiInvocation(input: {

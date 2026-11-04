@@ -110,6 +110,8 @@ export type SteeringEvidence = {
   updatedAt: string;
   piUserEntryId?: string;
   terminalReason?: "cancelled" | "provider_failed" | "process_died" | "settled_without_application" | "restart_without_process";
+  /** CR187: why a rejected correction was refused, kept so the evidence can explain itself. */
+  rejectionReason?: string;
 };
 
 export type JourneyConversation = {

@@ -155,6 +155,9 @@ struct PiChildProcess {
     child: Child,
     stdin: Option<ChildStdin>,
     rpc: bool,
+    /// CR187: set under this lock by the write that sends the turn's prompt, so a correction is
+    /// never written to Pi ahead of the prompt it corrects.
+    prompt_sent: bool,
     settled: Arc<AtomicBool>,
     responses: PiRpcResponses,
 }
@@ -5552,6 +5555,30 @@ struct SteeringAdmission {
     status: String,
 }
 
+/// CR187: whether an invocation can be asked to take a correction yet. The Composer offers Steering
+/// as soon as the turn is live in the renderer, which is before `start_pi_invocation` has reserved
+/// the invocation and before the worker has attached its child. Those moments used to refuse the
+/// correction; they now say it should wait, and only an invocation that is over refuses.
+#[derive(Debug, PartialEq, Eq)]
+enum SteeringTargetReadiness {
+    Waiting,
+    Attached,
+    Over,
+}
+
+fn steering_target_readiness(
+    entry: Option<(pi_process_registry::JourneyLeasePhase, TerminalState)>,
+) -> SteeringTargetReadiness {
+    use pi_process_registry::JourneyLeasePhase;
+    match entry {
+        None => SteeringTargetReadiness::Waiting,
+        Some((_, terminal)) if terminal != TerminalState::Open => SteeringTargetReadiness::Over,
+        Some((JourneyLeasePhase::Reserved, _)) => SteeringTargetReadiness::Waiting,
+        Some((JourneyLeasePhase::Running, _)) => SteeringTargetReadiness::Attached,
+        Some((JourneyLeasePhase::Finalizing, _)) => SteeringTargetReadiness::Over,
+    }
+}
+
 fn exact_steering_authority_matches(inspection: &RegistryAuthorityInspection, authority: &RunAuthority) -> bool {
     inspection.journey_id == authority.journey_id
         && inspection.run_id == authority.run_id
@@ -5577,6 +5604,11 @@ fn steer_pi_invocation(
     validate_run_authority(&app, &request.run_authority)?;
     let line = steer_line(&request.request_id, &request.text)?;
     let target = RunTarget::new(&request.run_authority.journey_id, &request.run_authority.run_id);
+    let waiting = || SteeringAdmission {
+        request_id: request.request_id.clone(),
+        sequence: request.sequence,
+        status: "waiting".to_string(),
+    };
     let child_handle = {
         let registry = state.registry.lock()
             .map_err(|_| "Could not access the Pi process registry.".to_string())?;
@@ -5585,26 +5617,36 @@ fn steer_pi_invocation(
         // sentence that is false about the turn being steered.
         let inspection = registry.inspect().entries.into_iter()
             .find(|entry| entry.authority.journey_id == target.journey_id
-                && entry.authority.run_id == target.run_id)
-            .ok_or_else(|| "The targeted Pi invocation does not exist.".to_string())?;
-        if !exact_steering_authority_matches(&inspection.authority, &request.run_authority) {
-            return Err("Steering authority does not match the exact active turn.".to_string());
+                && entry.authority.run_id == target.run_id);
+        if let Some(inspection) = &inspection {
+            if !exact_steering_authority_matches(&inspection.authority, &request.run_authority) {
+                return Err("Steering authority does not match the exact active turn.".to_string());
+            }
         }
-        registry.child_handle(&target).map_err(target_error_message)?
+        match steering_target_readiness(inspection.map(|entry| (entry.lease_phase, entry.terminal_state))) {
+            SteeringTargetReadiness::Waiting => return Ok(waiting()),
+            SteeringTargetReadiness::Over => return Err(target_error_message(TargetError::NotRunning)),
+            SteeringTargetReadiness::Attached => registry.child_handle(&target).map_err(target_error_message)?,
+        }
     };
     let responses = control_child_handle(&child_handle, |process| {
         if !process.rpc || process.settled.load(Ordering::Acquire) {
             return Err("The targeted Pi invocation is not accepting Steering.".to_string());
         }
+        // CR187: nothing is written until the prompt is, so the renderer may ask again.
+        if !process.prompt_sent {
+            return Ok(None);
+        }
         let stdin = process.stdin.as_mut()
             .ok_or_else(|| "Pi RPC stdin is unavailable.".to_string())?;
         stdin.write_all(line.as_bytes()).map_err(|error| error.to_string())?;
         stdin.flush().map_err(|error| error.to_string())?;
-        Ok(process.responses.clone())
+        Ok(Some(process.responses.clone()))
     }).map_err(|error| match error {
         ChildControlError::Unavailable => "Could not access the targeted Pi process.".to_string(),
         ChildControlError::Operation(error) => error,
     })?;
+    let Some(responses) = responses else { return Ok(waiting()) };
 
     let (lock, available) = &*responses;
     let recorded = lock.lock().map_err(|_| "Could not inspect Pi RPC responses.".to_string())?;
@@ -8322,6 +8364,7 @@ fn run_pi_process_unguarded(
         child,
         stdin: if mirror_mediated { child_stdin } else { None },
         rpc: mirror_mediated,
+        prompt_sent: false,
         settled: rpc_settled,
         responses: rpc_responses,
     }));
@@ -8382,7 +8425,9 @@ fn run_pi_process_unguarded(
                 stdin
                     .write_all(commands.as_bytes())
                     .map_err(|error| error.to_string())?;
-                stdin.flush().map_err(|error| error.to_string())
+                stdin.flush().map_err(|error| error.to_string())?;
+                process.prompt_sent = true;
+                Ok(())
             })
             .map_err(|error| match error {
                 ChildControlError::Unavailable => {
@@ -15628,5 +15673,40 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         let catalog = body_of(&source, "fn run_mirror_conversation_catalog(");
         assert!(!catalog.contains(".output()"), "the catalog waits on a child again");
         assert!(catalog.contains("mirror_host_bridge::conversation_catalog("));
+    }
+}
+
+#[cfg(test)]
+mod cr187_early_steering_tests {
+    use super::*;
+    use pi_process_registry::JourneyLeasePhase;
+
+    #[test]
+    fn a_correction_before_the_child_exists_waits() {
+        assert_eq!(steering_target_readiness(None), SteeringTargetReadiness::Waiting);
+        assert_eq!(
+            steering_target_readiness(Some((JourneyLeasePhase::Reserved, TerminalState::Open))),
+            SteeringTargetReadiness::Waiting,
+        );
+    }
+
+    #[test]
+    fn a_running_child_can_be_asked() {
+        assert_eq!(
+            steering_target_readiness(Some((JourneyLeasePhase::Running, TerminalState::Open))),
+            SteeringTargetReadiness::Attached,
+        );
+    }
+
+    #[test]
+    fn a_finished_invocation_still_refuses() {
+        assert_eq!(
+            steering_target_readiness(Some((JourneyLeasePhase::Finalizing, TerminalState::Open))),
+            SteeringTargetReadiness::Over,
+        );
+        assert_eq!(
+            steering_target_readiness(Some((JourneyLeasePhase::Running, TerminalState::Completed))),
+            SteeringTargetReadiness::Over,
+        );
     }
 }

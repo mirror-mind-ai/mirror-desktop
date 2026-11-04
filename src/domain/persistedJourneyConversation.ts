@@ -299,7 +299,9 @@ function parseSteeringEvidence(
       || !statuses.has(String(candidate.status))
       || typeof candidate.createdAt !== "string" || typeof candidate.updatedAt !== "string"
       || (candidate.piUserEntryId !== undefined && typeof candidate.piUserEntryId !== "string")
-      || (candidate.terminalReason !== undefined && !reasons.has(String(candidate.terminalReason)))) return false;
+      || (candidate.terminalReason !== undefined && !reasons.has(String(candidate.terminalReason)))
+      || (candidate.rejectionReason !== undefined
+        && (typeof candidate.rejectionReason !== "string" || candidate.rejectionReason.length > 2_000))) return false;
     const turn = authority.turns.find((item) => item.turnId === candidate.turnId && item.runId === candidate.runId);
     return turn?.harness.assistantMessageId === candidate.assistantMessageId
       && authority.messages.some((message) => message.role === "assistant" && message.id === candidate.assistantMessageId);
