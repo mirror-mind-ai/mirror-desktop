@@ -4,7 +4,7 @@
 
 | Item | Estado |
 | --- | --- |
-| **Fila até o lançamento** | 1 CV-012.DS-001 · 2 CV-013 · depois RS027 |
+| **Fila até o lançamento** | 1 CV-013 · depois RS027 |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 ⏸️ |
 | ↳　CR171 · Retire the nautilus_harness Interface Label | ⏸️ parked · vai para a CV-013 |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
@@ -33,7 +33,6 @@
 | --- | --- |
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
-| ↳　DS-001 · Launch With Only the Canonical Set | 🚀 publicada em v0.3.0-alpha.14 · validar em produção |
 | **CV-013 · Nautilus for Mirror** | 🟡 Candidate · 4ª da fila · último passo antes da divulgação |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |

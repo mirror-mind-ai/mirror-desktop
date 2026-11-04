@@ -44,6 +44,6 @@ Tactical and Strategic altitudes added by the Navigator, 2026-11-03):
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-012.DS-001](ds-001-launch-with-only-the-canonical-set/index.md) | Launch With Only the Canonical Set | The Agent Field (formerly Context Map) and the Agent Canvas become switches in Settings › Extensions, off by default; Ariad and the other altitudes were already hidden | ✅ Validated in dev, shipping in v0.3.0-alpha.14 |
+| [CV-012.DS-001](ds-001-launch-with-only-the-canonical-set/index.md) | Launch With Only the Canonical Set | The Agent Field (formerly Context Map) and the Agent Canvas become switches in Settings › Extensions, off by default; Ariad and the other altitudes were already hidden | ✅ Done (v0.3.0-alpha.14) |
 
 The extension mechanism itself waits for an Explorer Mode pass.

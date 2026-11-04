@@ -2,7 +2,7 @@
 
 # CV-012.DS-001 - Launch With Only the Canonical Set
 
-**Status:** ✅ Validated in development by the Navigator on 2026-11-04 — shipping in v0.3.0-alpha.14
+**Status:** ✅ Done — shipped in v0.3.0-alpha.14 and validated in production by the Navigator on 2026-11-04
 
 ## Outcome
 
