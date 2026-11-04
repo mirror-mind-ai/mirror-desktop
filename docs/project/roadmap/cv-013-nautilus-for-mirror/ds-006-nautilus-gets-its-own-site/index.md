@@ -2,8 +2,8 @@
 
 # CV-013.DS-006 - Nautilus Gets Its Own Site
 
-**Status:** 🔵 In progress — split from DS-005 by the Navigator on 2026-11-04 ("em um segundo momento o
-site novo do nautilus"); started the same day ("comece a DS-006")
+**Status:** ✅ Done — split from DS-005 by the Navigator on 2026-11-04 ("em um segundo momento o
+site novo do nautilus"); started the same day ("comece a DS-006") and published ("publique e aponte os links")
 
 ## Outcome
 
@@ -48,5 +48,18 @@ Portuguese), its own stylesheet and the app icon as favicon. Checked in a browse
   Let's Encrypt certificate by `certbot --nginx --redirect`, valid to 2027-02-02 and renewed by
   `certbot.timer`. HTTP redirects to HTTPS; HTTPS answers 403 until the site is deployed; the
   Mirror sites and the update channel still answer 200. To undo: remove the link, reload nginx.
-- Push and deploy, each with the Navigator's word. Then the Mirror site's `nautilus` links can move
-  from its own Nautilus page to `nautilus.mirrormind.sh`.
+- ✅ Push and deploy, with the Navigator's word.
+
+## Published (2026-11-04)
+
+`mirrormind-site` pushed at `1ac573d`. That commit points every `nautilus` link of the Mirror site to
+`nautilus.mirrormind.sh`; its older pages `/en/nautilus/` and `/pt-br/nautilus/` stay for links
+already shared, with the new site as their canonical.
+
+- **Nautilus's site:** `git archive HEAD nautilus`, rsync dry run (seven new files, nothing else),
+  copied to `/var/www/nautilus-site`.
+- **Mirror site:** backup `/root/mirrormind-site-backup-20261104-215334.tgz`, dry run (eight pages
+  changed, nothing removed), copied with `favicon.png` excluded.
+- **Checked from outside:** both Nautilus pages, its stylesheet, icon and screenshot answer 200; the
+  Portuguese page shows the Journey chamber open, links the DMG and the method's `docs/pt-br`; the
+  Mirror home and macOS guide link `https://nautilus.mirrormind.sh/`; the older pages still answer.
