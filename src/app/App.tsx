@@ -557,6 +557,7 @@ import { loadResolvedWhatsNewState, saveWhatsNewState } from "./whatsNewStorage"
 import { acknowledgeWhatsNew, resolveWhatsNewState, type ResolvedWhatsNewState } from "../domain/whatsNewState";
 import { PersonButton, UserAvatarSettings, UserNameSettings } from "./UserAvatar";
 import { displayNameFromMirrorUser, normalizeDisplayName, resolvePerson } from "../domain/personName";
+import { claimOnboardingName, forgetOnboardingName, rememberOnboardingName } from "./onboardingNameHandoff";
 import { importUserAvatar, loadUserAvatar, removeUserAvatar } from "./userAvatarStorage";
 import { useDelayedVisibility } from "./useDelayedVisibility";
 
@@ -1730,6 +1731,14 @@ export function App({ model }: AppProps) {
     () => resolvePerson(userDisplayName, runtimeChannel?.mirrorUser),
     [userDisplayName, runtimeChannel?.mirrorUser],
   );
+
+  // CR190: a home just created claims the name its person typed at setup, once preferences are
+  // loaded so the claim is saved with them. A name already written in Settings wins.
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+    const typed = claimOnboardingName(window.localStorage, runtimeChannel?.mirrorUser);
+    if (typed) setUserDisplayName((current) => normalizeDisplayName(current) ? current : typed);
+  }, [preferencesLoaded, runtimeChannel?.mirrorUser]);
 
   useEffect(() => {
     if (!personMenuOpen) return;
@@ -5602,13 +5611,16 @@ export function App({ model }: AppProps) {
   }
 
   /** CV-010.DS-005 slice 3a: create a 0.3 home, bind it, then load its Journeys. */
-  async function createAndBindMirrorHome(userName: string, folder?: string) {
+  async function createAndBindMirrorHome(userName: string, folder?: string, typedName?: string) {
     setRuntimeChannelError(undefined);
     setRuntimeBindingState("saving");
+    // CR190: the name as typed waits for the new home, which claims it after the reload below.
+    rememberOnboardingName(window.localStorage, userName, typedName ?? "");
     try {
       await createMirrorHome(userName, folder);
       reloadForBoundHome();
     } catch (error) {
+      forgetOnboardingName(window.localStorage);
       setRuntimeChannelError(error instanceof Error ? error.message : String(error));
       setRuntimeBindingState("idle");
     }
@@ -5852,7 +5864,7 @@ export function App({ model }: AppProps) {
               binding={runtimeBindingState !== "idle"}
               error={runtimeChannelError}
               brokenHome={runtimeHomeChosen ? undefined : runtimeChannel?.status === "invalid" ? runtimeChannel.message : undefined}
-              onCreate={(userName, folder) => void createAndBindMirrorHome(userName, folder)}
+              onCreate={(userName, folder, typedName) => void createAndBindMirrorHome(userName, folder, typedName)}
               onChooseFolder={chooseHomeFolder}
               onChoose={() => void chooseAndBindMirrorHome()}
             />

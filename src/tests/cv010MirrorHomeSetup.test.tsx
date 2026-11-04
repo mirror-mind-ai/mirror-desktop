@@ -76,7 +76,8 @@ describe("the 0.3 setup screen", () => {
 
   it("is what the app shows when it needs a connection, wired to create, choose a folder and open", () => {
     expect(appSource).toContain("runtimeSetupNeedsConnection ? (\n            <MirrorHomeSetup");
-    expect(appSource).toContain("onCreate={(userName, folder) => void createAndBindMirrorHome(userName, folder)}");
+    // CR190: the typed name now travels with the user name.
+    expect(appSource).toContain("onCreate={(userName, folder, typedName) => void createAndBindMirrorHome(userName, folder, typedName)}");
     expect(appSource).toContain("onChooseFolder={chooseHomeFolder}");
     expect(appSource).toContain("onChoose={() => void chooseAndBindMirrorHome()}");
     expect(appSource).not.toContain("<ExistingMirrorDiscovery");

@@ -15,7 +15,8 @@ type MirrorHomeSetupProps = {
   error?: string;
   /** CR174: why the home this app opened before no longer opens, until the person chooses. */
   brokenHome?: string;
-  onCreate: (userName: string, folder?: string) => void;
+  /** CR190: `typedName` is the answer as written, kept as the person's name in the new home. */
+  onCreate: (userName: string, folder?: string, typedName?: string) => void;
   onChooseFolder: () => Promise<string | undefined>;
   onChoose: () => void;
   /** Tests only: the screen as it is once a name was typed. */
@@ -45,7 +46,7 @@ export function MirrorHomeSetup({ binding, error, brokenHome, onCreate, onChoose
         className="runtime-onboarding-form"
         onSubmit={(event) => {
           event.preventDefault();
-          if (ready) onCreate(userName, folder);
+          if (ready) onCreate(userName, folder, name);
         }}
       >
         <label className="provider-field">
