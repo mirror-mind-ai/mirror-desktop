@@ -2,7 +2,7 @@
 
 # CR187: Take a Correction Sent in the First Seconds of a Turn
 
-**Status:** built, awaiting validation in development
+**Status:** validated in development, awaiting production
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -72,3 +72,9 @@ from the code and from Pi's source.
 
 Spec: `src/tests/cr187EarlySteering.test.ts` and `cr187_early_steering_tests` in `main.rs`. Each
 was checked failing first and by mutation.
+
+## Validation in Development (2026-11-04)
+
+The Navigator sent a correction about one second after Send in the development app and reported
+"deu certo": the correction was taken and applied to that turn, with no rejection warning. The
+production half of the falsifier waits for the next release.
