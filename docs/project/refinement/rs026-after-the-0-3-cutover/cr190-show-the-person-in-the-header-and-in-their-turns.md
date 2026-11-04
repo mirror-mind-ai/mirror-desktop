@@ -105,3 +105,14 @@ failed creation forgets it; a name already written in Settings wins. A person wh
 existing home never sees that screen, so for them the name is still read from the home's user
 until they write one. Spec: `src/tests/cr190OnboardingName.test.tsx`, checked failing first and by
 mutation.
+
+**After the Navigator's review in development (2026-11-04).**
+
+- A separator in the `⋯` menu keeps Chapters, which navigates, apart from Reset agent context, a
+  deliberate act.
+- In the reset dialog, **Cancel** comes first, takes focus and is the emphasized button. Reset is
+  the secondary one, so Enter or a hurried click keeps the context.
+- The dialog now says **when to reset**: the agent keeps returning to a wrong direction that
+  corrections no longer fix, a new subject that should start clean, or a context large enough to
+  make turns slow or costly. When the context is only long and the thread should be kept, it points
+  to **Compact now**, which summarizes instead of discarding.
