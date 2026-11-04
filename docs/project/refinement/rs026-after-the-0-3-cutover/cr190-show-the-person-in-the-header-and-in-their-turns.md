@@ -68,7 +68,8 @@ read of the user identity, so the Mirror's written name is out of reach without 
 Reading the `identity` table from the host would bind the app to the Core's schema. The app
 instead resolves, in order (`src/domain/personName.ts`):
 
-1. the name the person writes in **Settings › You › Name** (saved with the app's preferences);
+1. the name the person writes in **Settings › You › Name** (saved with the app's preferences),
+   which a new home fills in with the name typed at setup (below);
 2. the home's user from the runtime channel, read as a name (`alisson-vale` reads "Alisson Vale");
 3. "You".
 
@@ -94,3 +95,13 @@ generation.
 Spec: `src/tests/cr190PersonInHeader.test.tsx`, checked failing first and by mutation. Four older
 `?raw` guards were re-aimed, not relaxed: CR080's chapter reason, the chapter control, the
 compaction lock on Chapters, and the reset wording.
+
+**The name typed at setup (Navigator, 2026-11-04).** The setup screen asks "What should your Mirror
+call you?" and kept only the user name derived from the answer, so "José Ávila" came back as "Jose
+Avila". The answer is now kept as the person's name. A home owns its preferences, and the app
+reloads into the new home right after creating it, so the name waits in local storage tagged with
+its user name (`src/app/onboardingNameHandoff.ts`). The home whose user matches claims it once; a
+failed creation forgets it; a name already written in Settings wins. A person who adopts an
+existing home never sees that screen, so for them the name is still read from the home's user
+until they write one. Spec: `src/tests/cr190OnboardingName.test.tsx`, checked failing first and by
+mutation.
