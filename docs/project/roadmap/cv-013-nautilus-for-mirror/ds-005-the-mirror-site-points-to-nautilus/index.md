@@ -51,3 +51,10 @@ you talk to it", the macOS and Linux guides in both languages give Claude Code, 
 and Grok Build their own block, where they were a footnote under Pi. Mirror enters them as a
 plugin; the Claude Code and Codex steps are Mirror Core 0.39.4's Getting Started, section 6, and the
 others link to it. The install guides' menu says `nautilus`, which the rename had missed there.
+
+Then (commit `6316d8e`), asked by the Navigator with a new screenshot: Nautilus has a page on the
+Mirror site, `/en/nautilus/` and `/pt-br/nautilus/`, with the screenshot (2000 px, metadata
+dropped), what it does, how to install it and the download. The home hero is text only; the
+site's `nautilus` links lead to that page. It is the seed of [DS-006](../ds-006-nautilus-gets-its-own-site/index.md),
+which can move it to `nautilus.mirrormind.sh`. The four `mirror-desktop-screenshot*.jpg` files are
+no longer referenced and stay until the Navigator decides.
