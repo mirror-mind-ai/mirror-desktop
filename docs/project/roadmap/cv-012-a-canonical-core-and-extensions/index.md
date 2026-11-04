@@ -26,6 +26,8 @@ Tactical and Strategic altitudes added by the Navigator, 2026-11-03):
 - the **Context Map** (CR105's context surface), which absorbs
   [CR156 Simplify the Context Map](../../refinement/rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md);
 - the **Agent Canvas** (CR112, the Canvas a Journey's agent draws).
+- **Ariad** (the operational observatory, CV-003.DS-007) and the **Tactical and Strategic
+  altitudes** (CV-003).
 
 ## Open Before Planning
 
