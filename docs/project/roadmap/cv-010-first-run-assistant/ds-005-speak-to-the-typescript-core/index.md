@@ -367,7 +367,7 @@ is still `fd9e406`, the alpha.58 commit.
   The tree hash is SHA-256 over sorted `path size mtime`. The 0.2 Development folder is the baseline
   for the Navigator check.
 - **One unrelated flaky test** surfaced during the gates and was captured as
-  [CR164](../../../refinement/rs025-legible-endings-for-a-turn-that-ends-badly/cr164-the-hung-append-test-races-its-own-stderr.md).
+  [CR164](../../../refinement/rs027-re-examine-the-older-open-work/cr164-the-hung-append-test-races-its-own-stderr.md).
 
 ### Commits, and a boundary error
 
