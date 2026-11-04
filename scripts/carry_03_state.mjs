@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CV-013.DS-003: the 0.3 app's state continues in Nautilus.
 //
-//   node scripts/carry_03_state.mjs [--dev] [--from <0.3 app data>] [--recorded-as <folder>] [--to <Nautilus app data>] [--write]
+//   node scripts/carry_03_state.mjs [--dev] [--from <0.3 app data>] [--recorded-as <folder>] [--to <Nautilus app data>] [--evidence-02 <0.2 app data>] [--write]
 //
 // Nautilus has its own bundle identifier, so macOS gives it its own app data folder. This copies
 // the whole 0.3 folder (ai.mirrormind.desktop.ts, or .ts.dev with --dev) into Nautilus's
@@ -22,6 +22,13 @@
 // home's state. Pi's transcripts, the installed tools and anything else are copied byte for byte. A Conversation Segment receipt (`complete.json`) hashes its manifest and segments;
 // a hash is recomputed for a file whose bytes changed only when the recorded hash held in the
 // source, so a receipt verifies in Nautilus exactly when it verified in 0.3.
+//
+// CR192: the 0.2 carry moved the same paths and did not hash the segments again, so those receipts
+// fail in 0.3. A home carried from 0.2 says, in `carried-from-0.2.json`, which folder its records
+// were written in; that folder (or --evidence-02) still holds the originals. A stale entry is
+// repaired here, in Nautilus's folder, only on proof: the original at the same place hashes to the
+// recorded value, and the 0.3 file is that original with the 0.2 carry's move and nothing else.
+// The 0.2 folder is only read.
 //
 // The key file is copied as bytes, never parsed or shown; the receipt says only whether it existed.
 //
@@ -141,8 +148,43 @@ function moved(file, text, recordedRoot, targetRoot, counts) {
   return next;
 }
 
+/**
+ * CR192's proof for one stale file of a home carried from 0.2: the 0.2 original hashes to the
+ * recorded value, and the 0.3 file parses to that original with the 0.2 carry's path move.
+ */
+function provenBy02(sourceRoot, recordedRoot, file, recorded, origin) {
+  const [, homeId, ...inside] = file.split("/");
+  const original = join(origin.evidence, ...inside);
+  try {
+    const bytes = readFileSync(original);
+    if (sha(bytes) !== recorded) return false;
+    const from = `${origin.recordedAs}/pi-sessions/`;
+    const to = `${recordedRoot}/homes/${homeId}/pi-sessions/`;
+    const move = (value) => {
+      if (Array.isArray(value)) return value.map(move);
+      if (value === null || typeof value !== "object") return value;
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key,
+        PATH_KEYS.includes(key) && typeof item === "string" && item.startsWith(from) ? to + item.slice(from.length) : move(item)]));
+    };
+    const expected = JSON.stringify(move(JSON.parse(bytes.toString("utf8"))));
+    return expected === JSON.stringify(JSON.parse(readFileSync(join(sourceRoot, file), "utf8")));
+  } catch {
+    return false;
+  }
+}
+
+/** Where each home carried from 0.2 can find its originals, read from its 0.2 receipt. */
+function origins02(sourceRoot, files, evidence02) {
+  const origins = new Map();
+  for (const file of files.filter((name) => /^homes\/[^/]+\/carried-from-0\.2\.json$/.test(name))) {
+    const { recordedAs } = JSON.parse(readFileSync(join(sourceRoot, file), "utf8"));
+    origins.set(file.split("/")[1], { recordedAs, evidence: evidence02 ?? recordedAs });
+  }
+  return origins;
+}
+
 /** The plan: each file's new text where it changes, and what the receipts' hashes become. */
-function planCarry(sourceRoot, recordedRoot, targetRoot, files) {
+function planCarry(sourceRoot, recordedRoot, targetRoot, files, evidence02) {
   const changed = new Map();
   const rewritten = { files: 0, values: 0 };
   for (const file of files.filter(structural)) {
@@ -150,25 +192,38 @@ function planCarry(sourceRoot, recordedRoot, targetRoot, files) {
     if (text !== undefined) changed.set(file, text);
   }
   const segments = { rehashed: 0, manifestsRehashed: 0, unverifiedKept: 0 };
+  const repaired02 = { segments: 0, manifests: 0, unproven: 0 };
+  const origins = origins02(sourceRoot, files, evidence02);
   for (const receiptFile of files.filter((file) => file.endsWith(".segments/complete.json") && inHome(file, "conversation-segments"))) {
     const folder = dirname(receiptFile);
     const receiptText = changed.get(receiptFile) ?? readFileSync(join(sourceRoot, receiptFile), "utf8");
     const receipt = JSON.parse(receiptText);
     let touched = false;
-    const rehash = (file, recorded) => {
-      if (!changed.has(file) || typeof recorded !== "string") return recorded;
-      if (sha(readFileSync(join(sourceRoot, file))) !== recorded) {
-        segments.unverifiedKept += 1;
-        return recorded;
+    const homeId = receiptFile.split("/")[1];
+    const carried = (file) => (changed.has(file) ? Buffer.from(changed.get(file), "utf8") : readFileSync(join(sourceRoot, file)));
+    const rehash = (file, recorded, kind) => {
+      if (typeof recorded !== "string" || !existsSync(join(sourceRoot, file))) return recorded;
+      if (sha(readFileSync(join(sourceRoot, file))) === recorded) {
+        if (!changed.has(file)) return recorded;
+        touched = true;
+        return sha(carried(file));
       }
-      touched = true;
-      return sha(Buffer.from(changed.get(file), "utf8"));
+      if (origins.has(homeId)) {
+        if (provenBy02(sourceRoot, recordedRoot, file, recorded, origins.get(homeId))) {
+          repaired02[kind] += 1;
+          touched = true;
+          return sha(carried(file));
+        }
+        repaired02.unproven += 1;
+      }
+      segments.unverifiedKept += 1;
+      return recorded;
     };
     const manifest = `${folder.slice(0, -".segments".length)}.json`;
-    const manifestSha256 = rehash(manifest, receipt.manifestSha256);
+    const manifestSha256 = rehash(manifest, receipt.manifestSha256, "manifests");
     if (manifestSha256 !== receipt.manifestSha256) segments.manifestsRehashed += 1;
     const hashes = Array.isArray(receipt.projectionHashes) ? receipt.projectionHashes.map((entry) => {
-      const next = rehash(join(folder, `${entry?.segmentId}.json`), entry?.sha256);
+      const next = rehash(join(folder, `${entry?.segmentId}.json`), entry?.sha256, "segments");
       if (next !== entry?.sha256) segments.rehashed += 1;
       return next === entry?.sha256 ? entry : { ...entry, sha256: next };
     }) : receipt.projectionHashes;
@@ -177,7 +232,7 @@ function planCarry(sourceRoot, recordedRoot, targetRoot, files) {
       changed.set(receiptFile, JSON.stringify({ ...receipt, manifestSha256, projectionHashes: hashes }, null, indent) + (receiptText.endsWith("\n") ? "\n" : ""));
     }
   }
-  return { changed, rewritten, segments };
+  return { changed, rewritten, segments, repaired02 };
 }
 
 function outboxWaiting(sourceRoot, files) {
@@ -189,7 +244,7 @@ function outboxWaiting(sourceRoot, files) {
 
 export async function carry03State({
   sourceRoot, recordedRoot = sourceRoot, targetRoot, dryRun = false, dev = false,
-  runningApps: listRunning = () => runningApps({ dev }), onStaged = () => {}, clone = true,
+  runningApps: listRunning = () => runningApps({ dev }), onStaged = () => {}, clone = true, evidence02,
 }) {
   if (!existsSync(join(sourceRoot, "homes"))) throw new Error(`${sourceRoot} holds no homes; there is no 0.3 state to carry`);
   if (existsSync(targetRoot) && (readdirSync(targetRoot).length > 0 || !statSync(targetRoot).isDirectory())) {
@@ -203,11 +258,11 @@ export async function carry03State({
 
   // Everything is read and checked before anything is written.
   const { folders, files } = entriesUnder(sourceRoot);
-  const { changed, rewritten, segments } = planCarry(sourceRoot, recordedRoot, targetRoot, files);
+  const { changed, rewritten, segments, repaired02 } = planCarry(sourceRoot, recordedRoot, targetRoot, files, evidence02);
   const homes = readdirSync(join(sourceRoot, "homes")).filter((name) => statSync(join(sourceRoot, "homes", name)).isDirectory()).sort();
   const bytes = files.reduce((sum, file) => sum + statSync(join(sourceRoot, file)).size, 0);
   const plan = {
-    source: sourceRoot, recordedAs: recordedRoot, target: targetRoot, homes, files: files.length, bytes, rewritten, segments,
+    source: sourceRoot, recordedAs: recordedRoot, target: targetRoot, homes, files: files.length, bytes, rewritten, segments, repaired02,
     keyFile: files.includes(KEY_FILE), outboxWaiting: outboxWaiting(sourceRoot, files),
   };
   if (dryRun) return { dryRun: true, ...plan };
@@ -249,8 +304,9 @@ async function main(argv) {
   const sourceRoot = resolve(option("--from") ?? folders.source);
   const recordedRoot = resolve(option("--recorded-as") ?? sourceRoot);
   const targetRoot = resolve(option("--to") ?? folders.target);
+  const evidence02 = option("--evidence-02") === undefined ? undefined : resolve(option("--evidence-02"));
   const dryRun = !argv.includes("--write");
-  const result = await carry03State({ sourceRoot, recordedRoot, targetRoot, dryRun, dev });
+  const result = await carry03State({ sourceRoot, recordedRoot, targetRoot, dryRun, dev, evidence02 });
   const gigabytes = (result.bytes / 1024 ** 3).toFixed(2);
   console.log(`${dryRun ? "Would carry" : "Carried"} ${result.files} file(s), ${gigabytes} GB, from ${sourceRoot} into ${targetRoot}`);
   if (recordedRoot !== sourceRoot) console.log(`Records written in: ${recordedRoot}`);
@@ -258,6 +314,8 @@ async function main(argv) {
   console.log(`Session paths moved: ${result.rewritten.values} in ${result.rewritten.files} file(s)`);
   const s = result.segments;
   console.log(`Segment receipts: ${s.rehashed} segment(s) and ${s.manifestsRehashed} manifest(s) hashed again; ${s.unverifiedKept} that did not verify in 0.3 left as they were`);
+  const r = result.repaired02;
+  console.log(`Receipts the 0.2 carry left stale (CR192): ${r.segments} segment(s) and ${r.manifests} manifest(s) repaired on proof; ${r.unproven} unproven left as they were`);
   console.log(`OpenRouter key file: ${result.keyFile ? "carried as bytes" : "none"}; turns waiting for Mirror: ${result.outboxWaiting}`);
   if (!dryRun) console.log(result.cloned ? "Files were cloned: the copy shares their blocks with the 0.3 folder." : "Files were copied in full: this disk could not clone them.");
   if (dryRun) console.log("Dry run: nothing was written. Add --write to carry.");

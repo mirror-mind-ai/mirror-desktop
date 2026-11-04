@@ -246,3 +246,93 @@ describe("CV-013.DS-003: carry the 0.3 state into Nautilus", () => {
     });
   });
 });
+
+/**
+ * CR192: the 0.2 carry moved the session paths inside Conversation Segments and did not hash them
+ * again, so their receipts fail. The 0.2 folder each home was carried from still holds the
+ * originals. A receipt entry is repaired in Nautilus's folder only on proof: the 0.2 original at
+ * the same place hashes to the recorded value, and the 0.3 file is that original with the 0.2
+ * carry's path move and nothing else. Neither the 0.2 nor the 0.3 folder is written.
+ */
+describe("CR192: repair the receipts the 0.2 carry left stale, on proof", () => {
+  function carried() {
+    const f = fixture();
+    const v02 = join(f.support, "ai.mirrormind.desktop");
+    const old = (root) => `${root}/pi-sessions/atelier/s-0.jsonl`;
+    const moved = `${f.source}/homes/home-1/pi-sessions/atelier/s-0.jsonl`;
+    write(join(f.home, "carried-from-0.2.json"), JSON.stringify({ source: "/private/tmp/snap", recordedAs: v02 }));
+    const generation = join(f.home, "conversation-segments", "notes", "t-2", "generation-1");
+    const original = {
+      provable: JSON.stringify({ liveIdentity: { sessionFile: old(v02) }, text: `see ${old(v02)}` }),
+      edited: JSON.stringify({ liveIdentity: { sessionFile: old(v02) }, text: "before" }),
+      drifted: JSON.stringify({ liveIdentity: { sessionFile: old(v02) }, text: "in 0.2 later" }),
+    };
+    const in03 = {
+      provable: JSON.stringify({ liveIdentity: { sessionFile: moved }, text: `see ${old(v02)}` }),
+      edited: JSON.stringify({ liveIdentity: { sessionFile: moved }, text: "after" }),
+      drifted: JSON.stringify({ liveIdentity: { sessionFile: moved }, text: "in 0.2 later" }),
+      missing: JSON.stringify({ liveIdentity: { sessionFile: moved } }),
+    };
+    const segments = ["provable", "edited", "drifted", "missing"];
+    const manifest = JSON.stringify({ segments: segments.map((segmentId) => ({ segmentId })), sessionFile: moved });
+    const manifest02 = JSON.stringify({ segments: segments.map((segmentId) => ({ segmentId })), sessionFile: old(v02) });
+    write(`${generation}.json`, manifest);
+    write(join(v02, "conversation-segments", "notes", "t-2", "generation-1.json"), manifest02);
+    for (const name of segments) write(join(`${generation}.segments`, `${name}.json`), in03[name]);
+    // Drifted: 0.2 went on writing after the carry, so its file no longer hashes to the receipt,
+    // even though the 0.3 file is that file with the move.
+    for (const name of ["provable", "edited", "drifted"]) write(join(v02, "conversation-segments", "notes", "t-2", "generation-1.segments", `${name}.json`), original[name]);
+    write(join(`${generation}.segments`, "complete.json"), JSON.stringify({
+      schemaVersion: "1.0.0", manifestSha256: sha(manifest02),
+      projectionHashes: segments.map((segmentId) => ({ segmentId, sha256: sha(segmentId === "drifted" ? "before the drift" : original[segmentId] ?? "lost") })),
+    }));
+    return { ...f, v02, generation: generation.replace(f.source, f.target) };
+  }
+  const hashesOf = (f) => {
+    const receipt = json(join(`${f.generation}.segments`, "complete.json"));
+    const holds = (name, recorded) => sha(readFileSync(name)) === recorded;
+    return {
+      manifest: holds(`${f.generation}.json`, receipt.manifestSha256),
+      ...Object.fromEntries(receipt.projectionHashes.map(({ segmentId, sha256 }) => [segmentId, holds(join(`${f.generation}.segments`, `${segmentId}.json`), sha256)])),
+    };
+  };
+
+  it("repairs only what the 0.2 originals prove, and says how many", async () => {
+    const f = carried();
+    const plan = await carry03State({ sourceRoot: f.source, targetRoot: f.target, runningApps: f.noProcesses });
+    expect(hashesOf(f)).toEqual({ manifest: true, provable: true, edited: false, drifted: false, missing: false });
+    // Unproven: edited, drifted, missing, and the base fixture's stale segment, which 0.2 never held.
+    expect(plan.repaired02).toEqual({ segments: 1, manifests: 1, unproven: 4 });
+    // The repaired segment carries Nautilus's path; its history text is untouched.
+    expect(json(join(`${f.generation}.segments`, "provable.json")).liveIdentity.sessionFile).toBe(f.session(f.target).replace("s-1", "s-0"));
+  });
+
+  it("writes neither the 0.2 nor the 0.3 folder", async () => {
+    const f = carried();
+    const before = [snapshot(f.source), snapshot(f.v02)];
+    await carry03State({ sourceRoot: f.source, targetRoot: f.target, runningApps: f.noProcesses });
+    expect([snapshot(f.source), snapshot(f.v02)]).toEqual(before);
+  });
+
+  it("repairs nothing when the 0.2 folder is gone, or for a home not carried from 0.2", async () => {
+    const gone = carried();
+    rmSync(gone.v02, { recursive: true });
+    const plan = await carry03State({ sourceRoot: gone.source, targetRoot: gone.target, runningApps: gone.noProcesses });
+    expect(plan.repaired02).toEqual({ segments: 0, manifests: 0, unproven: 6 });
+    expect(hashesOf(gone).provable).toBe(false);
+
+    const unmarked = carried();
+    rmSync(join(unmarked.home, "carried-from-0.2.json"));
+    const second = await carry03State({ sourceRoot: unmarked.source, targetRoot: unmarked.target, runningApps: unmarked.noProcesses });
+    expect(second.repaired02).toEqual({ segments: 0, manifests: 0, unproven: 0 });
+  });
+
+  it("takes the 0.2 evidence from another folder when told to", async () => {
+    const f = carried();
+    const elsewhere = join(f.support, "copy-of-0.2");
+    cpSync(f.v02, elsewhere, { recursive: true });
+    rmSync(f.v02, { recursive: true });
+    const plan = await carry03State({ sourceRoot: f.source, targetRoot: f.target, runningApps: f.noProcesses, evidence02: elsewhere });
+    expect(plan.repaired02.segments).toBe(1);
+  });
+});
