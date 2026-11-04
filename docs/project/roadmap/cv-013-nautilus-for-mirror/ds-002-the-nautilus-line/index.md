@@ -59,6 +59,17 @@ agrees with main's line, and nothing is publishable until `0.4.0-alpha.1`.
   `CFBundleDisplayName` `Nautilus for Mirror Dev`, `CFBundleIdentifier` `ai.mirrormind.nautilus.dev`.
   It was not launched.
 
+## The Icon Returns to Nautilus (Navigator, 2026-11-04)
+
+The Navigator asked to bring back the icon the app had as Nautilus Harness. Git holds two:
+
+- `0311674f` (2026-08-24): a golden nautilus shell on a dark blue square, the first.
+- `0c4684cb` (2026-09-02): a luminous violet spiral on a dark plum square, with a `DEV` badge for the
+  development build; the last Nautilus Harness icon, replaced by the mirror (`da611ab8`).
+
+Which one returns is the Navigator's choice. The stable, development and evaluation icons (PNG and
+SVG) follow it, and the `EVAL` badge is redrawn on the same artwork. Built with slice 2.
+
 ## What Moving the Identifier Costs (carried by DS-003)
 
 - The app-data folder changes, for production and for the development build alike. Until DS-003's
