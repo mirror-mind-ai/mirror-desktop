@@ -2,7 +2,7 @@
 
 # CR190: Show the Person in the Header and in Their Turns
 
-**Status:** built, awaiting validation in development
+**Status:** validated in development, awaiting production
 **Line:** 0.3 · Desktop
 
 ## Friction
@@ -118,3 +118,9 @@ mutation.
   to **Compact now**, which summarizes instead of discarding.
 - The reset dialog has a **Close** button at the top right of its header, the same as Settings,
   disabled while a reset is running.
+
+## Validation in Development (2026-11-04)
+
+The Navigator reviewed the build in the development app, asked for the separator, the Cancel
+default, the reasons to reset and the Close button, and after those reported "deu certo". The
+production half waits for the next release.
