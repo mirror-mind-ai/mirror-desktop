@@ -2,7 +2,7 @@
 
 # CR187: Take a Correction Sent in the First Seconds of a Turn
 
-**Status:** shipped in v0.3.0-alpha.13, awaiting the Navigator's check in production
+**Status:** done
 **Line:** 0.3 · Desktop only
 
 ## Friction
@@ -78,3 +78,8 @@ was checked failing first and by mutation.
 The Navigator sent a correction about one second after Send in the development app and reported
 "deu certo": the correction was taken and applied to that turn, with no rejection warning. The
 production half of the falsifier waits for the next release.
+
+## Closed (2026-11-04)
+
+Shipped in v0.3.0-alpha.13. The Navigator checked it in production and reported "deu certo em
+produção".

@@ -46,10 +46,10 @@ delivering anything.
 - [CR184: Finish a Turn Without Redrawing the Whole Conversation](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) — **done** · Desktop · Navigator, 2026-11-02; the conversation flashes when the agent finishes; remount and projection reads removed, longest end-of-turn task 0.21 s
 - [CR185: Keep the Output Surface Moving While the Agent Works](cr185-keep-the-output-surface-moving-while-the-agent-works.md) — **done** · Desktop · Navigator, 2026-11-02; closed on "não está lento" after CR184 and the glow change; the output stalls during a turn, in production's long conversations
 - [CR186: Honour a Project Path Written From the Home Folder](cr186-honour-a-project-path-written-from-the-home-folder.md) — **done** · Desktop · Navigator, 2026-11-03; a `~/` project path sends the agent to `~/Mirror Journeys/`
-- [CR187: Take a Correction Sent in the First Seconds of a Turn](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) — **captured** · Desktop · Navigator, 2026-11-03; a correction 3 s after Send is rejected
+- [CR187: Take a Correction Sent in the First Seconds of a Turn](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) — **done** · Desktop · Navigator, 2026-11-03; a correction 3 s after Send is rejected
 - [CR188: Name the Persona at the Top of the Answer](cr188-name-the-persona-at-the-top-of-the-answer.md) — **done** · Desktop · Navigator, 2026-11-03; the persona shows at the end of the answer
 - [CR189: Route the Persona by What the Turn Is About](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) — captured here, **moved to RS022** (Core) by the Navigator, 2026-11-03
-- [CR190: Show the Person in the Header and in Their Turns](cr190-show-the-person-in-the-header-and-in-their-turns.md) — **captured** · Desktop · Navigator, 2026-11-03; avatar button, the person's name on their turns, Chapters in the menu, a plainer reset
+- [CR190: Show the Person in the Header and in Their Turns](cr190-show-the-person-in-the-header-and-in-their-turns.md) — **done** · Desktop · Navigator, 2026-11-03; avatar button, the person's name on their turns, Chapters in the menu, a plainer reset
 
 ## Queue After the Cutover
 
@@ -68,12 +68,12 @@ is proposed and awaits the Navigator.
 | F5 | [CR184](cr184-finish-a-turn-without-redrawing-the-whole-conversation.md) | RS026 | done | on `main` (`07dc639`, `1ada90c`, `68c9437`); dev-validated 2026-11-03; shipped in v0.3.0-alpha.10 |
 | F6 | [CR185](cr185-keep-the-output-surface-moving-while-the-agent-works.md) | RS026 | done | on `main` (`32d7163`, `ebfa0a3`); dev-validated 2026-11-03 at production size; shipped in v0.3.0-alpha.10 |
 | F7 | [CR186](cr186-honour-a-project-path-written-from-the-home-folder.md) | RS026 | done | shipped in v0.3.0-alpha.11; checked in production 2026-11-03 |
-| F9 | [CR188](cr188-name-the-persona-at-the-top-of-the-answer.md) | RS026 | done | shipped in v0.3.0-alpha.12, checked in production 2026-11-03; comment fix `fcccc99` ships with the next release |
+| F9 | [CR188](cr188-name-the-persona-at-the-top-of-the-answer.md) | RS026 | done | shipped in v0.3.0-alpha.12, checked in production 2026-11-03; comment fix `fcccc99` shipped in v0.3.0-alpha.13 |
 | F10 | [CR189](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) | RS022 | parked | Core; may be replaced by the Core's persona-management work |
-| 1 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | captured | next (Navigator, 2026-11-03); measure the early refusal first |
-| 2 | [CR190](cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | captured | right after CR187 (Navigator, 2026-11-03) |
+| 1 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
+| 2 | [CR190](cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
 | 3 | [RS027](../rs027-re-examine-the-older-open-work/index.md): CR159, CR163, CR166, CR164, CR155, CR161, CR148, CR131, CR157 | RS027 | — | moved there by the Navigator, 2026-11-03; each needs a verdict before any build |
-| — | [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md), [CR171](cr171-retire-the-nautilus-harness-interface-label.md) | RS016, RS026 | parked | a future demand, not yet recorded, absorbs them (Navigator, 2026-11-03) |
+| — | [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md), [CR171](cr171-retire-the-nautilus-harness-interface-label.md) | RS016, RS026 | parked | absorbed by CV-012 (CR156) and CV-013 (CR171), Navigator, 2026-11-03 |
 | — | [CR094](../rs022-mirror-core-debts/cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md), [CR170](../rs022-mirror-core-debts/cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS022 | parked | Core debts; re-read against the TypeScript Core before resuming |
 | — | [RS028](../rs028-journey-management/index.md): CR098, CR099 | RS028 | — | Journey management features, moved there by the Navigator, 2026-11-03; not yet ordered |
 | 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | done | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; validated and closed by the Navigator the same day |

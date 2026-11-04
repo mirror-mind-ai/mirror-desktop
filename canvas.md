@@ -5,9 +5,7 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | 1 CV-012.DS-001 · 2 CV-013 · depois RS027 |
-| **RS026 · After the 0.3 Cutover** | 🔄 ativa · 2 🟡 · 1 ⏸️ |
-| ↳　CR187 · Take a Correction Sent in the First Seconds of a Turn | 🚀 na alpha.13 · conferir em produção |
-| ↳　CR190 · Show the Person in the Header and in Their Turns | 🚀 na alpha.13 · conferir em produção |
+| **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 ⏸️ |
 | ↳　CR171 · Retire the nautilus_harness Interface Label | ⏸️ parked · vai para a CV-013 |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress |

@@ -2,7 +2,7 @@
 
 # CR190: Show the Person in the Header and in Their Turns
 
-**Status:** shipped in v0.3.0-alpha.13, awaiting the Navigator's check in production
+**Status:** done
 **Line:** 0.3 · Desktop
 
 ## Friction
@@ -124,3 +124,8 @@ mutation.
 The Navigator reviewed the build in the development app, asked for the separator, the Cancel
 default, the reasons to reset and the Close button, and after those reported "deu certo". The
 production half waits for the next release.
+
+## Closed (2026-11-04)
+
+Shipped in v0.3.0-alpha.13. The Navigator checked it in production and reported "deu certo em
+produção".
