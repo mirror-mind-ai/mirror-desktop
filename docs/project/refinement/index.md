@@ -278,6 +278,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR188](rs026-after-the-0-3-cutover/cr188-name-the-persona-at-the-top-of-the-answer.md) | RS026 | Name the Persona at the Top of the Answer | done | @alissonvale | v0.3.0-alpha.12, production-checked; comment fix on `main` |
 | — | [CR189](rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) | RS022 | Route the Persona by What the Turn Is About | parked | — | — |
 | — | [CR190](rs026-after-the-0-3-cutover/cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | Show the Person in the Header and in Their Turns | captured | — | — |
+| — | [CR191](rs026-after-the-0-3-cutover/cr191-notice-a-new-version-while-the-app-stays-open.md) | RS026 | Notice a New Version While the App Stays Open | in_progress | @alissonvale | `main` |
 | — | [CR165](rs025-legible-endings-for-a-turn-that-ends-badly/cr165-a-turn-after-an-unanswered-request-never-settles.md) | RS025 | A Turn After an Unanswered Request Never Settles | done | @alissonvale | `main` (`4078eef`) |
 | — | [CR147](rs016-ongoing-product-improvements-and-adjustments/cr147-stop-a-run-loop-thread-from-dying-in-silence.md) | RS016 | Stop a Run-Loop Thread from Dying in Silence | done | — | — |
 | — | [CR133](rs023-conversations-as-first-class-workspaces/cr133-stop-a-disclosure-from-selecting-a-journey.md) | RS023 | Stop a Disclosure From Selecting a Journey | done | @alissonvale | `refinement/rs023-cr133-stop-a-disclosure-from-selecting-a-journey` |

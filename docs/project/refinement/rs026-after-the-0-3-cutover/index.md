@@ -50,6 +50,7 @@ delivering anything.
 - [CR188: Name the Persona at the Top of the Answer](cr188-name-the-persona-at-the-top-of-the-answer.md) — **done** · Desktop · Navigator, 2026-11-03; the persona shows at the end of the answer
 - [CR189: Route the Persona by What the Turn Is About](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) — captured here, **moved to RS022** (Core) by the Navigator, 2026-11-03
 - [CR190: Show the Person in the Header and in Their Turns](cr190-show-the-person-in-the-header-and-in-their-turns.md) — **done** · Desktop · Navigator, 2026-11-03; avatar button, the person's name on their turns, Chapters in the menu, a plainer reset
+- [CR191: Notice a New Version While the App Stays Open](cr191-notice-a-new-version-while-the-app-stays-open.md) — **in_progress** · Desktop · Navigator, 2026-11-04; the update notice appears only when the app loads, and the app is rarely closed
 
 ## Queue After the Cutover
 
@@ -72,6 +73,7 @@ is proposed and awaits the Navigator.
 | F10 | [CR189](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) | RS022 | parked | Core; may be replaced by the Core's persona-management work |
 | 1 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
 | 2 | [CR190](cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
+| 3 | [CR191](cr191-notice-a-new-version-while-the-app-stays-open.md) | RS026 | in_progress | Navigator, 2026-11-04, before CV-013; built, validated in production across two releases |
 | 3 | [RS027](../rs027-re-examine-the-older-open-work/index.md): CR159, CR163, CR166, CR164, CR155, CR161, CR148, CR131, CR157 | RS027 | — | moved there by the Navigator, 2026-11-03; each needs a verdict before any build |
 | — | [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md), [CR171](cr171-retire-the-nautilus-harness-interface-label.md) | RS016, RS026 | parked | absorbed by CV-012 (CR156) and CV-013 (CR171), Navigator, 2026-11-03 |
 | — | [CR094](../rs022-mirror-core-debts/cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md), [CR170](../rs022-mirror-core-debts/cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS022 | parked | Core debts; re-read against the TypeScript Core before resuming |
