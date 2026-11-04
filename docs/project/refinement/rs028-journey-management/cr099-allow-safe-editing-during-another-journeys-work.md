@@ -1,4 +1,4 @@
-[< RS021](index.md)
+[< RS028](index.md)
 
 # CR099: Allow Safe Editing During Another Journey's Work
 

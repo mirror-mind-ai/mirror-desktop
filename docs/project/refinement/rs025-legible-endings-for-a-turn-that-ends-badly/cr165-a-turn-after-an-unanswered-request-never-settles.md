@@ -6,7 +6,7 @@
 **Driver:** @alissonvale
 **Line:** 0.3 (`main`); the same code is on `release/0.2`
 **Criterion half:** neither directly; it removes a cause of a *Finishing* with no working exit
-([CR166](cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) carries the exit)
+([CR166](../rs027-re-examine-the-older-open-work/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) carries the exit)
 
 ## Friction
 

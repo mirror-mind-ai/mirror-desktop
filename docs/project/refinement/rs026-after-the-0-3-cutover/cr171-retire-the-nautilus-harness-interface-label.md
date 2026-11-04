@@ -2,7 +2,7 @@
 
 # CR171: Retire the nautilus_harness Interface Label
 
-**Status:** captured
+**Status:** parked
 **Line:** 0.3 · Desktop, and conversation data in the home
 
 ## Friction
@@ -18,3 +18,8 @@ reading the data, including the agent.
 New conversations are written as `mirror_desktop`. Readers that match on `nautilus_harness`
 (`AgenticMapField.tsx`, `journeyThreadStorage.ts`, the prompt-envelope projection in `main.rs`) accept
 both. Rewriting old rows is a separate decision and probably not worth it.
+
+## Parked (2026-11-03)
+
+Parked by the Navigator: a future demand, not yet recorded, will absorb this CR. Unpark it
+when that demand is captured, and merge it there.

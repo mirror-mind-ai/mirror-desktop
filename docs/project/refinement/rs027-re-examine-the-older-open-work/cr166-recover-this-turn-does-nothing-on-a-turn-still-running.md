@@ -1,4 +1,4 @@
-[< RS025](index.md)
+[< RS027](index.md)
 
 # CR166: Recover This Turn Does Nothing on a Turn Still Running
 
@@ -9,7 +9,7 @@
 
 ## Friction
 
-Field, 2026-11-01, the same turn as [CR165](cr165-a-turn-after-an-unanswered-request-never-settles.md):
+Field, 2026-11-01, the same turn as [CR165](../rs025-legible-endings-for-a-turn-that-ends-badly/cr165-a-turn-after-an-unanswered-request-never-settles.md):
 the surface said *"This turn has already finished … Recovering brings the answer back into the
 conversation"* and offered **Recover this turn**. The Navigator clicked it; nothing happened. The
 journal record stayed at revision 2, `running`, and `mirror-append-recovery-skips.jsonl` gained no

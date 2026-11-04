@@ -47,12 +47,12 @@ Four live Change Requests moved to [RS025 — Legible Endings for a Turn That En
 - [CR127: Let a Journey's First Turn Settle Without a Receipt It Cannot Have](cr127-let-a-journey-s-first-turn-settle-without-a-receipt-it-cannot-have.md) — done
 - [CR128: Give Back the Answer a Restart-and-Continue Strands](cr128-give-back-the-answer-a-restart-and-continue-strands.md) — done
 - [CR129: Let a Recovered Settlement Say It Happened](cr129-let-a-recovered-settlement-say-it-happened.md) — **done** · `refinement/cr129-record-a-recovered-settlement` · shipped in alpha.55 · **field-verified 2026-10-26: two recovered turns in two Journeys, 2 of 1,098 records marked, 1,096 inline unmarked as control** · the phase names proved useful by carrying the CR163 investigation · `legacy_outbox` and `projected_resume` still fixture-only
-- [CR131: Make the Mirror a Channel Validates Against Identifiable](cr131-make-the-mirror-a-channel-validates-against-identifiable.md) — captured
+- [CR131: Make the Mirror a Channel Validates Against Identifiable](../rs027-re-examine-the-older-open-work/cr131-make-the-mirror-a-channel-validates-against-identifiable.md) — captured · **moved to RS027** by the Navigator, 2026-11-03
 - [CR142: Stop Losing a Turn the Journal Already Answered](cr142-stop-losing-a-turn-the-journal-already-answered.md) — done
 - [CR145: Let a Finished Pi Release the Turn It Completed](cr145-let-a-finished-pi-release-the-turn-it-completed.md) — done
 - [CR146: Stop a Recovered Turn from Being Stored Twice](cr146-stop-a-recovered-turn-from-being-stored-twice.md) — done
 - [CR147: Stop a Run-Loop Thread from Dying in Silence](cr147-stop-a-run-loop-thread-from-dying-in-silence.md) — done
-- [CR148: Give an Unanswered Turn Back Its Own Identity](cr148-give-an-unanswered-turn-back-its-own-identity.md) — captured
+- [CR148: Give an Unanswered Turn Back Its Own Identity](../rs027-re-examine-the-older-open-work/cr148-give-an-unanswered-turn-back-its-own-identity.md) — captured · **moved to RS027** by the Navigator, 2026-11-03
 - [CR149: Keep the Composer Responsive While a Turn Is Finishing](cr149-keep-the-composer-responsive-while-a-turn-is-finishing.md) — done · intake 2026-10-12, prioridade 1 de 8
 - [CR150: Keep a Compaction Result Until the Navigator Is Done With It](cr150-keep-a-compaction-result-until-the-navigator-is-done-with-it.md) — done · campo PASSOU (4/4 provocáveis) · o passo que nenhum teste alcança verificado
 - [CR151: Let a Finished Turn Announce Itself](cr151-let-a-finished-turn-announce-itself.md) — done · **campo PASSOU** · 4 fatias: tom, 3 tons + aba Sound & Voice, contrato de tokens, lista de tinta branca · 3 cláusulas cobertas por teste

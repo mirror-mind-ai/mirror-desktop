@@ -2,7 +2,7 @@
 
 # CR156: Simplify the Context Map
 
-**Status:** captured
+**Status:** parked
 **Driver:** —
 **Delivery:** —
 **Navigator priority:** 8 of 8 (intake 2026-10-12)
@@ -85,3 +85,8 @@ remove the surface. Every removal must be named rather than quietly dropped.
 `OperationalWorkspaceSwitcher.tsx:10`–`:22` and `App.tsx:5967`–`:5991` read on 2026-10-12, with
 CR105's framing quoted from its own document. The desire to simplify is the Navigator's report; **no
 criterion for it has been established**, and this document does not invent one.
+
+## Parked (2026-11-03)
+
+Parked by the Navigator: a future demand, not yet recorded, will absorb this CR. Unpark it
+when that demand is captured, and merge it there.

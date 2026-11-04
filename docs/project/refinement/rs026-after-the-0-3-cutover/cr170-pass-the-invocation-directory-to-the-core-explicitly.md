@@ -15,3 +15,9 @@ guaranteed when the Desktop or a runtime spawns the command.
 
 The Core passes it explicitly, for example as `MIRROR_INVOCATION_DIR`, extend-only; extensions that
 read `PWD` keep working.
+
+## Re-read (2026-11-03)
+
+Not done: the Core (`mirror-ts` `origin/main`, v0.39.4) passes no invocation directory, and
+`atelier-drafts` still reads `PWD` and refuses when it is not an absolute directory. Still valid,
+and Core-only, like the debts in RS022.

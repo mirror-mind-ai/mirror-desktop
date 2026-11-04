@@ -131,7 +131,7 @@ durable and already correct."* **Here the journal is the stale thing**, and that
 what this occurrence falsifies.
 
 Downstream, occupancy was never released, so
-[CR155](cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md)'s abandonment
+[CR155](../rs027-re-examine-the-older-open-work/cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md)'s abandonment
 offer refuses as well, and its refusal is never rendered. Those are CR155's scope; this CR is about
 the freeze itself.
 
@@ -270,7 +270,7 @@ restart, which is RS025's criterion.
 the machine it changed three of four verdicts for the better. The two skips nineteen seconds apart are
 its first production act, resolved above.
 
-**B2's field verification is transferred to [CR161](cr161-give-every-finishing-the-same-exits.md), and
+**B2's field verification is transferred to [CR161](../rs027-re-examine-the-older-open-work/cr161-give-every-finishing-the-same-exits.md), and
 that is not bookkeeping.** B2 shipped behind a gate that was closed in exactly the state the field
 reports — `deriveStrandedTurn` required `believedStreaming`, and a surface reading *Finishing* proves
 `isStreaming` is false. CR161 is what opened that gate. So B2's correctness is now **contingent on
@@ -310,7 +310,7 @@ byte, and a recount immediately before writing.
 
 - **The first occurrence that day left no frozen record.** The journal holds only this one `running`
   freeze plus the two `process_died` entries from
-  [CR159](cr159-say-why-the-provider-refused-a-turn.md). Either the earlier one was reconciled on
+  [CR159](../rs027-re-examine-the-older-open-work/cr159-say-why-the-provider-refused-a-turn.md). Either the earlier one was reconciled on
   relaunch, or it had a different shape. Not established.
 - **Why the terminal path did not run** is the same unestablished question CR142 left open. This CR
   deliberately does not depend on the answer — the detector compares outcomes, not causes.

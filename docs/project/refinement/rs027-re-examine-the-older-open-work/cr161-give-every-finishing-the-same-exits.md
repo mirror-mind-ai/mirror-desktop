@@ -1,4 +1,4 @@
-[< RS025](index.md)
+[< RS027](index.md)
 
 # CR161: Give Every Finishing the Same Exits
 

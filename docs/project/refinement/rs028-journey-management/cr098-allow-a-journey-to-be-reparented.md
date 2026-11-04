@@ -1,4 +1,4 @@
-[< RS021](index.md)
+[< RS028](index.md)
 
 # CR098: Allow a Journey to Be Reparented
 

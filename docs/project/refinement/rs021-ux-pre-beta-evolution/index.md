@@ -108,8 +108,8 @@ RS021 is ready to close only when each CR is terminal (`done`, `parked`, `reject
 - [CR080: Compaction Chapters](cr080-compaction-chapters.md)
 - [CR097: Keep a Correction Recognisable After Reload](cr097-keep-a-correction-recognisable-after-reload.md) — done
 - [CR092: Float the Recenter Control Over the Conversation](cr092-float-the-recenter-control-over-the-conversation.md) — done
-- [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md)
-- [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md)
+- [CR098: Allow a Journey to Be Reparented](../rs028-journey-management/cr098-allow-a-journey-to-be-reparented.md) · **moved to RS028** by the Navigator, 2026-11-03
+- [CR099: Allow Safe Editing During Another Journey's Work](../rs028-journey-management/cr099-allow-safe-editing-during-another-journeys-work.md) · **moved to RS028** by the Navigator, 2026-11-03
 - [CR100: Make Journey Image Updates Supported](cr100-make-journey-image-updates-supported.md) — done (0.3 line)
 - [CR101: Restore Window Geometry](cr101-restore-window-geometry.md) — done
 - [CR102: Make Sidebar Progress Signals Legible](cr102-make-sidebar-progress-signals-legible.md) — done

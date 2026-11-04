@@ -49,10 +49,13 @@ delivering anything.
 - [CR187: Take a Correction Sent in the First Seconds of a Turn](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) — **captured** · Desktop · Navigator, 2026-11-03; a correction 3 s after Send is rejected
 - [CR188: Name the Persona at the Top of the Answer](cr188-name-the-persona-at-the-top-of-the-answer.md) — **done** · Desktop · Navigator, 2026-11-03; the persona shows at the end of the answer
 - [CR189: Route the Persona by What the Turn Is About](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) — captured here, **moved to RS022** (Core) by the Navigator, 2026-11-03
+- [CR190: Show the Person in the Header and in Their Turns](cr190-show-the-person-in-the-header-and-in-their-turns.md) — **captured** · Desktop · Navigator, 2026-11-03; avatar button, the person's name on their turns, Chapters in the menu, a plainer reset
 
 ## Queue After the Cutover
 
 The proposed order. The Navigator can reorder it; the index's status column stays the authority.
+Reorganized by the Navigator on 2026-11-03: CR187 first, then CR190; the older open work moved to
+RS027 for a verdict each, the Journey features to RS028.
 Rows F1 to F5 are the frictions the Navigator reported on 2026-11-02, after alpha.7; their order
 is proposed and awaits the Navigator.
 
@@ -67,8 +70,14 @@ is proposed and awaits the Navigator.
 | F7 | [CR186](cr186-honour-a-project-path-written-from-the-home-folder.md) | RS026 | done | shipped in v0.3.0-alpha.11; checked in production 2026-11-03 |
 | F9 | [CR188](cr188-name-the-persona-at-the-top-of-the-answer.md) | RS026 | done | shipped in v0.3.0-alpha.12, checked in production 2026-11-03; comment fix `fcccc99` ships with the next release |
 | F10 | [CR189](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) | RS022 | parked | Core; may be replaced by the Core's persona-management work |
-| F8 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | captured | measure the early refusal first |
-| 1 | [CR166](../rs025-legible-endings-for-a-turn-that-ends-badly/cr166-recover-this-turn-does-nothing-on-a-turn-still-running.md) | RS025 | in_progress | an exit offered that does nothing; seen in the field on 0.3. First half on `main` (`11f8b96`): the exit now says which guard held it |
+| 1 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | captured | next (Navigator, 2026-11-03); measure the early refusal first |
+| 2 | [CR190](cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | captured | right after CR187 (Navigator, 2026-11-03) |
+| 3 | [RS027](../rs027-re-examine-the-older-open-work/index.md): CR159, CR163, CR166, CR164, CR155, CR161, CR148, CR131 | RS027 | — | moved there by the Navigator, 2026-11-03; each needs a verdict before any build |
+| — | [CR157](../rs016-ongoing-product-improvements-and-adjustments/cr157-stop-moving-the-whole-conversation-through-every-settlement.md) | RS016 | captured | half delivered by CR184; the native save still reads the whole projection; the Navigator decides |
+| — | [CR170](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS026 | captured | not done, still valid, Core-only; candidate for RS022 |
+| — | [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md), [CR171](cr171-retire-the-nautilus-harness-interface-label.md) | RS016, RS026 | parked | a future demand, not yet recorded, absorbs them (Navigator, 2026-11-03) |
+| — | [CR094](../rs022-mirror-core-debts/cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md) | RS022 | parked | Core debt; re-read against the TypeScript Core before resuming |
+| — | [RS028](../rs028-journey-management/index.md): CR098, CR099 | RS028 | — | Journey management features, moved there by the Navigator, 2026-11-03; not yet ordered |
 | 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | done | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; validated and closed by the Navigator the same day |
 | 3 | [CR167](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) | RS026 | done | reproduced in a sandbox 2026-11-02; the fix is `disableAllHooks` in the provider, not the Core; delivered by CR173 |
 | 3a | [CR173](cr173-make-anthropic-access-the-desktops-own-provider.md) | RS026 | done | the Desktop owns its Anthropic provider (pinned fork of the bridge), on `main` 2026-11-02, release acceptance owed; the lean provider is an [exploration](../../explorations/a-lean-anthropic-provider/index.md) |
@@ -78,17 +87,8 @@ is proposed and awaits the Navigator.
 | 3b | [CR174](cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) | RS026 | done | on `main` (`be81e1c`); dev-validated 2026-11-02 |
 | 3d | [CR175](cr175-organize-settings-by-what-the-person-wants-to-do.md) | RS026 | done | Settings by intent; setup offers Claude through Claude Code; dev-validated 2026-11-03; shipped in v0.3.0-alpha.11 |
 | 3e | [CR179](cr179-read-a-table-whose-delimiter-has-fewer-than-three-hyphens.md) | RS026 | done | shipped in alpha.6; confirmed in production 2026-11-02 |
-| 4 | [CR159](../rs025-legible-endings-for-a-turn-that-ends-badly/cr159-say-why-the-provider-refused-a-turn.md) | RS025 | in_progress | the real refusal arrived on 2026-11-01 ("Third-party apps now draw from your extra usage"); attach it and read it on 0.3 |
-| 5 | [CR163](../rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md) | RS025 | in_progress | field check owed, now on the TypeScript append |
 | 6 | [CR168](cr168-name-a-channel-refusal-instead-of-invalid-record.md) | RS026 | done | group B; on `main` (`eb43319`); dev-validated 2026-11-02 |
 | 7 | [CR169](cr169-tell-a-dev-build-apart-from-the-user-build.md) | RS026 | done | group B; on `main` (`27c9e13`); dev-validated 2026-11-02 |
-| 8 | [CR164](../rs025-legible-endings-for-a-turn-that-ends-badly/cr164-the-hung-append-test-races-its-own-stderr.md) | RS025 | captured | flaky test, test-only |
-| 9 | [CR155](../rs025-legible-endings-for-a-turn-that-ends-badly/cr155-give-the-navigator-an-exit-from-a-finishing-that-holds-a-live-lease.md), [CR161](../rs025-legible-endings-for-a-turn-that-ends-badly/cr161-give-every-finishing-the-same-exits.md) | RS025 | parked | unpark together with CR166, which touches the same exits |
-| 10 | [CR170](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS026 | captured | Core |
-| 11 | [CR171](cr171-retire-the-nautilus-harness-interface-label.md) | RS026 | captured | cosmetic in data, no hurry |
-| — | [CR094](../rs022-mirror-core-debts/cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md) | RS022 | parked | re-read against the TypeScript Core before resuming |
-| — | [CR131](../rs016-ongoing-product-improvements-and-adjustments/cr131-make-the-mirror-a-channel-validates-against-identifiable.md), [CR148](../rs016-ongoing-product-improvements-and-adjustments/cr148-give-an-unanswered-turn-back-its-own-identity.md), [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md), [CR157](../rs016-ongoing-product-improvements-and-adjustments/cr157-stop-moving-the-whole-conversation-through-every-settlement.md) | RS016 | captured | re-read against 0.3 first; some may no longer apply |
-| — | [CR098](../rs021-ux-pre-beta-evolution/cr098-allow-a-journey-to-be-reparented.md), [CR099](../rs021-ux-pre-beta-evolution/cr099-allow-safe-editing-during-another-journeys-work.md) | RS021 | captured | product features, not defects |
 
 ## Group B Check
 

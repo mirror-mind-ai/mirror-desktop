@@ -1,4 +1,4 @@
-[< RS025](index.md)
+[< RS027](index.md)
 
 # CR155: Give the Navigator an Exit From a Finishing That Holds a Live Lease
 
@@ -186,7 +186,7 @@ So the native terminal path never ran: no `terminal_durable`, no `projected`, no
 
 | layer | what it decided | why |
 |---|---|---|
-| `deriveStrandedTurn` | ~~`journal_agrees`~~ **`not_streaming`** | ~~`"running"` is not in `TERMINAL_PHASES`.~~ **Corrected 2026-10-17:** the predicate short-circuits one line earlier. A surface reading *Finishing* proves `isStreaming` is false, because `deriveComposerTurnStatus` returns `"working"` whenever it is true — so `believedStreaming` was false and the phase check was never reached. The phase fact is true about the code and was never the operative reason. See [CR160](cr160-notice-a-turn-the-journal-never-heard-finish.md). |
+| `deriveStrandedTurn` | ~~`journal_agrees`~~ **`not_streaming`** | ~~`"running"` is not in `TERMINAL_PHASES`.~~ **Corrected 2026-10-17:** the predicate short-circuits one line earlier. A surface reading *Finishing* proves `isStreaming` is false, because `deriveComposerTurnStatus` returns `"working"` whenever it is true — so `believedStreaming` was false and the phase check was never reached. The phase fact is true about the code and was never the operative reason. See [CR160](../rs025-legible-endings-for-a-turn-that-ends-badly/cr160-notice-a-turn-the-journal-never-heard-finish.md). |
 | `settlementAbandonmentOffer` | refused | `nativeExecutionActive` was never released, so the 60 s offer never arrives. |
 | the surface | nothing | the refusal reason is computed and **never rendered**. |
 

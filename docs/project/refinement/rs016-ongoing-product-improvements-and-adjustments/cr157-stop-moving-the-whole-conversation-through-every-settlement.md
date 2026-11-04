@@ -95,3 +95,19 @@ the field.
 So CR149 did not make that cost disappear; it made it **invisible**, by moving it off the thread that
 draws. Reducing what a settlement moves is therefore also a concurrency repair, not only a latency
 one.
+
+## Re-read on 0.3 (2026-11-03)
+
+Half delivered by [CR184](../rs026-after-the-0-3-cutover/cr184-finish-a-turn-without-redrawing-the-whole-conversation.md).
+The renderer now sends only the loaded window (28.2 MB to 1.08 MB per save in its rehearsal), and
+the native save preserves the rest. Production settlement records for `mirror-desktop`:
+
+| | settled turns | settlement p50 | max | saves p50 | max |
+|---|---:|---:|---:|---:|---:|
+| 0.3, before alpha.10 | 127 | 9.9 s | 78.8 s | 3.6 s | 36.9 s |
+| alpha.10 and later | 9 | 6.9 s | 7.1 s | 1.8 s | 1.9 s |
+
+What remains is native: each save still reads and merges the whole stored projection
+(`generation-4.json`, 34.3 MB), so the cost still grows with the conversation, off the main
+thread. The Outcome above is not met yet. Still valid, narrowed to the native side; the Navigator
+decides whether to keep it in the queue.

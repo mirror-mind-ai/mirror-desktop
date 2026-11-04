@@ -404,7 +404,7 @@ flat top-level `runId`, which is the instrument this CR corrected.
 This document recorded that the fixtures could not establish whether the phase *names* are the useful
 ones, and that reading a real record for a real repair was the only way to know. **They are, and the
 evidence is that they carried an investigation four days later** — the one that became
-[CR163](../rs025-legible-endings-for-a-turn-that-ends-badly/cr163-a-hung-mirror-append-freezes-every-exit.md):
+[CR163](../rs027-re-examine-the-older-open-work/cr163-a-hung-mirror-append-freezes-every-exit.md):
 
 - The `mirror-desktop` record has **no lease phases** — no `cleanup_lease`, no
   `notify_lease_released` — which is how it was established that the inline attempt had already got
