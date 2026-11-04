@@ -97,6 +97,12 @@ What does not move: the Mirror home (`~/.mirror-minds/...`) lives outside the ap
 is only re-bound. Window-only preferences kept in the webview's storage (such as the sidebar width)
 start fresh.
 
+## Name Decided (Navigator, 2026-11-04)
+
+**Nautilus for Mirror** is kept as the full name (Dock, Finder, DMG, window). The short name in the
+app menu is **Nautilus**, within macOS's 15-character guidance. The "for" reads as an app made for a
+platform, which is CV-013's point: one front end among others for the Core.
+
 ## Decisions Needed From the Navigator
 
 1. Keep every machine coordinate, including the bundle identifier (recommended), or move it.

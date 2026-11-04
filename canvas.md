@@ -35,7 +35,8 @@
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
 | **CV-013 · Nautilus for Mirror** | 🔵 em andamento · último passo antes da divulgação |
-| ↳　DS-001 · Inventory the Name and Decide What Moves | 🔵 inventário feito · decisões do Navigator |
+| ↳　DS-001 · Inventory the Name and Decide What Moves | 🔵 nome decidido · aprovar a linha 0.4 |
+| ↳　DS-005 · The Mirror Site Points to Nautilus, and Nautilus Gets Its Own Site | 🟡 proposta · endereço e repositório a decidir |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
 | **CV-009 · Trusted macOS Distribution** | 🟡 Planned · aguarda a Apple |
