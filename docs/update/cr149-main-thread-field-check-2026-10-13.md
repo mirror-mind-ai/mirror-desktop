@@ -142,5 +142,5 @@ Unchanged, as expected — the work moved threads, not shape:
 | outbox (`deliver` + `enqueue` + `acknowledge`) | **52.4%** |
 | projection (`save` + `save_post_frontier`) | **26.6%** |
 
-[CR157](../project/refinement/rs016-ongoing-product-improvements-and-adjustments/cr157-stop-moving-the-whole-conversation-through-every-settlement.md)'s
+[CR157](../project/refinement/rs027-re-examine-the-older-open-work/cr157-stop-moving-the-whole-conversation-through-every-settlement.md)'s
 premise is intact, and the outbox path is still the larger and still undecomposed half.

@@ -1117,7 +1117,7 @@ the main thread, so it was converted rather than excepted. Kept set is 10.
 
 **The payload** — three saves and a load of an 11.5 MB projection per settlement, 26.0% of the
 measured window, now costing a worker instead of the UI. Captured as
-[CR157](cr157-stop-moving-the-whole-conversation-through-every-settlement.md), with the outbox
+[CR157](../rs027-re-examine-the-older-open-work/cr157-stop-moving-the-whole-conversation-through-every-settlement.md), with the outbox
 path's 54.0% named there as undecomposed. And **no renderer work**.
 
 
@@ -1169,7 +1169,7 @@ outcome. It is 60 seconds of work whenever the quantified answer is wanted.
 
 ### Still open, now elsewhere
 
-- [CR157](cr157-stop-moving-the-whole-conversation-through-every-settlement.md) — the payload. The
+- [CR157](../rs027-re-examine-the-older-open-work/cr157-stop-moving-the-whole-conversation-through-every-settlement.md) — the payload. The
   phase mix is unchanged: outbox 52.4%, projection saves 26.6%, outbox still undecomposed.
 - **Production is still `alpha.47`, which does not contain any of this.** Whether to release is a
   separate decision and has not been taken.
@@ -1188,5 +1188,5 @@ this is a bound rather than an observation.
 **This slice converted a visible freeze into an invisible queue.** That is a strict improvement and
 it is also an incomplete one, and it is mine, so it is written here rather than left to be
 rediscovered. Two ways out, neither taken: narrow the guard to a key, or reduce the work so the
-bound stops mattering ([CR157](cr157-stop-moving-the-whole-conversation-through-every-settlement.md)).
+bound stops mattering ([CR157](../rs027-re-examine-the-older-open-work/cr157-stop-moving-the-whole-conversation-through-every-settlement.md)).
 The cheap first step for either is to count waiters, which no instrument does today.

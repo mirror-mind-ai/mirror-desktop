@@ -1,8 +1,8 @@
-[< RS026](index.md)
+[< RS022](index.md)
 
 # CR170: Pass the Invocation Directory to the Core Explicitly
 
-**Status:** captured
+**Status:** parked
 **Line:** Core (`mirror-ts`)
 
 ## Friction
@@ -21,3 +21,5 @@ read `PWD` keep working.
 Not done: the Core (`mirror-ts` `origin/main`, v0.39.4) passes no invocation directory, and
 `atelier-drafts` still reads `PWD` and refuses when it is not an absolute directory. Still valid,
 and Core-only, like the debts in RS022.
+
+Moved to RS022 and parked by the Navigator on 2026-11-03: a Core debt, delivered through `mirror-ts`'s PR route when the Core work reaches it.

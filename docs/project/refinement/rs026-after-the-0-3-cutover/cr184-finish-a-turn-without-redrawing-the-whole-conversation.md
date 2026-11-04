@@ -17,7 +17,7 @@ keep its elements: new identities (streamed ids against settled ids) or a reload
 projection remount every message. A recording of the frames at the end of a turn and a React render
 profile come before any change.
 
-Related, not the same: [CR157](../rs016-ongoing-product-improvements-and-adjustments/cr157-stop-moving-the-whole-conversation-through-every-settlement.md)
+Related, not the same: [CR157](../rs027-re-examine-the-older-open-work/cr157-stop-moving-the-whole-conversation-through-every-settlement.md)
 is the cost of moving the whole conversation through every settlement. If the remount comes from
 that reload, the two may share a repair.
 

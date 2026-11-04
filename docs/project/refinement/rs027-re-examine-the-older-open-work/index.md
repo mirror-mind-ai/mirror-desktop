@@ -11,7 +11,7 @@ on the 0.2 line or in the first days of 0.3, and the code under them has changed
 TypeScript Core, CR184's settlement on the surface, CR173's own provider. Before any of them is
 built, each needs a verdict on whether it is still needed.
 
-The Navigator moved them here from RS025 and RS016. That is a deliberate exception to the
+The Navigator moved them here from RS025 and RS016 (CR157 later the same day). That is a deliberate exception to the
 reference-only rule RS025 and RS026 follow: the move records that their next step is a decision,
 not a build.
 
@@ -35,6 +35,7 @@ Statuses below are unchanged until a verdict is recorded.
 | [CR161](cr161-give-every-finishing-the-same-exits.md) | RS025 | parked | The same question as CR155, for every kind of finishing; decide the two together. |
 | [CR148](cr148-give-an-unanswered-turn-back-its-own-identity.md) | RS016 | captured | Does an unanswered turn still lose its own identity on 0.3? |
 | [CR131](cr131-make-the-mirror-a-channel-validates-against-identifiable.md) | RS016 | captured | Written when Dev and production ran different Python Mirror checkouts. Each 0.3 build embeds its own TypeScript Core; this may no longer apply. |
+| [CR157](cr157-stop-moving-the-whole-conversation-through-every-settlement.md) | RS016 | captured | Half delivered by CR184. Is the native save, which still reads and merges the whole stored projection, worth a CR on its own? (re-read 2026-11-03 in the CR) |
 
 ## Order
 

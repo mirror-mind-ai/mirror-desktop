@@ -29,7 +29,7 @@ delivering anything.
 - [CR167: Keep a User's Claude Code Plugin Out of the Desktop's Own Turns](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) — **done** · Desktop (delivered through CR173) · affects new users who already use Claude Code with Mirror
 - [CR168: Name a Channel Refusal Instead of invalid_record](cr168-name-a-channel-refusal-instead-of-invalid-record.md) — **done** · Desktop
 - [CR169: Tell a Dev Build Apart From the User Build](cr169-tell-a-dev-build-apart-from-the-user-build.md) — **done** · Desktop
-- [CR170: Pass the Invocation Directory to the Core Explicitly](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) — **captured** · Core
+- [CR170: Pass the Invocation Directory to the Core Explicitly](../rs022-mirror-core-debts/cr170-pass-the-invocation-directory-to-the-core-explicitly.md) — **captured** · Core · **moved to RS022** by the Navigator, 2026-11-03
 - [CR171: Retire the nautilus_harness Interface Label](cr171-retire-the-nautilus-harness-interface-label.md) — **captured** · Desktop + Core data
 - [CR172: Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) — **done** · the public site (another Journey's repository) · put first by the Navigator
 - [CR173: Make Anthropic Access the Desktop's Own Provider](cr173-make-anthropic-access-the-desktops-own-provider.md) — **done** · Desktop · Navigator, 2026-11-02; closes CR167 without waiting on the bridge's author
@@ -72,11 +72,9 @@ is proposed and awaits the Navigator.
 | F10 | [CR189](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) | RS022 | parked | Core; may be replaced by the Core's persona-management work |
 | 1 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | captured | next (Navigator, 2026-11-03); measure the early refusal first |
 | 2 | [CR190](cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | captured | right after CR187 (Navigator, 2026-11-03) |
-| 3 | [RS027](../rs027-re-examine-the-older-open-work/index.md): CR159, CR163, CR166, CR164, CR155, CR161, CR148, CR131 | RS027 | — | moved there by the Navigator, 2026-11-03; each needs a verdict before any build |
-| — | [CR157](../rs016-ongoing-product-improvements-and-adjustments/cr157-stop-moving-the-whole-conversation-through-every-settlement.md) | RS016 | captured | half delivered by CR184; the native save still reads the whole projection; the Navigator decides |
-| — | [CR170](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS026 | captured | not done, still valid, Core-only; candidate for RS022 |
+| 3 | [RS027](../rs027-re-examine-the-older-open-work/index.md): CR159, CR163, CR166, CR164, CR155, CR161, CR148, CR131, CR157 | RS027 | — | moved there by the Navigator, 2026-11-03; each needs a verdict before any build |
 | — | [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md), [CR171](cr171-retire-the-nautilus-harness-interface-label.md) | RS016, RS026 | parked | a future demand, not yet recorded, absorbs them (Navigator, 2026-11-03) |
-| — | [CR094](../rs022-mirror-core-debts/cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md) | RS022 | parked | Core debt; re-read against the TypeScript Core before resuming |
+| — | [CR094](../rs022-mirror-core-debts/cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md), [CR170](../rs022-mirror-core-debts/cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS022 | parked | Core debts; re-read against the TypeScript Core before resuming |
 | — | [RS028](../rs028-journey-management/index.md): CR098, CR099 | RS028 | — | Journey management features, moved there by the Navigator, 2026-11-03; not yet ordered |
 | 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | done | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; validated and closed by the Navigator the same day |
 | 3 | [CR167](cr167-keep-a-users-claude-code-plugin-out-of-the-desktops-own-turns.md) | RS026 | done | reproduced in a sandbox 2026-11-02; the fix is `disableAllHooks` in the provider, not the Core; delivered by CR173 |
