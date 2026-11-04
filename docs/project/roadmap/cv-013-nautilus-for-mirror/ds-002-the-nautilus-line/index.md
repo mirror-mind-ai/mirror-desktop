@@ -43,6 +43,22 @@ The update host already serves any folder under its root, so the new channel nee
 4. **The first Nautilus release, 0.4.0-alpha.1.** Published only once DS-003 can carry the state,
    so that installing it is never a fresh start by accident.
 
+## Slice 1 Built (2026-11-04)
+
+Code `1bee606c`. `main` is at `0.4.0-alpha.0`, as phase 0 of the 0.3 line set `0.3.0-alpha.0`: the version
+agrees with main's line, and nothing is publishable until `0.4.0-alpha.1`.
+
+- Spec `src/tests/cv013Ds002NautilusLine.test.mjs` (17 tests), failing first; a census forbids the
+  0.3 identities in main's channel code. Eleven older tests were re-aimed to the new line, among them
+  `cv010LineSeparation`, whose 0.2 and 0.3 guards stay.
+- Six mutations, all caught: the current line, both path guards of the publication folder, the
+  diagnostic's identifier, the promotion's product-name check, and the evaluation build's
+  recognition of the stable app by its menu name.
+- Suites: TypeScript 2,598 tests, Rust 473 passed and 10 ignored.
+- A development bundle built with `npm run tauri:build:dev` reads `CFBundleName` `Nautilus Dev`,
+  `CFBundleDisplayName` `Nautilus for Mirror Dev`, `CFBundleIdentifier` `ai.mirrormind.nautilus.dev`.
+  It was not launched.
+
 ## What Moving the Identifier Costs (carried by DS-003)
 
 - The app-data folder changes, for production and for the development build alike. Until DS-003's
