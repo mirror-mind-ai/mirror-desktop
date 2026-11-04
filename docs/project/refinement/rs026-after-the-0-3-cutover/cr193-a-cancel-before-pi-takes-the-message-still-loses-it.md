@@ -50,9 +50,13 @@ stayed in the transcript.
   change); 5 mutations, all caught. `tsc` clean; 2,632 tests pass. No native change, so `cargo
   test` was not rerun.
 
+### Navigator check in development (done, 2026-11-04)
+
+"funcionou no dev". **Shipped in [v0.4.0-alpha.2](../../../releases/v0.4.0-alpha.2.md)** (2026-11-04).
+
 ## Still Open
 
-- Check in development, then in production with the next alpha.
+- Check in production.
 - The short cancels' journal records stop at `terminal_durable` / `resume_projection` instead of
   reaching `interrupted`. Not the cause of the lost message; to be read separately.
 - The 20 to 40 s between Send and Pi taking the message (the Mirror context built before the
