@@ -2,7 +2,7 @@
 
 # CR191: Notice a New Version While the App Stays Open
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.3 · Desktop
 
 ## Friction
@@ -41,9 +41,16 @@ Proposed and accepted as "crie e construa a CR191":
 
 ## Acceptance
 
+
 A development build does not use the update channel, so the field check is in production:
 
 1. Publish a release carrying CR191 and install it.
 2. Publish one more release while that app stays open.
 3. Without restarting, the chip shows the newer version within 4 hours, or when the window comes
    back after more than an hour.
+
+## Validated in Production (Navigator, 2026-11-04)
+
+v0.3.0-alpha.15 carried CR191 and was installed at 10:28. v0.3.0-alpha.16 was published at 11:24
+while that app stayed open, and its chip offered alpha.16 without a restart. The Navigator
+confirmed: "deu certo".
