@@ -4,7 +4,7 @@
 
 | Item | Estado |
 | --- | --- |
-| **Fila até o lançamento** | 1 CR191 · 2 CV-013 · depois RS027 |
+| **Fila até o lançamento** | 1 CR191 (validar) · 2 CV-013 · depois RS027 |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🔵 · 1 ⏸️ |
 | ↳　CR191 · Notice a New Version While the App Stays Open | 🔵 publicada em v0.3.0-alpha.15 · validar com a próxima versão, app aberto |
 | ↳　CR171 · Retire the nautilus_harness Interface Label | ⏸️ parked · vai para a CV-013 |
@@ -34,7 +34,8 @@
 | --- | --- |
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
-| **CV-013 · Nautilus for Mirror** | 🟡 Candidate · 4ª da fila · último passo antes da divulgação |
+| **CV-013 · Nautilus for Mirror** | 🔵 em andamento · último passo antes da divulgação |
+| ↳　DS-001 · Inventory the Name and Decide What Moves | 🔵 inventário feito · decisões do Navigator |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
 | **CV-009 · Trusted macOS Distribution** | 🟡 Planned · aguarda a Apple |

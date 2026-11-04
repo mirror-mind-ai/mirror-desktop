@@ -2,7 +2,7 @@
 
 # CV-013 - Nautilus for Mirror
 
-**Status:** 🟡 Candidate — captured from the Navigator on 2026-11-03; not planned
+**Status:** 🔵 In progress — started by the Navigator on 2026-11-04 ("comece a CV-013")
 
 ## Outcome
 
@@ -37,4 +37,6 @@ returns to the Nautilus name it was incubated under (Nautilus Harness, see the
 
 ## Delivery Stories
 
-None yet.
+| Code | Delivery Story | Outcome | Status |
+|------|----------------|---------|--------|
+| [CV-013.DS-001](ds-001-inventory-the-name-and-decide-what-moves/index.md) | Inventory the Name and Decide What Moves | Every place carrying the name is classified as visible (renamed) or a machine coordinate (kept or migrated) | 🔵 In progress, awaiting decisions |
