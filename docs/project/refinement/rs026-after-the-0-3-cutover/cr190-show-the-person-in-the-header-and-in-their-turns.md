@@ -2,7 +2,7 @@
 
 # CR190: Show the Person in the Header and in Their Turns
 
-**Status:** captured
+**Status:** built, awaiting validation in development
 **Line:** 0.3 · Desktop
 
 ## Friction
@@ -60,3 +60,37 @@ Requested by the Navigator on 2026-11-03, to come right after CR187:
 - The person's turns carry their name, not "You", after a reload too.
 - The reset dialog states that the agent's context starts over and that a past generation cannot be
   brought back from the app.
+
+## Built (2026-11-04)
+
+**Where the name comes from.** The Core's Desktop API (`mirror-mind/desktop`, v0.39.4) exposes no
+read of the user identity, so the Mirror's written name is out of reach without a Core change.
+Reading the `identity` table from the host would bind the app to the Core's schema. The app
+instead resolves, in order (`src/domain/personName.ts`):
+
+1. the name the person writes in **Settings › You › Name** (saved with the app's preferences);
+2. the home's user from the runtime channel, read as a name (`alisson-vale` reads "Alisson Vale");
+3. "You".
+
+An extend-only Core read of the user's name can later replace the second step.
+
+**The header** now reads, at the top right, `⋯` and then a round **person button** with the photo
+or the initial. A click shows the name in a small popover, and an outside click closes it. Nothing
+more was built into the popover, as the First Investigation asked.
+
+**Chapters** is the first item of the `⋯` menu and opens the same panel. With no chapters it is
+disabled, and CR080's reason shows as text inside the item, because a browser shows no title on a
+disabled control.
+
+**The person's turns** carry their name and initial instead of "You" and "N", and so do the turn
+navigator and the Settings preview.
+
+**The reset dialog** now says that the agent will start with no memory of what was said in this
+Conversation. It says that the past generation stays readable but its messages are not carried
+into the new context and it cannot be made active again from the app. It also says that the
+Mirror's memories are not affected. This was checked against the code: no path reactivates a past
+generation.
+
+Spec: `src/tests/cr190PersonInHeader.test.tsx`, checked failing first and by mutation. Four older
+`?raw` guards were re-aimed, not relaxed: CR080's chapter reason, the chapter control, the
+compaction lock on Chapters, and the reset wording.
