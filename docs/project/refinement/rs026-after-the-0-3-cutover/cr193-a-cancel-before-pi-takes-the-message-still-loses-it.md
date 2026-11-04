@@ -2,7 +2,7 @@
 
 # CR193: A Cancel Before Pi Takes the Message Still Loses It
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.4 · Desktop only
 
 ## Friction
@@ -54,9 +54,12 @@ stayed in the transcript.
 
 "funcionou no dev". **Shipped in [v0.4.0-alpha.2](../../../releases/v0.4.0-alpha.2.md)** (2026-11-04).
 
-## Still Open
+Checked in production on 2026-11-04 (v0.4.0-alpha.2): "conferi em produção".
 
-- Check in production.
+## Left Outside This CR
+
+Not part of its acceptance; each needs its own capture if the Navigator wants it pursued.
+
 - The short cancels' journal records stop at `terminal_durable` / `resume_projection` instead of
   reaching `interrupted`. Not the cause of the lost message; to be read separately.
 - The 20 to 40 s between Send and Pi taking the message (the Mirror context built before the
