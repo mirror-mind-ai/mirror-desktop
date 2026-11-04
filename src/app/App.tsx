@@ -7391,6 +7391,10 @@ export function App({ model }: AppProps) {
                   The Mirror's memories are not affected.
                 </p>
               </div>
+              {/* CR190: closes like Settings does (Navigator). */}
+              <button className="secondary-button" type="button" onClick={() => setRestartConfirmationOpen(false)} disabled={isJourneyReloading}>
+                Close
+              </button>
             </header>
             {/* CR190: why a person would do this, and the lighter act when the context is only long. */}
             <div className="restart-reasons">

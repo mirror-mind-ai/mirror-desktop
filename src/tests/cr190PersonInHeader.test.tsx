@@ -126,3 +126,11 @@ describe("CR190 after the Navigator's review", () => {
     expect(dialog).toContain("Compact now");
   });
 });
+
+describe("CR190 the reset dialog closes like Settings", () => {
+  it("has a Close button at the top right of its header", () => {
+    const dialog = appSource.slice(appSource.indexOf('aria-label="Confirm agent context reset"'), appSource.indexOf('className="restart-reasons"'));
+    const header = dialog.slice(dialog.indexOf('<header className="settings-header">'), dialog.indexOf("</header>"));
+    expect(header).toMatch(/<\/div>\s*(?:\{\/\*[\s\S]*?\*\/\}\s*)?<button className="secondary-button" type="button" onClick=\{\(\) => setRestartConfirmationOpen\(false\)\} disabled=\{isJourneyReloading\}>\s*Close\s*<\/button>\s*$/);
+  });
+});
