@@ -2,7 +2,7 @@
 
 # CR187: Take a Correction Sent in the First Seconds of a Turn
 
-**Status:** validated in development, awaiting production
+**Status:** shipped in v0.3.0-alpha.13, awaiting the Navigator's check in production
 **Line:** 0.3 · Desktop only
 
 ## Friction

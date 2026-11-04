@@ -2,7 +2,7 @@
 
 # CR190: Show the Person in the Header and in Their Turns
 
-**Status:** validated in development, awaiting production
+**Status:** shipped in v0.3.0-alpha.13, awaiting the Navigator's check in production
 **Line:** 0.3 · Desktop
 
 ## Friction
