@@ -2,7 +2,7 @@
 
 # CV-013.DS-002 - The Nautilus Line
 
-**Status:** 🔵 In progress — started by the Navigator on 2026-11-04 ("comece a DS-002")
+**Status:** ✅ Done — started by the Navigator on 2026-11-04 ("comece a DS-002"); slice 4 published the same day ("publique a 0.4.0-alpha.1")
 
 ## Outcome
 
@@ -110,12 +110,21 @@ three new Rust tests (the Nautilus marker with both old ones, the labels learned
 shared and its counts summed). Thirteen mutations across the two slices and the icon, all caught.
 Suites: TypeScript 2,608 tests, Rust 476 passed and 10 ignored.
 
+## Slice 4: v0.4.0-alpha.1 Published (2026-11-04)
+
+Tag `v0.4.0-alpha.1` at `40f3909`, through the canonical `release:deploy` route, which verified its
+polled URLs. Checked again from outside: both manifests under `/nautilus` offer 0.4.0-alpha.1 with a
+signature; the stable DMG `https://updates.mirrormind.sh/nautilus/downloads/macos/nautilus-latest.dmg`
+downloads with SHA-256 `511bfa2a8a5414ad46fede5cc3e7d0bac4a67829a75fc61493f3a3513e019b4b`, the
+build's; the 0.3 channel still offers only 0.3.0-alpha.16. Evidence:
+`docs/update/v0.4.0-alpha.1-release-publication-2026-11-04.md`.
+
 ## What Moving the Identifier Costs (carried by DS-003)
 
 - The app-data folder changes, for production and for the development build alike. Until DS-003's
   script runs, a Nautilus build opens as a first run.
-- The OpenRouter key kept in the Keychain is filed under the bundle identifier. It is not read or
-  copied by any script; the person enters it again, or DS-003 offers a way that does not read it.
+- The OpenRouter key: since CR180 it is an owner-only file in the app data folder, so DS-003's
+  script carries it as bytes and the person does not enter it again.
 - Window-only preferences in the webview's storage (the sidebar width, the name typed during
   onboarding) start fresh.
 

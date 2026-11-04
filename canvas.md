@@ -33,8 +33,7 @@
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
 | **CV-013 · Nautilus for Mirror** | 🔵 em andamento · último passo antes da divulgação |
-| ↳　DS-002 · The Nautilus Line | 🔵 fatias 1 a 3 feitas, com o ícone · a 4, a 0.4.0-alpha.1, espera a DS-003 |
-| ↳　DS-004 · The Navigator's Cutover | 🟡 próxima · publicar a 0.4.0-alpha.1 (fatia 4 da DS-002) e transferir |
+| ↳　DS-004 · The Navigator's Cutover | 🔵 0.4.0-alpha.1 publicada · falta instalar pelo DMG, transferir e conferir |
 | ↳　DS-005 · The Mirror Site Points to Nautilus, and Nautilus Gets Its Own Site | 🟡 planejada · nautilus.mirrormind.sh, pasta em mirrormind-site |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
