@@ -63,7 +63,7 @@ pub(crate) fn ensure_home_state_dir(app_data_root: &Path, home: &MarkedHome) -> 
         // `symlink_metadata` does not follow a link, so a link is never a folder here.
         match fs::symlink_metadata(&path) {
             Ok(metadata) if metadata.is_dir() => {}
-            Ok(_) => return Err(format!("{} is not a folder Mirror Desktop made.", path.display())),
+            Ok(_) => return Err(format!("{} is not a folder Nautilus made.", path.display())),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => fs::DirBuilder::new()
                 .mode(0o700)
                 .create(&path)

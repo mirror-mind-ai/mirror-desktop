@@ -91,5 +91,5 @@ export function unavailableModelReason(
     (candidate) => candidate.provider === model.provider && candidate.model === model.model,
   );
   if (!entry || entry.available) return undefined;
-  return `The model ${model.provider}/${model.model} is provided by a Pi extension that Mirror Desktop could not load, so this send cannot run it. Choose an available model.`;
+  return `The model ${model.provider}/${model.model} is provided by a Pi extension that Nautilus could not load, so this send cannot run it. Choose an available model.`;
 }

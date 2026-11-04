@@ -27,28 +27,28 @@ const TERMINAL_CONTRACT_REASONS = [
 const EXPLANATIONS: ReadonlyArray<readonly [string, string]> = [
   [
     "mirror_append_journey_mismatch",
-    "Mirror holds this Conversation under a different Journey than the one Mirror Desktop"
+    "Mirror holds this Conversation under a different Journey than the one Nautilus"
     + " asserts, so the append contract refuses it. Restoring the binding could not be"
     + " completed automatically.",
   ],
   [
     "mirror_append_journey_binding_not_owned",
-    "The Journey binding diverged, but Mirror Desktop did not create this Conversation and"
+    "The Journey binding diverged, but Nautilus did not create this Conversation and"
     + " will not move it.",
   ],
   [
     "mirror_append_journey_binding_unrepaired",
-    "Mirror reported a Journey mismatch while already holding the Journey Mirror Desktop"
+    "Mirror reported a Journey mismatch while already holding the Journey Nautilus"
     + " asserts, so there was nothing to restore.",
   ],
   [
     "mirror_append_conversation_not_found",
-    "Mirror no longer holds this Conversation. Mirror Desktop will not recreate it silently.",
+    "Mirror no longer holds this Conversation. Nautilus will not recreate it silently.",
   ],
   // CR163: transient by design — the delivery is safe to repeat and recovery repeats it.
   [
     "mirror_append_timed_out",
-    "Mirror did not answer within 30 seconds, so Mirror Desktop stopped waiting rather than"
+    "Mirror did not answer within 30 seconds, so Nautilus stopped waiting rather than"
     + " hold every other action behind it. The turn is kept on this machine and will be tried"
     + " again.",
   ],

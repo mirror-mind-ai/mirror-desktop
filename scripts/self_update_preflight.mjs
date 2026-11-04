@@ -115,7 +115,7 @@ export function inspectSelfUpdatePreflight({ root = repositoryRoot, configs = []
 
 function human(report) {
   const lines = [
-    `Mirror Desktop self-update preflight: ${report.status === "ready" ? "READY" : "BLOCKED"}`,
+    `Nautilus self-update preflight: ${report.status === "ready" ? "READY" : "BLOCKED"}`,
     `Product: ${report.product}`,
     `Identifier: ${report.identifier}`,
     `Version: ${report.version}`,
@@ -133,7 +133,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.log(options.json ? JSON.stringify(report, null, 2) : human(report));
     if (report.status !== "ready") process.exit(1);
   } catch (error) {
-    console.error(`Mirror Desktop self-update preflight: BLOCKED\n${error.message}`);
+    console.error(`Nautilus self-update preflight: BLOCKED\n${error.message}`);
     process.exit(1);
   }
 }

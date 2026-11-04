@@ -210,7 +210,7 @@ export function publishStagedPrivateUpdate({ stageDir, sshHost = "szen-vps", web
 
 function human(plan, published) {
   return [
-    `Mirror Desktop private update publication: ${published ? "PUBLISHED" : "STAGED"}`,
+    `Nautilus private update publication: ${published ? "PUBLISHED" : "STAGED"}`,
     `Version: ${plan.version}`,
     `Stage: ${plan.stageDir}`,
     `Artifact: ${plan.artifactUrl}`,
@@ -230,7 +230,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (options.publish) publishStagedPrivateUpdate({ ...plan, sshHost: options.sshHost, webRoot: options.webRoot ?? plan.webRoot });
     console.log(options.json ? JSON.stringify({ ...plan, published: options.publish }, null, 2) : human(plan, options.publish));
   } catch (error) {
-    console.error(`Mirror Desktop private update publication: BLOCKED\n${error.message}`);
+    console.error(`Nautilus private update publication: BLOCKED\n${error.message}`);
     process.exit(1);
   }
 }

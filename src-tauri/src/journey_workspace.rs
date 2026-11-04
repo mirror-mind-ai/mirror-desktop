@@ -72,7 +72,7 @@ fn neutral_folder(journey_id: &str, user_home: &Path) -> Result<PathBuf, String>
     for level in [&parent, &folder] {
         match fs::symlink_metadata(level) {
             Ok(metadata) if metadata.is_dir() => {}
-            Ok(_) => return Err(format!("{} is not a folder Mirror Desktop can work in.", level.display())),
+            Ok(_) => return Err(format!("{} is not a folder Nautilus can work in.", level.display())),
             Err(_) => fs::create_dir(level).map_err(|error| format!("Could not create {}: {error}", level.display()))?,
         }
     }

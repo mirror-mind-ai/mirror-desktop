@@ -71,7 +71,7 @@ describe("what the review offers", () => {
   it("refuses a newer core's home and a file that is not a Mirror database, in words", () => {
     const ahead = adoptionView(inspected({ homePath: HOME, dbPath: `${HOME}/memory.db`, marked: false, report: report("ahead", { unknown: ["099_x"] }), contents: null }));
     expect(ahead).toMatchObject({ kind: "refuse" });
-    expect(ahead.kind === "refuse" && ahead.reason).toMatch(/newer Mirror.*Update Mirror Desktop TS first/);
+    expect(ahead.kind === "refuse" && ahead.reason).toMatch(/newer Mirror.*Update Nautilus first/);
     const notMirror = adoptionView(inspected({ homePath: HOME, dbPath: `${HOME}/memory.db`, marked: false, report: report("not_mirror"), contents: null }));
     expect(notMirror.kind === "refuse" && notMirror.reason).toMatch(/not a Mirror database/);
   });
@@ -88,7 +88,7 @@ describe("the review screen", () => {
     expect(html).toMatch(/3310 memories/);
     expect(html).toMatch(/28 personas/);
     for (const id of PENDING) expect(html).toContain(id);
-    expect(html).toMatch(/Mirror Desktop 0\.2 and the terminal&#x27;s Python Mirror can no longer open it/);
+    expect(html).toMatch(/the 0\.2 desktop app and the terminal&#x27;s Python Mirror can no longer open it/);
     expect(html).toMatch(/restoring the copy/);
     expect(html).toContain(`<code>${HOME}/backups</code>`);
     expect(html).toMatch(/<button type="button">Update and open<\/button>/);
@@ -106,7 +106,7 @@ describe("the review screen", () => {
   it("offers nothing but another choice for a home it will not adopt", () => {
     const ahead = inspected({ homePath: HOME, dbPath: `${HOME}/memory.db`, marked: false, report: report("ahead", { unknown: ["099_x"] }), contents: null });
     const html = renderToStaticMarkup(<MirrorHomeAdoption inspection={ahead} adopting={false} {...handlers()} />);
-    expect(html).toMatch(/Update Mirror Desktop TS first/);
+    expect(html).toMatch(/Update Nautilus first/);
     expect(html).not.toMatch(/Update and open|Open this home/);
     expect(html).toMatch(/Choose another home/);
   });

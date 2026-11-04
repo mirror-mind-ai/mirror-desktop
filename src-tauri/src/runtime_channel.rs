@@ -313,7 +313,7 @@ impl RuntimeChannelProfile {
     /// app carries, whose folder leads `PATH` so Pi's `env node` finds it.
     pub fn active() -> Result<Self, String> {
         let home = env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
-            "Could not resolve HOME for the Mirror Desktop runtime channel.".to_string()
+            "Could not resolve HOME for the Nautilus runtime channel.".to_string()
         })?;
         let channel = RuntimeChannel::active();
         let app_data_root = home
@@ -419,7 +419,7 @@ impl RuntimeChannelProfile {
 
     pub fn apply_to_command(&self, command: &mut Command) {
         let runtime_path = env::join_paths(self.runtime_search_directories())
-            .expect("trusted Mirror Desktop runtime paths must be joinable");
+            .expect("trusted Nautilus runtime paths must be joinable");
         // CR177: a `mirror` command the agent runs (the person's `mm-*` skills) reaches the home this
         // app is bound to. Unset, the CLI fell back to `~/.config/mirror/env`, which can name another
         // home: a development turn could write to production. The CLI's own rule is that

@@ -40,7 +40,7 @@ describe("model providers in Settings", () => {
 
   it("asks before disconnecting, says Pi in a terminal forgets it too, and warns about the last provider", () => {
     const html = renderToStaticMarkup(<ModelProvidersPanel providers={providers} state="ready" {...panel()} initialConfirming="anthropic" />);
-    expect(html).toContain("Pi forgets this sign-in, in Mirror Desktop and in Pi in a terminal.");
+    expect(html).toContain("Pi forgets this sign-in, in Nautilus and in Pi in a terminal.");
     expect(html).toContain(">Keep</button>");
     // The first click only asks; Disconnect is called from the confirmation alone.
     expect(providersPanelSource).toContain("onClick={() => setConfirming(provider.id)}");

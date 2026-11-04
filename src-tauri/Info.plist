@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Mirror Desktop uses the microphone only when you explicitly start a voice recording. Audio is transcribed locally on this computer and is never uploaded.</string>
+  <string>Nautilus uses the microphone only when you explicitly start a voice recording. Audio is transcribed locally on this computer and is never uploaded.</string>
 </dict>
 </plist>

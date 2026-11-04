@@ -42,7 +42,7 @@ describe("the user name a home is created with", () => {
 describe("the 0.3 setup screen", () => {
   it("offers to create a Mirror, and to open an existing home, and nothing that reaches a Python Mirror", () => {
     const html = renderToStaticMarkup(<MirrorHomeSetup binding={false} {...handlers()} />);
-    expect(html).toContain("Mirror Desktop TS");
+    expect(html).toContain("Nautilus for Mirror");
     expect(html).toContain("Create your Mirror");
     expect(html).toContain("What should your Mirror call you?");
     expect(html).toContain("Create it in another folder…");

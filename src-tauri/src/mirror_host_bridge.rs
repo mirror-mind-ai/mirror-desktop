@@ -79,7 +79,7 @@ pub(crate) fn registry_from_tree(tree: &Value, synced_at: &str) -> Result<String
     Ok(text)
 }
 
-pub(crate) const RUNTIME_MISSING: &str = "Mirror Desktop TS is missing its Mirror host runtime. Reinstall the app.";
+pub(crate) const RUNTIME_MISSING: &str = "Nautilus is missing its Mirror host runtime. Reinstall the app.";
 
 /// Where the laid-out runtime is: the app's own `Resources/mirror-host` when it carries one,
 /// checked against its receipt; otherwise, for the Development channel only, the repository's.
@@ -129,7 +129,7 @@ fn check_bundled_runtime(directory: &Path, platform: &str) -> Result<(), String>
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .ok_or_else(|| RUNTIME_MISSING.to_string())?;
     if receipt.get("platform").and_then(Value::as_str) != Some(platform) {
-        return Err(format!("This Mirror Desktop TS carries a Mirror host runtime for another Mac ({platform} needed). Reinstall the app."));
+        return Err(format!("This Nautilus carries a Mirror host runtime for another Mac ({platform} needed). Reinstall the app."));
     }
     let host = std::fs::read(directory.join("host.mjs")).map_err(|_| RUNTIME_MISSING.to_string())?;
     let recorded = receipt.pointer("/host/sha256").and_then(Value::as_str);
@@ -141,7 +141,7 @@ fn check_bundled_runtime(directory: &Path, platform: &str) -> Result<(), String>
 
 /// The sentence every route the 0.3 line does not carry answers with, before touching any state.
 pub(crate) fn not_carried(what: &str) -> String {
-    format!("{what} is not available in Mirror Desktop TS yet.")
+    format!("{what} is not available in Nautilus yet.")
 }
 
 /// The catalog script's `rename` answer, from `renameConversation`.
@@ -191,7 +191,7 @@ pub(crate) fn describe(error: MirrorHostError) -> String {
         MirrorHostError::Rejected { name, reason, .. } => format!("Mirror refused the request ({name}: {reason})."),
         MirrorHostError::HomeNotMarked(message) => message,
         MirrorHostError::Unavailable { failures } => {
-            format!("The Mirror host is unavailable after {failures} consecutive failures. Restart Mirror Desktop TS.")
+            format!("The Mirror host is unavailable after {failures} consecutive failures. Restart Nautilus.")
         }
         MirrorHostError::SpawnFailed(message) => format!("The Mirror host could not start: {message}"),
         MirrorHostError::HandshakeRefused(message) => format!("The Mirror host was refused: {message}"),
@@ -256,7 +256,7 @@ pub(crate) fn describe_home_creation(error: MirrorHostError, home_path: &Path) -
         "invalid_home_path" => "That folder can't hold a Mirror home: it must exist and not be a link. Choose another folder.".to_string(),
         "invalid_user_name" => "Your Mirror name must use lowercase letters, digits and single hyphens, up to 80 characters.".to_string(),
         "templates_unavailable" | "seed_failed" => {
-            "Mirror could not fill in your new home, so nothing was created. Try again; if it fails again, reinstall Mirror Desktop TS.".to_string()
+            "Mirror could not fill in your new home, so nothing was created. Try again; if it fails again, reinstall Nautilus.".to_string()
         }
         _ => describe(error),
     }
@@ -268,7 +268,7 @@ pub(crate) fn describe_home_creation(error: MirrorHostError, home_path: &Path) -
 pub(crate) fn adoption_channel_refusal(channel: crate::runtime_channel::RuntimeChannel, home_path: &Path) -> Option<&'static str> {
     let reserved = home_path.components().any(|part| part.as_os_str().to_string_lossy().eq_ignore_ascii_case(".mirror-minds"));
     (reserved && !channel.supports_updater())
-        .then_some("This build of Mirror Desktop TS is for development and does not open homes in .mirror-minds. Use a copy elsewhere.")
+        .then_some("This build of Nautilus is for development and does not open homes in .mirror-minds. Use a copy elsewhere.")
 }
 
 /// Slice 5a: what the folder at `home_path` is, changing nothing.
@@ -289,8 +289,8 @@ const HOME_CHANGED: &str = "This home changed since you looked at it, so nothing
 pub(crate) fn describe_home_adoption(error: MirrorHostError, home_path: &Path) -> String {
     let MirrorHostError::Rejected { reason, .. } = &error else { return describe(error) };
     match reason.as_str() {
-        "already_marked" => "This home is already a Mirror Desktop TS home. Choose it again to open it.".to_string(),
-        "not_adoptable" => format!("{} is not a Mirror home Mirror Desktop TS can open. Choose another.", home_path.display()),
+        "already_marked" => "This home is already a Nautilus home. Choose it again to open it.".to_string(),
+        "not_adoptable" => format!("{} is not a Mirror home Nautilus can open. Choose another.", home_path.display()),
         "no_database" => format!("{} holds no Mirror database. Choose the folder that holds memory.db.", home_path.display()),
         "inside_repository" => format!(
             "{} is inside a code repository, such as a Mirror installation. Choose the home folder itself.",
@@ -847,7 +847,7 @@ mod tests {
     #[test]
     fn what_0_3_does_not_carry_says_so() {
         for what in ["Deleting Conversations", "Journey administration", "Terminal recall", "The Canvas"] {
-            assert_eq!(not_carried(what), format!("{what} is not available in Mirror Desktop TS yet."));
+            assert_eq!(not_carried(what), format!("{what} is not available in Nautilus yet."));
         }
     }
 

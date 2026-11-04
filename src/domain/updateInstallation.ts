@@ -42,7 +42,7 @@ const SAFE_PRESERVE_TARGETS = [
   "memory.db",
   "runtime-binding.v1.json",
   "Journey registry and conversations",
-  "Mirror Desktop app data",
+  "Nautilus app data",
   "Nautilus Harness state",
 ];
 

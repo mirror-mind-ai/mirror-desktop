@@ -37,7 +37,7 @@ describe("SelfUpdateNotification", () => {
       <SelfUpdateNotification runtimeBusy={false} initialCurrentVersion="0.1.1" initialOpen={true} checkUpdates={neverCheck} getCurrentVersion={neverVersion} installUpdate={neverInstall} onReview={() => undefined} />,
     );
     expect(html).toContain("0.1.1");
-    expect(html).toContain("Mirror Desktop 0.1.1 is up to date");
+    expect(html).toContain("Nautilus 0.1.1 is up to date");
     expect(html).toContain("Version: 0.1.1");
     expect(html).not.toContain("• update");
   });
@@ -60,7 +60,7 @@ describe("SelfUpdateNotification", () => {
     expect(html).toContain("self-update-chip-status whats-new");
     expect(html).toContain("aria-label=\"Unread release notes\"");
     expect(html).not.toContain(">what&#x27;s new</span>");
-    expect(html).toContain("What&#x27;s New in Mirror Desktop 0.1.1");
+    expect(html).toContain("What&#x27;s New in Nautilus 0.1.1");
     expect(html).toContain("Later");
     expect(html).toContain("Details");
     expect(html).toContain("Got it");

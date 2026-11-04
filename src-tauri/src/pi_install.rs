@@ -73,10 +73,10 @@ pub(crate) fn describe_install_failure(reason: &str, log: &Path) -> String {
         }
         "already_installing" => "Pi is already being installed. Wait for it to finish.".to_string(),
         "check_failed" => {
-            "Pi was downloaded but did not start, so it was not installed. Try again; if it fails again, reinstall Mirror Desktop TS.".to_string()
+            "Pi was downloaded but did not start, so it was not installed. Try again; if it fails again, reinstall Nautilus.".to_string()
         }
         "lockfile_mismatch" | "lockfile_invalid" | "invalid_target" | "usage" | "platform_unsupported" | "source_mismatch" => {
-            "This copy of Mirror Desktop TS cannot install Pi. Reinstall the app.".to_string()
+            "This copy of Nautilus cannot install Pi. Reinstall the app.".to_string()
         }
         _ => format!("Pi could not be installed. Try again; details are in {}.", log.display()),
     }
@@ -91,11 +91,11 @@ pub(crate) fn describe_anthropic_install_failure(reason: &str, log: &Path) -> St
         }
         "already_installing" => "Claude Code is already being installed. Wait for it to finish.".to_string(),
         "check_failed" => {
-            "Claude Code was downloaded but did not start, so it was not installed. Try again; if it fails again, reinstall Mirror Desktop TS.".to_string()
+            "Claude Code was downloaded but did not start, so it was not installed. Try again; if it fails again, reinstall Nautilus.".to_string()
         }
-        "platform_unsupported" => "Claude models are not available for this Mac in this version of Mirror Desktop TS.".to_string(),
+        "platform_unsupported" => "Claude models are not available for this Mac in this version of Nautilus.".to_string(),
         "lockfile_mismatch" | "lockfile_invalid" | "invalid_target" | "usage" | "source_mismatch" => {
-            "This copy of Mirror Desktop TS cannot install Claude Code. Reinstall the app.".to_string()
+            "This copy of Nautilus cannot install Claude Code. Reinstall the app.".to_string()
         }
         _ => format!("Claude Code could not be installed. Try again; details are in {}.", log.display()),
     }
@@ -122,7 +122,7 @@ fn trusted_installer(runtime_dir: &Path) -> Result<std::path::PathBuf, String> {
 fn private_root(root: &Path) -> Result<(), String> {
     match std::fs::symlink_metadata(root) {
         Ok(metadata) if metadata.is_dir() => Ok(()),
-        Ok(_) => Err(format!("{} is not a folder Mirror Desktop made.", root.display())),
+        Ok(_) => Err(format!("{} is not a folder Nautilus made.", root.display())),
         Err(_) => std::fs::DirBuilder::new()
             .mode(0o700)
             .create(root)

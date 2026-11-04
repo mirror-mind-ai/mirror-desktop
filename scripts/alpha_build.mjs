@@ -76,7 +76,7 @@ function parseArguments(argv) {
 
 function human(plan, dryRun) {
   return [
-    `Mirror Desktop alpha build: ${dryRun ? "READY" : "BUILT"}`,
+    `Nautilus alpha build: ${dryRun ? "READY" : "BUILT"}`,
     `Version: ${plan.version}`,
     `Config: ${plan.config}`,
     `DMG: ${plan.dmg}`,
@@ -107,7 +107,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     }
     console.log(options.json ? JSON.stringify({ ...plan, dryRun: options.dryRun }, null, 2) : human(plan, options.dryRun));
   } catch (error) {
-    console.error(`Mirror Desktop alpha build: BLOCKED\n${error.message}`);
+    console.error(`Nautilus alpha build: BLOCKED\n${error.message}`);
     process.exit(1);
   }
 }

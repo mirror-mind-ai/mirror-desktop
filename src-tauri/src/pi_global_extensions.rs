@@ -51,13 +51,13 @@ fn resolve_settings_packages(pi_agent_dir: &Path, replaced: &[&str], resolution:
         // CV-010.DS-005 slice 2e: Mirror's own package is refused whole on the 0.3 line.
         if name == MIRROR_PACKAGE {
             resolution.skipped.push(format!(
-                "Global Pi package '{}' was refused: Mirror Desktop TS reaches Mirror only through its own host.", source
+                "Global Pi package '{}' was refused: Nautilus reaches Mirror only through its own host.", source
             ));
             continue;
         }
         if replaced.contains(&name) {
             resolution.skipped.push(format!(
-                "Global Pi package '{}' was not loaded: Mirror Desktop TS runs its own copy.", source
+                "Global Pi package '{}' was not loaded: Nautilus runs its own copy.", source
             ));
             continue;
         }

@@ -574,7 +574,7 @@ fn validate_thread_runtime_channel_name(thread: &Value, active: &str) -> Result<
         return Ok(());
     }
     Err(format!(
-        "This conversation belongs to another Mirror Desktop build: it was made by the {} build, and this is the {} build.",
+        "This conversation belongs to another Nautilus build: it was made by the {} build, and this is the {} build.",
         stored, active,
     ))
 }
@@ -2182,7 +2182,7 @@ fn bind_marked_home(app: &AppHandle, app_data_root: &Path, home_path: &Path) -> 
         .map_err(mirror_host_bridge::describe)?;
     let state = report.get("state").and_then(Value::as_str).unwrap_or("unknown");
     if state != "current" {
-        return Err(format!("This Mirror home reads as {state}, not current. Mirror Desktop TS does not migrate a home yet."));
+        return Err(format!("This Mirror home reads as {state}, not current. Nautilus does not migrate a home yet."));
     }
     mirror_home::persist_home_binding(app_data_root, &home)?;
     // Slice 3b: a bound home is reported as `inspect_runtime_channel` would, Pi installed or not.
@@ -2195,7 +2195,7 @@ fn bind_marked_home(app: &AppHandle, app_data_root: &Path, home_path: &Path) -> 
 fn home_switch_refusal(current: Option<&str>, next: Option<&str>, busy: bool) -> Option<&'static str> {
     match current {
         Some(current) if busy && next != Some(current) => {
-            Some("Mirror Desktop TS is still working in your current Mirror home. Wait for it to finish, then try again.")
+            Some("Nautilus is still working in your current Mirror home. Wait for it to finish, then try again.")
         }
         _ => None,
     }
@@ -2379,7 +2379,7 @@ fn save_composer_drafts(app: AppHandle, payload: String) -> Result<(), String> {
 fn harness_root() -> Result<PathBuf, String> {
     Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .ok_or_else(|| "Could not resolve Mirror Desktop root.".to_string())?
+        .ok_or_else(|| "Could not resolve Nautilus root.".to_string())?
         .to_path_buf())
 }
 
@@ -3181,7 +3181,7 @@ fn resolve_existing_local_file_at(
                 .canonicalize()
                 .map_err(|error| format!("Could not resolve local reference base path: {}", error))?,
             None => harness_root()?.canonicalize()
-                .map_err(|error| format!("Could not resolve Mirror Desktop root: {}", error))?,
+                .map_err(|error| format!("Could not resolve Nautilus root: {}", error))?,
         };
         base_root.join(requested_path)
     };
@@ -5936,7 +5936,7 @@ fn apply_startup_window_geometry(window: &tauri::WebviewWindow, app_data_root: &
             // A first launch is not a finding; anything else is worth reading in the log.
             if reason != GeometryRejection::NothingStored {
                 eprintln!(
-                    "Mirror Desktop opened at the default window geometry: {}",
+                    "Nautilus opened at the default window geometry: {}",
                     reason.reason_code()
                 );
             }
@@ -5989,7 +5989,7 @@ fn flush_window_geometry(app: &AppHandle) {
     }
     let Ok(app_data_root) = app.path().app_data_dir() else { return };
     if let Err(error) = save_window_geometry_at(&app_data_root, geometry) {
-        eprintln!("Mirror Desktop could not record window geometry: {error}");
+        eprintln!("Nautilus could not record window geometry: {error}");
     }
 }
 
@@ -10535,11 +10535,11 @@ fn main() {
             retire_legacy_parity_state
         ])
         .build(tauri::generate_context!())
-        .expect("error while building Mirror Desktop")
+        .expect("error while building Nautilus")
         .run(|app_handle, event| match event {
             tauri::RunEvent::Ready => {
                 if let Err(error) = RuntimeChannel::active().apply_macos_dock_icon() {
-                    eprintln!("Mirror Desktop runtime channel icon validation failed: {error}");
+                    eprintln!("Nautilus runtime channel icon validation failed: {error}");
                     app_handle.exit(1);
                 }
                 // CR101: geometry is applied here rather than in `setup`, because window commands
@@ -10591,13 +10591,13 @@ mod close_without_quitting_tests {
 
     #[test]
     fn recognizes_the_macos_predefined_quit_item_without_matching_its_siblings() {
-        assert!(is_predefined_quit_text("Quit Mirror Desktop"));
-        assert!(is_predefined_quit_text("Quit Mirror Desktop Dev"));
+        assert!(is_predefined_quit_text("Quit Nautilus"));
+        assert!(is_predefined_quit_text("Quit Nautilus Dev"));
         assert!(!is_predefined_quit_text(""));
-        assert!(!is_predefined_quit_text("Hide Mirror Desktop"));
+        assert!(!is_predefined_quit_text("Hide Nautilus"));
         assert!(!is_predefined_quit_text("Hide Others"));
         assert!(!is_predefined_quit_text("Services"));
-        assert!(!is_predefined_quit_text("About Mirror Desktop"));
+        assert!(!is_predefined_quit_text("About Nautilus"));
     }
 
     #[test]
@@ -11500,12 +11500,12 @@ mod tests {
         assert!(crate::validate_thread_runtime_channel_name(&unmarked, "user").is_ok(), "a thread from before channels is the user's");
         assert_eq!(
             crate::validate_thread_runtime_channel_name(&development, "user").unwrap_err(),
-            "This conversation belongs to another Mirror Desktop build: it was made by the development build, and this is the user build.",
+            "This conversation belongs to another Nautilus build: it was made by the development build, and this is the user build.",
         );
         for thread in [&user, &unmarked] {
             assert_eq!(
                 crate::validate_thread_runtime_channel_name(thread, "development").unwrap_err(),
-                "This conversation belongs to another Mirror Desktop build: it was made by the user build, and this is the development build.",
+                "This conversation belongs to another Nautilus build: it was made by the user build, and this is the development build.",
             );
         }
     }

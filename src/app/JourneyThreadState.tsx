@@ -31,14 +31,14 @@ export function JourneyThreadState({
   startUnavailableReason,
 }: Props) {
   if (state.kind === "loading") {
-    return <section className="journey-thread-state" role="status"><p className="eyebrow">Mirror Desktop conversation</p><h2>Checking Journey conversation…</h2></section>;
+    return <section className="journey-thread-state" role="status"><p className="eyebrow">Nautilus conversation</p><h2>Checking Journey conversation…</h2></section>;
   }
   if (state.kind === "inconsistent") {
     return (
       <section className="journey-thread-state" role="alert">
-        <p className="eyebrow">Mirror Desktop conversation</p>
+        <p className="eyebrow">Nautilus conversation</p>
         <h2>This Journey conversation needs recovery</h2>
-        <p>Mirror Desktop found incomplete or contradictory dedicated-thread authority for {journeyName}. Conversation remains unavailable and no repair will run automatically.</p>
+        <p>Nautilus found incomplete or contradictory dedicated-thread authority for {journeyName}. Conversation remains unavailable and no repair will run automatically.</p>
         <small>{reasonLabel(state.reasonCodes)}</small>
       </section>
     );
@@ -46,8 +46,8 @@ export function JourneyThreadState({
   if (state.kind === "unavailable" && state.reason === "other_build") {
     return (
       <section className="journey-thread-state" role="status">
-        <p className="eyebrow">Mirror Desktop conversation</p>
-        <h2>This conversation belongs to another Mirror Desktop build</h2>
+        <p className="eyebrow">Nautilus conversation</p>
+        <h2>This conversation belongs to another Nautilus build</h2>
         <p>{state.message}</p>
         <p>Open it in the build that made it. Nothing was changed.</p>
       </section>
@@ -56,9 +56,9 @@ export function JourneyThreadState({
   if (state.kind === "unavailable") {
     return (
       <section className="journey-thread-state" role="alert">
-        <p className="eyebrow">Mirror Desktop conversation</p>
+        <p className="eyebrow">Nautilus conversation</p>
         <h2>This Journey conversation could not be loaded</h2>
-        <p>Mirror Desktop could not read the dedicated runtime state for {journeyName}. Its authority has not been classified as invalid and no repair will run automatically.</p>
+        <p>Nautilus could not read the dedicated runtime state for {journeyName}. Its authority has not been classified as invalid and no repair will run automatically.</p>
         <small>Availability reason: {state.reason}</small>
       </section>
     );
@@ -75,9 +75,9 @@ export function JourneyThreadState({
   }
   return (
     <section className="journey-thread-state" role="status">
-      <p className="eyebrow">Mirror Desktop conversation</p>
-      <h2>This Journey has not started in Mirror Desktop</h2>
-      <p>{journeyName} does not yet have a dedicated Mirror Desktop conversation.</p>
+      <p className="eyebrow">Nautilus conversation</p>
+      <h2>This Journey has not started in Nautilus</h2>
+      <p>{journeyName} does not yet have a dedicated Nautilus conversation.</p>
       {error ? <p className="journey-thread-error">Start did not complete: {error}</p> : null}
       {onStart || startUnavailableReason ? (
         <button

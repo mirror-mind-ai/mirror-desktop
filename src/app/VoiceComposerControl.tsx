@@ -153,7 +153,7 @@ export function VoiceInstallDialog({ status, installing, progress, error, catalo
             <p className="settings-intro">
               {ready
                 ? "Click the microphone again to start a recording. Nothing was recorded during installation."
-                : "Mirror Desktop downloads a small speech-to-text engine and model, verifies their checksums and keeps them in this app's data folder."}
+                : "Nautilus downloads a small speech-to-text engine and model, verifies their checksums and keeps them in this app's data folder."}
             </p>
           </div>
           <button type="button" onClick={onClose} disabled={installing}>×</button>
@@ -239,7 +239,7 @@ export function VoiceSettingsPanel({ status, installing, removing, progress, err
   return (
     <section className="settings-section provider-card" aria-label="Local voice transcription">
       <h3>Local voice transcription</h3>
-      <p className="settings-intro">Optional speech-to-text component managed by Mirror Desktop. Audio never leaves this computer.</p>
+      <p className="settings-intro">Optional speech-to-text component managed by Nautilus. Audio never leaves this computer.</p>
       <dl>
         <div className="voice-status-row"><dt>Status</dt><dd><span className={`voice-status-badge is-${status?.state ?? "checking"}`}>{voiceStateLabel(status)}</span></dd></div>
         {status?.state === "ready" ? (

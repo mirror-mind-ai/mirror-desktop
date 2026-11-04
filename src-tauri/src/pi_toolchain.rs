@@ -15,7 +15,7 @@ use std::{
 
 pub(crate) const PI_DIRECTORY: &str = "pi";
 pub(crate) const PI_NOT_INSTALLED: &str =
-    "Pi is not installed for Mirror Desktop TS yet. Install it from the setup screen.";
+    "Pi is not installed for Nautilus yet. Install it from the setup screen.";
 
 /// The Pi a runtime pins, from its receipt.
 #[derive(Clone, Debug, PartialEq)]

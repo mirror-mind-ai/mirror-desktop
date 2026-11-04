@@ -2621,7 +2621,7 @@ export function App({ model }: AppProps) {
       await confirmDesktopQuitRequest();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setCloseConfirmationError(`Could not quit Mirror Desktop: ${message}`);
+      setCloseConfirmationError(`Could not quit Nautilus: ${message}`);
       setCloseConfirmationBusy(false);
       console.warn("Could not quit the app after flushing Composer drafts.", error);
     }
@@ -4765,7 +4765,7 @@ export function App({ model }: AppProps) {
     const defaults = createDefaultAgentSettings();
     // CR158: the only update here that ignores `current` on purpose. A command named "restore
     // defaults" means to discard what is there, including anything in flight.
-    await persistAgentSettings(() => defaults, "Mirror Desktop agent defaults restored.");
+    await persistAgentSettings(() => defaults, "Nautilus agent defaults restored.");
     setProviderInvocationMode(defaults.globalProfile.invocationMode);
   }
 
@@ -5311,7 +5311,7 @@ export function App({ model }: AppProps) {
       if (!image) return;
       cacheJourneyCustomImage(journeyId, image);
       setJourneyAppearanceById((current) => ({ ...current, [journeyId]: { kind: "custom" } }));
-      setJourneyAppearanceMessage("Custom image imported into channel-local Mirror Desktop storage.");
+      setJourneyAppearanceMessage("Custom image imported into channel-local Nautilus storage.");
     } catch (error) {
       setJourneyAppearanceMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -5868,7 +5868,7 @@ export function App({ model }: AppProps) {
       >
         <section
           className="runtime-onboarding-card"
-          aria-label={!runtimeChannel ? "Prepare Mirror Desktop" : runtimeSetupNeedsConnection ? "Connect your Mirror" : runtimeSetupNeedsPi ? "Install Pi" : runtimeSetupNeedsProvider ? "Connect a model provider" : runtimeSetupNeedsOpenRouter ? "Mirror's context" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Mirror Desktop"}
+          aria-label={!runtimeChannel ? "Prepare Nautilus" : runtimeSetupNeedsConnection ? "Connect your Mirror" : runtimeSetupNeedsPi ? "Install Pi" : runtimeSetupNeedsProvider ? "Connect a model provider" : runtimeSetupNeedsOpenRouter ? "Mirror's context" : agentProfileConfigured !== true ? "Choose your model" : "Prepare Nautilus"}
         >
           <span className="runtime-onboarding-mark" aria-hidden="true"><img src={appIconUrl} alt="" /></span>
           {runtimeSetupNeedsConnection && homeAdoptionReview ? homeAdoptionReview : runtimeSetupNeedsConnection ? (
@@ -5882,7 +5882,7 @@ export function App({ model }: AppProps) {
             />
           ) : !runtimeChannel ? (
             <>
-              <p className="eyebrow">Mirror Desktop TS</p>
+              <p className="eyebrow">Nautilus for Mirror</p>
               <h1>Checking your Mirror connection…</h1>
               <p>{runtimeChannelError ?? "Preparing secure local setup."}</p>
             </>
@@ -5891,14 +5891,14 @@ export function App({ model }: AppProps) {
           ) : runtimeSetupNeedsProvider ? (
             piProvidersState === "error" ? (
               <>
-                <p className="eyebrow">Mirror Desktop TS</p>
+                <p className="eyebrow">Nautilus for Mirror</p>
                 <h1>Connect a model provider</h1>
                 <p className="provider-error" role="alert">{piProvidersMessage}</p>
                 <div className="provider-actions"><button type="button" onClick={() => { setPiProvidersMessage(undefined); setPiProvidersState("idle"); }}>Try again</button></div>
               </>
             ) : piProvidersState !== "ready" && !piLogin ? (
               <>
-                <p className="eyebrow">Mirror Desktop TS</p>
+                <p className="eyebrow">Nautilus for Mirror</p>
                 <h1>Checking your model providers…</h1>
               </>
             ) : (
@@ -5918,7 +5918,7 @@ export function App({ model }: AppProps) {
             )
           ) : runtimeSetupNeedsOpenRouter ? (
             <>
-              <p className="eyebrow">Mirror Desktop TS</p>
+              <p className="eyebrow">Nautilus for Mirror</p>
               <OpenRouterKeyPanel
                 variant="setup"
                 status={openRouterKey}
@@ -5933,7 +5933,7 @@ export function App({ model }: AppProps) {
             </>
           ) : runtimeOnboardingState === "error" || runtimeOnboardingState === "empty" ? (
             <>
-              <p className="eyebrow">Mirror Desktop TS</p>
+              <p className="eyebrow">Nautilus for Mirror</p>
               <h1>{runtimeOnboardingMessage}</h1>
               <p>{runtimeOnboardingState === "error" ? "Your connection was saved. Try loading your Journeys again or edit the connection." : "Create a Journey in Mirror, then refresh this screen."}</p>
               <div className="provider-actions">
@@ -5945,7 +5945,7 @@ export function App({ model }: AppProps) {
             <>
               <p className="eyebrow">Mirror connected</p>
               <h1>Choose your model</h1>
-              <p>Select a model from the providers Pi has connected. Pi keeps the sign-ins; Mirror Desktop keeps none.</p>
+              <p>Select a model from the providers Pi has connected. Pi keeps the sign-ins; Nautilus keeps none.</p>
               {agentSettingsState === "checking" || piModelCatalogState === "idle" || piModelCatalogState === "loading" ? (
                 <p>Loading available models…</p>
               ) : piModelCatalogState === "error" ? (
@@ -5981,7 +5981,7 @@ export function App({ model }: AppProps) {
             </>
           ) : (
             <>
-              <p className="eyebrow">Mirror Desktop TS</p>
+              <p className="eyebrow">Nautilus for Mirror</p>
               <h1>Loading your Journeys…</h1>
               <p>Mirror is reading your Journey registry through the validated local connection.</p>
             </>
@@ -7046,7 +7046,7 @@ export function App({ model }: AppProps) {
               <strong>{mirrorCommitError
                 ? "Conversation synchronization needs attention"
                 : "Finalizing turn…"}</strong>
-              <p>The native Pi execution is inactive. Mirror Desktop is completing this exact run from preserved Pi evidence; new messages remain available.</p>
+              <p>The native Pi execution is inactive. Nautilus is completing this exact run from preserved Pi evidence; new messages remain available.</p>
               {mirrorCommitError ? (
                 <>
                   {mirrorCommitExplanation ? <p className="sync-attention-cause">{mirrorCommitExplanation}</p> : null}
@@ -7067,7 +7067,7 @@ export function App({ model }: AppProps) {
           {mirrorCommitError && !showRetainedLeaseNotice && !showConversationRecoveryNotice && !showConversationSyncNotice ? (
             <section className="dedicated-turn-notice" role="alert">
               <strong>Conversation synchronization needs attention</strong>
-              <p>The agent is inactive, but Mirror Desktop could not complete the preserved persistence path.</p>
+              <p>The agent is inactive, but Nautilus could not complete the preserved persistence path.</p>
               {mirrorCommitExplanation ? <p className="sync-attention-cause">{mirrorCommitExplanation}</p> : null}
               <div className="recovery-actions">
                 <button type="button" onClick={() => void recoverPostTerminalPersistence(selectedJourney)} disabled={isRetryingMirrorCommit || piInvocationOccupancy.status !== "known"}>
@@ -7287,7 +7287,7 @@ export function App({ model }: AppProps) {
             className="settings-window close-confirmation-dialog danger-dialog"
             role="alertdialog"
             aria-modal="true"
-            aria-label="Confirm quitting Mirror Desktop"
+            aria-label="Confirm quitting Nautilus"
             onClick={(event) => event.stopPropagation()}
           >
             <header className="settings-header">
@@ -7295,7 +7295,7 @@ export function App({ model }: AppProps) {
                 <p className="eyebrow">Active agent work</p>
                 <h2>Quit while agents are working?</h2>
                 <p className="settings-intro">
-                  Mirror Desktop still has {activeCloseWorkCount} active {activeCloseWorkCount === 1 ? "agent operation" : "agent operations"}. Quitting now ends that work before it settles.
+                  Nautilus still has {activeCloseWorkCount} active {activeCloseWorkCount === 1 ? "agent operation" : "agent operations"}. Quitting now ends that work before it settles.
                 </p>
               </div>
               <button type="button" onClick={dismissQuitConfirmation} disabled={closeConfirmationBusy}>×</button>
@@ -7395,7 +7395,7 @@ export function App({ model }: AppProps) {
                 <h2>Reset agent context?</h2>
                 <p className="settings-intro">
                   The agent will start with no memory of what was said in this Conversation.
-                  Mirror Desktop keeps the Conversation and begins Generation {journeyThreadState.activeGeneration.generation + 1}, with a fresh Pi working context and a new Mirror conversation.
+                  Nautilus keeps the Conversation and begins Generation {journeyThreadState.activeGeneration.generation + 1}, with a fresh Pi working context and a new Mirror conversation.
                 </p>
                 {/* CR190: what is kept and what is not, in plain words. No code path reactivates a
                     past generation; the history below is a record, not a set of choices. */}
@@ -7426,7 +7426,7 @@ export function App({ model }: AppProps) {
             <div className="generation-history" aria-label="Generation history">
               {projectGenerationHistory(journeyThreadState.thread).map((item) => (
                 <div className="generation-history-row" key={item.generation}>
-                  <span><strong>Generation {item.generation}</strong><small>{item.piSessionName ?? "Dedicated Mirror Desktop conversation"}</small></span>
+                  <span><strong>Generation {item.generation}</strong><small>{item.piSessionName ?? "Dedicated Nautilus conversation"}</small></span>
                   <span className={`generation-status ${item.status}`}>{item.status}</span>
                 </div>
               ))}
@@ -7761,7 +7761,7 @@ export function App({ model }: AppProps) {
               </label>
               <div className="provider-actions">
                 <button type="button" onClick={() => void saveGlobalAgentProfile()} disabled={agentSettingsState === "saving"}>Save global defaults</button>
-                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={agentSettingsState === "saving"}>Restore Mirror Desktop defaults</button>
+                <button className="secondary-button" type="button" onClick={() => void restoreDefaultAgentSettings()} disabled={agentSettingsState === "saving"}>Restore Nautilus defaults</button>
               </div>
               <p className="provider-note">{piModelCatalogState === "loading" ? "Inspecting the local Pi model catalog…" : piModelCatalogState === "error" ? "Local Pi catalog unavailable; retained configured models remain selectable." : `${piModelCatalog.length} locally available Pi models.`}</p>
                 </section>

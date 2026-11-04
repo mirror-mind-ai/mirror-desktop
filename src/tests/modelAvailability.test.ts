@@ -10,7 +10,7 @@ describe("model availability", () => {
   it("names the reason for a catalog model the invocation cannot resolve", () => {
     const reason = unavailableModelReason(catalog, { provider: "claude-bridge", model: "claude-opus-5" });
     expect(reason).toContain("claude-bridge/claude-opus-5");
-    expect(reason).toContain("Pi extension that Mirror Desktop could not load");
+    expect(reason).toContain("Pi extension that Nautilus could not load");
   });
 
   it("keeps available models untouched", () => {

@@ -116,7 +116,7 @@ export function confirmationPayload({ version, tag, revision, baseUrl, manifestP
 
 export function renderConfirmation(payload) {
   return [
-    "Mirror Desktop release deployment: PREPARED — one confirmation required",
+    "Nautilus release deployment: PREPARED — one confirmation required",
     `Version: ${payload.version}`,
     `Tag: ${payload.tag}`,
     `Candidate revision: ${payload.revision}`,
@@ -536,7 +536,7 @@ async function publish(options) {
     run("git", ["push", "origin", "HEAD"]);
     return path;
   });
-  console.log(`\nMirror Desktop release deployment: PUBLISHED AND VERIFIED`);
+  console.log(`\nNautilus release deployment: PUBLISHED AND VERIFIED`);
   console.log(`Version: ${context.version}`);
   console.log(`Tag: ${context.tag} at ${revision}`);
   console.log(`GitHub release: ${githubReleaseUrl}`);
@@ -547,7 +547,7 @@ async function publish(options) {
 function plan(options) {
   const context = deployContext(options);
   console.log([
-    "Mirror Desktop release deployment plan (dry run — nothing executes)",
+    "Nautilus release deployment plan (dry run — nothing executes)",
     `Version: ${context.version}`,
     `Tag: ${context.tag}`,
     `Publication base URL (derived from the application updater endpoint): ${context.baseUrl}`,
@@ -576,7 +576,7 @@ function parseArguments(argv) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const fail = (error) => {
-    console.error(`Mirror Desktop release deployment: BLOCKED\n${error.message}`);
+    console.error(`Nautilus release deployment: BLOCKED\n${error.message}`);
     process.exit(1);
   };
   try {

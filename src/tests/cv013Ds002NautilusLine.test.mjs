@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   CURRENT_RELEASE_LINE,
@@ -247,5 +247,70 @@ describe("census: the 0.3 identities appear nowhere in the Nautilus line's chann
     for (const allowed of ['"ai.mirrormind.nautilus"', "nautilus/x", '"Nautilus for Mirror.app"']) {
       expect(forbidden.some((pattern) => pattern.test(allowed)), allowed).toBe(false);
     }
+  });
+});
+
+/**
+ * Slice 2: the words the person reads say Nautilus. Every user-facing string that names the app,
+ * in the interface, in the native messages, in the microphone permission and in the release
+ * route's output, moves. Two kinds of "Mirror Desktop" stay on purpose:
+ *
+ * - the `product` schema name in update, release-reading and voice manifests, a wire contract
+ *   between publisher and reader that nobody sees;
+ * - labels written into stored data (the prompt envelope's marker, Pi session names), which
+ *   slice 3 moves with readers that accept both forms.
+ *
+ * Comments, tests and the sample Journey in journeyAltitudePreview.ts (the project's own history)
+ * are outside the census.
+ */
+describe("slice 2: the words the person reads", () => {
+  const isComment = (line) => /^\s*(\/\/|\*|\/\*|\{\/\*)/.test(line);
+  const contract = [
+    /\bproduct\b.*"Mirror Desktop"/i,
+    /PRODUCT: &str = "Mirror Desktop"|PRODUCT = "Mirror Desktop"/,
+    /Manifest product must be Mirror Desktop/,
+  ];
+  const storedLabels = [/Mirror Desktop Journey authority/, /· Mirror Desktop/];
+  const sourceFiles = () => {
+    const files = [];
+    for (const root of ["src/app", "src/domain", "src/agent"]) {
+      for (const name of readdirSync(root, { recursive: true })) {
+        if (/\.(ts|tsx)$/.test(name) && !name.endsWith("journeyAltitudePreview.ts")) files.push(`${root}/${name}`);
+      }
+    }
+    for (const name of readdirSync("src-tauri/src")) if (name.endsWith(".rs")) files.push(`src-tauri/src/${name}`);
+    files.push("src-tauri/Info.plist");
+    for (const name of ["alpha_build", "private_update_publish", "release_candidate", "release_deploy", "release_notes", "self_update_preflight", "promote_production"]) {
+      files.push(`scripts/${name}.mjs`);
+    }
+    return files;
+  };
+  const withoutRustTests = (file, source) => {
+    if (!file.endsWith(".rs")) return source;
+    const at = source.indexOf("\nmod tests {");
+    return at === -1 ? source : source.slice(0, at);
+  };
+  const leftovers = (allowed) => sourceFiles().flatMap((file) =>
+    withoutRustTests(file, read(file)).split("\n").flatMap((line, index) =>
+      line.includes("Mirror Desktop") && !isComment(line) && !allowed.some((pattern) => pattern.test(line))
+        ? [`${file}:${index + 1}: ${line.trim().slice(0, 120)}`]
+        : []));
+
+  it("leaves no visible Mirror Desktop outside the manifests' contract and the stored labels", () => {
+    expect(leftovers([...contract, ...storedLabels])).toEqual([]);
+  });
+
+  it("asks for the microphone in Nautilus's name", () => {
+    expect(read("src-tauri/Info.plist")).toContain("<string>Nautilus uses the microphone only when you explicitly start a voice recording.");
+  });
+
+  it("names the app in the first-run screens and the update notice", () => {
+    expect(read("src/app/PiInstallStep.tsx")).toContain('<p className="eyebrow">Nautilus for Mirror</p>');
+    expect(read("src/app/SelfUpdateNotification.tsx")).toContain("`Nautilus ${available.version} is available`");
+  });
+
+  it("keeps the other-build refusal one sentence on both sides of the bridge", () => {
+    expect(read("src/domain/otherBuildRefusal.ts")).toContain('"This conversation belongs to another Nautilus build"');
+    expect(read("src-tauri/src/main.rs")).toContain('"This conversation belongs to another Nautilus build: it was made by the {} build, and this is the {} build."');
   });
 });

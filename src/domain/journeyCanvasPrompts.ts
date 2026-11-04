@@ -69,7 +69,7 @@ literal text.
 export function composeCanvasTeachingPrompt(journeyName: string, briefing?: string): string {
   return `I want this Journey, ${journeyName}, to keep a durable drawing of what is happening in
 it, in a file named exactly ${CANVAS_FILE_NAME} at the root of this Journey, beside JOURNEY.md.
-Mirror Desktop renders that file in a Canvas tab. It assigns no meaning to what you draw there:
+Nautilus renders that file in a Canvas tab. It assigns no meaning to what you draw there:
 the shape is for you and me to decide, not for the app.
 
 Before drawing anything, ask me what belongs on it, and tell me what you think belongs there based

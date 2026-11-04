@@ -34,7 +34,7 @@ export function SelfUpdatePanel({
   reviewedUpdate,
   installedReleaseReading,
   selfUpdates = true,
-  buildName = "Mirror Desktop TS",
+  buildName = "Nautilus",
 }: SelfUpdatePanelProps) {
   const [state, setState] = useState<UpdateState>(reviewedUpdate ? { status: "available", update: reviewedUpdate } : { status: "idle" });
 
@@ -100,7 +100,7 @@ export function SelfUpdatePanel({
   if (!selfUpdates) {
     return (
       <section className="settings-section self-update-card" aria-label="Trusted self-update">
-        <h3>Mirror Desktop updates</h3>
+        <h3>Nautilus updates</h3>
         <p className="provider-note">This build, {buildName}, does not update itself; updates reach Nautilus for Mirror.</p>
       </section>
     );
@@ -108,7 +108,7 @@ export function SelfUpdatePanel({
 
   return (
     <section className="settings-section self-update-card" aria-label="Trusted self-update">
-      <h3>Mirror Desktop updates</h3>
+      <h3>Nautilus updates</h3>
       <p className="provider-note">Checks the signed trusted update channel. Updates replace only the application bundle; Mirror homes, memory.db, identity, credentials, Journey content and conversations are never mutated.</p>
       <div className="provider-actions">
         <button type="button" onClick={() => void checkNow()} disabled={busy}>Check for updates</button>
@@ -116,7 +116,7 @@ export function SelfUpdatePanel({
       </div>
       {runtimeBusy ? <p className="settings-error" role="alert">Finish the active runtime operation before updating.</p> : null}
       {installedReleaseReading && state.status !== "available" && state.status !== "installing" ? (
-        <article className="self-update-release-reading" aria-label={`What's New in installed Mirror Desktop ${installedReleaseReading.version}`}>
+        <article className="self-update-release-reading" aria-label={`What's New in installed Nautilus ${installedReleaseReading.version}`}>
           <h4>What's New in installed version {installedReleaseReading.version}</h4>
           <strong>{installedReleaseReading.title}</strong>
           <p>{installedReleaseReading.digest}</p>
@@ -125,12 +125,12 @@ export function SelfUpdatePanel({
         </article>
       ) : null}
       {state.status === "checking" ? <p className="provider-note" role="status">Checking trusted update channel…</p> : null}
-      {state.status === "current" ? <p className="provider-note" role="status">Mirror Desktop is up to date.</p> : null}
+      {state.status === "current" ? <p className="provider-note" role="status">Nautilus is up to date.</p> : null}
       {state.status === "available" ? (
         <div className="self-update-available" role="status">
           <strong>Version {state.update.version} is available.</strong>
           {state.update.releaseReading ? (
-            <article className="self-update-release-reading" aria-label={`What's New in Mirror Desktop ${state.update.version}`}>
+            <article className="self-update-release-reading" aria-label={`What's New in Nautilus ${state.update.version}`}>
               <h4>{state.update.releaseReading.title}</h4>
               <p>{state.update.releaseReading.digest}</p>
               <MessageContent content={state.update.releaseReading.body} />

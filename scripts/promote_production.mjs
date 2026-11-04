@@ -61,7 +61,7 @@ function capture(command, args) {
 function assertCleanWorktree() {
   const status = capture("git", ["status", "--porcelain", "--untracked-files=normal"]);
   if (status) {
-    fail("the Mirror Desktop worktree is not clean; commit or discard changes before promotion");
+    fail("the repository's worktree is not clean; commit or discard changes before promotion");
   }
 }
 

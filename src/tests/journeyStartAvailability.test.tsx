@@ -160,7 +160,7 @@ describe("CR107 — the not-started surface never withholds the action silently"
       startUnavailableReason: "All native Pi slots are in use. Starting becomes available once one is free. Native admission remains the atomic capacity authority.",
     }));
 
-    expect(html).toContain("This Journey has not started in Mirror Desktop");
+    expect(html).toContain("This Journey has not started in Nautilus");
     expect(html).toContain("Start this Journey");
     expect(html).toContain("disabled");
     expect(html).toContain("All native Pi slots are in use");

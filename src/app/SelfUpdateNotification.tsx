@@ -116,7 +116,7 @@ export function SelfUpdateNotification({
   }
 
   const available = state.status === "available" || state.status === "installing" ? state.update : undefined;
-  const fullVersionLabel = currentVersion ? `Mirror Desktop ${currentVersion}` : "Mirror Desktop";
+  const fullVersionLabel = currentVersion ? `Nautilus ${currentVersion}` : "Nautilus";
   const compactVersionLabel = currentVersion ? displayMirrorDesktopVersion(currentVersion) : "version";
   const showsAvailable = available;
   const showsInstalledReading = !showsAvailable && Boolean(installedReleaseReading);
@@ -137,16 +137,16 @@ export function SelfUpdateNotification({
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={showsAvailable ? `Mirror Desktop ${available.version} is available` : showsWhatsNew ? `What's New in ${fullVersionLabel}` : `${fullVersionLabel} is up to date`}
+        title={showsAvailable ? `Nautilus ${available.version} is available` : showsWhatsNew ? `What's New in ${fullVersionLabel}` : `${fullVersionLabel} is up to date`}
       >
         <span>Version: {compactVersionLabel}</span>
         {chipSignal ? <span className={`self-update-chip-status ${chipSignal.className}`} aria-label={chipSignal.label} title={chipSignal.label}>{chipSignal.glyph}</span> : null}
       </button>
       {open ? (
-        <div className="self-update-popover" role="dialog" aria-label="Mirror Desktop update">
+        <div className="self-update-popover" role="dialog" aria-label="Nautilus update">
           {showsAvailable ? (
             <>
-              <strong>Mirror Desktop update is available.</strong>
+              <strong>Nautilus update is available.</strong>
               <p className="self-update-version-line">Version: {displayMirrorDesktopVersion(available.currentVersion)}</p>
               <p>Available: {displayMirrorDesktopVersion(available.version)}. This update replaces only the application. Your Journeys, conversations, memory, credentials, and local data remain intact.</p>
               {available.releaseReading ? (
@@ -167,7 +167,7 @@ export function SelfUpdateNotification({
             </>
           ) : showsInstalledReading && installedReleaseReading ? (
             <>
-              <strong>{showsWhatsNew ? `What's New in Mirror Desktop ${displayMirrorDesktopVersion(installedReleaseReading.version)}` : `Mirror Desktop ${displayMirrorDesktopVersion(installedReleaseReading.version)}`}</strong>
+              <strong>{showsWhatsNew ? `What's New in Nautilus ${displayMirrorDesktopVersion(installedReleaseReading.version)}` : `Nautilus ${displayMirrorDesktopVersion(installedReleaseReading.version)}`}</strong>
               <div className="self-update-reading-summary">
                 <strong>{installedReleaseReading.title}</strong>
                 <p>{installedReleaseReading.digest}</p>
@@ -181,7 +181,7 @@ export function SelfUpdateNotification({
             </>
           ) : (
             <>
-              <strong>Mirror Desktop</strong>
+              <strong>Nautilus</strong>
               <p className="self-update-version-line">Version: {compactVersionLabel}</p>
               <p>You are up to date.</p>
               <div className="self-update-popover-actions">

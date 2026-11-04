@@ -182,7 +182,7 @@ pub(crate) fn run_disconnect(command: Command, provider: &str) -> Result<Option<
 pub(crate) fn describe_disconnect_failure(reason: Option<&str>) -> String {
     match reason {
         None => "Pi did not answer in time. Try again.".to_string(),
-        Some("not_stored") => "Pi holds no sign-in for this provider; it is connected through your environment, outside Mirror Desktop.".to_string(),
+        Some("not_stored") => "Pi holds no sign-in for this provider; it is connected through your environment, outside Nautilus.".to_string(),
         Some("unknown_provider") => "This version of Pi does not know that provider.".to_string(),
         Some("pi_unavailable" | "usage") => "Pi is not installed correctly. Reinstall it from the setup screen.".to_string(),
         Some(_) => "Pi could not disconnect this provider. Try again.".to_string(),

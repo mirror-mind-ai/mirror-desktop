@@ -15,7 +15,7 @@ use std::{
 
 pub(crate) const ANTHROPIC_DIRECTORY: &str = "anthropic";
 pub(crate) const ANTHROPIC_NOT_INSTALLED: &str =
-    "Claude models are not installed for Mirror Desktop TS yet. Install them from the setup screen.";
+    "Claude models are not installed for Nautilus yet. Install them from the setup screen.";
 /// The person's own copy, which the Desktop's replaces in every invocation it makes.
 pub(crate) const UPSTREAM_PACKAGE: &str = "pi-claude-bridge";
 /// The provider's Pi extension, inside an install.

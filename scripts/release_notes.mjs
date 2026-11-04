@@ -146,7 +146,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const result = createReleaseNoteFiles(options);
     console.log(options.json ? JSON.stringify(result, null, 2) : `Release notes created: ${result.notePath}`);
   } catch (error) {
-    console.error(`Mirror Desktop release notes: BLOCKED\n${error.message}`);
+    console.error(`Nautilus release notes: BLOCKED\n${error.message}`);
     process.exit(1);
   }
 }

@@ -18,8 +18,8 @@ describe("release candidate provenance", () => {
   });
 
   it("names macOS artifacts with product, version and architecture", () => {
-    expect(artifactName({ version: "0.2.0", architecture: "x64" })).toBe("Mirror Desktop_0.2.0_x64.dmg");
-    expect(artifactName({ version: "0.2.0", architecture: "aarch64" })).toBe("Mirror Desktop_0.2.0_aarch64.dmg");
+    expect(artifactName({ version: "0.2.0", architecture: "x64" })).toBe("Nautilus for Mirror_0.2.0_x64.dmg");
+    expect(artifactName({ version: "0.2.0", architecture: "aarch64" })).toBe("Nautilus for Mirror_0.2.0_aarch64.dmg");
     expect(() => artifactName({ version: "0.2.0", architecture: "linux" })).toThrow(/Unsupported release architecture/);
   });
 
@@ -28,7 +28,7 @@ describe("release candidate provenance", () => {
       version: "0.2.0",
       tag: "v0.2.0",
       revision: "a".repeat(40),
-      artifact: "Mirror Desktop_0.2.0_x64.dmg",
+      artifact: "Nautilus for Mirror_0.2.0_x64.dmg",
       architecture: "x64",
       sha256: "b".repeat(64),
       checks: { worktreeClean: true, versionFilesAgree: true },
@@ -53,7 +53,7 @@ describe("release candidate provenance", () => {
       version: "0.2.0-alpha.1",
       tag: "v0.2.0-alpha.1",
       revision: "a".repeat(40),
-      artifact: "Mirror Desktop_0.2.0-alpha.1_x64.dmg",
+      artifact: "Nautilus for Mirror_0.2.0-alpha.1_x64.dmg",
       architecture: "x64",
       sha256: "b".repeat(64),
       checks: { worktreeClean: true, versionFilesAgree: true },

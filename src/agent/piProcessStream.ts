@@ -42,14 +42,14 @@ function packetWithoutPersistedThumbnails(packet: PiTaskPacket): PiTaskPacket {
 
 export function createRawPiInvocationPrompt(packet: PiTaskPacket): string {
   return [
-    "You are Pi Coding Agent acting as the Mirror Desktop agent.",
+    "You are Pi Coding Agent acting as the Nautilus agent.",
     "Read the task packet below and return one fenced JSON object.",
     "Do not execute the Mission.",
     "Do not mutate files.",
     "If Mirror runtime mode is active, Mirror may log this exchange as durable conversation history; do not call Mirror yourself.",
     "Use this shape: { \"missionDraft\": { \"status\": string, \"title\": string|null, \"purpose\": string|null, \"intention\": string|null, \"openQuestions\": string[], \"safety\": { \"execution\": \"not_executed\", \"filesMutated\": false, \"mirrorInvoked\": false } }, \"assistantMessage\": string }.",
     "Write assistantMessage as readable Markdown-style prose with short paragraphs, bullets, or numbered lists when useful.",
-    "Mirror Desktop will normalize the JSON into chat prose and grammar projection.",
+    "Nautilus will normalize the JSON into chat prose and grammar projection.",
     "",
     "```json",
     JSON.stringify({ ...packetWithoutPersistedThumbnails(packet), safetyMode: "read_only_local_process" }, null, 2),

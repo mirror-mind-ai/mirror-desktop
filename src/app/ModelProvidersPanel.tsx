@@ -56,16 +56,16 @@ type ModelProvidersPanelProps = {
 
 export function disconnectWarning(provider: PiProviderStatus, providers: PiProviderStatus[], claudeConnected = false): string {
   const others = providers.filter((other) => other.id !== provider.id && other.ready);
-  const last = others.length === 0 && !claudeConnected ? " It is your only connected provider, so Mirror Desktop will ask you to connect one." : "";
-  return `Disconnect ${provider.name}? Pi forgets this sign-in, in Mirror Desktop and in Pi in a terminal.${last}`;
+  const last = others.length === 0 && !claudeConnected ? " It is your only connected provider, so Nautilus will ask you to connect one." : "";
+  return `Disconnect ${provider.name}? Pi forgets this sign-in, in Nautilus and in Pi in a terminal.${last}`;
 }
 
 /** Connecting Claude through Claude Code: what Connect does, then its progress. Setup and Settings share it. */
 export function ClaudeCodeConnect({ claude, disabled = false }: { claude: ClaudeCodeConnection; disabled?: boolean }) {
   return (
     <>
-      <p className="provider-note">Use your Claude subscription. Mirror Desktop TS installs its own copy of Claude Code into its folder (about 135 MB, each package checked) and uses the Claude sign-in already on this Mac.</p>
-      <p className="provider-note">Your own Claude Code, its plugins and its hooks are left alone, and stay out of Mirror Desktop's turns.</p>
+      <p className="provider-note">Use your Claude subscription. Nautilus installs its own copy of Claude Code into its folder (about 135 MB, each package checked) and uses the Claude sign-in already on this Mac.</p>
+      <p className="provider-note">Your own Claude Code, its plugins and its hooks are left alone, and stay out of Nautilus's turns.</p>
       {claude.view.kind === "installing" ? (
         <div className="pi-install-progress" role="status">
           <progress max={claude.view.total || 1} value={claude.view.phase === "check" ? claude.view.total : claude.view.done} />
@@ -105,7 +105,7 @@ export function ModelProvidersPanel({ providers, state, login, message, busy, on
   return (
     <section className="settings-section provider-card" aria-label="Model providers">
       <h3>Model providers</h3>
-      <p className="provider-note">Your Mirror talks to a model through these providers. Pi keeps the sign-ins on this Mac; Mirror Desktop keeps no copy.</p>
+      <p className="provider-note">Your Mirror talks to a model through these providers. Pi keeps the sign-ins on this Mac; Nautilus keeps no copy.</p>
       {state === "loading" && providers.length === 0 ? <p className="provider-note">Asking Pi about providers…</p> : null}
       {state === "error" ? (
         <div className="provider-actions"><button className="secondary-button" type="button" onClick={onReload}>Ask Pi again</button></div>

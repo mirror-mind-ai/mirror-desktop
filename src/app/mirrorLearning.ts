@@ -19,7 +19,7 @@ export type MirrorLearningRun = {
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 export function describeLearning(run: MirrorLearningRun | null, locale?: string): string {
-  if (!run) return "Mirror learns from a Conversation once it has been quiet for 30 minutes. It has not checked yet since Mirror Desktop opened.";
+  if (!run) return "Mirror learns from a Conversation once it has been quiet for 30 minutes. It has not checked yet since Nautilus opened.";
   const when = new Date(run.at).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
   if (run.outcome === "no_key") return `On ${when}, Conversations were ready to learn from, but no OpenRouter key is kept. Mirror learns once one is.`;
   if (run.outcome === "failed") return `Learning did not finish on ${when}: ${run.message ?? "no reason was given."} It tries again in ten minutes.`;

@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
 import { releaseNotesUrl } from "./release_notes.mjs";
+import { CURRENT_RELEASE_LINE } from "./release_line.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -49,7 +50,7 @@ export function assertReleaseTag(version, tag) {
   return tag;
 }
 
-export function artifactName({ productName = "Mirror Desktop", version, architecture, extension = "dmg" }) {
+export function artifactName({ productName = CURRENT_RELEASE_LINE.artifactName, version, architecture, extension = "dmg" }) {
   if (!["x64", "aarch64", "universal"].includes(architecture)) {
     throw new Error(`Unsupported release architecture: ${architecture}`);
   }
@@ -112,7 +113,7 @@ export function inspectReleaseCandidate(options = {}) {
 
 function human(report) {
   return [
-    "Mirror Desktop release candidate inspection: READY",
+    "Nautilus release candidate inspection: READY",
     `Version: ${report.version}`,
     `Tag: ${report.tag}`,
     `Revision: ${report.revision}`,
@@ -129,7 +130,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const report = inspectReleaseCandidate(parseArguments(process.argv.slice(2)));
     console.log(process.argv.includes("--json") ? JSON.stringify(report, null, 2) : human(report));
   } catch (error) {
-    console.error(`Mirror Desktop release candidate inspection: BLOCKED\n${error.message}`);
+    console.error(`Nautilus release candidate inspection: BLOCKED\n${error.message}`);
     process.exit(1);
   }
 }

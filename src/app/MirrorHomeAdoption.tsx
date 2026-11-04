@@ -18,7 +18,7 @@ export function MirrorHomeAdoption({ inspection, adopting, error, onAdopt, onCan
   const { contents } = inspection;
   return (
     <>
-      <p className="eyebrow">Mirror Desktop TS</p>
+      <p className="eyebrow">Nautilus for Mirror</p>
       <h1>Open this Mirror home?</h1>
       <p><code>{inspection.homePath}</code></p>
       {contents ? (
@@ -29,18 +29,18 @@ export function MirrorHomeAdoption({ inspection, adopting, error, onAdopt, onCan
       ) : null}
       {view.kind === "migrate" ? (
         <>
-          <p>Mirror Desktop TS updates this home before opening it. These changes are applied:</p>
+          <p>Nautilus updates this home before opening it. These changes are applied:</p>
           <ul>{view.expectedPending.map((id) => <li key={id}><code>{id}</code></li>)}</ul>
           <p>
             A copy of the home is taken first, checked, and kept in <code>{`${inspection.homePath}/backups`}</code>.
           </p>
           <p>
-            Afterwards Mirror Desktop 0.2 and the terminal's Python Mirror can no longer open it. Going back to them
+            Afterwards the 0.2 desktop app and the terminal's Python Mirror can no longer open it. Going back to them
             means restoring the copy, and what was written after the update is not in it.
           </p>
         </>
       ) : view.kind === "mark" ? (
-        <p>This home is already up to date. Mirror Desktop TS will mark it as its own and open it.</p>
+        <p>This home is already up to date. Nautilus will mark it as its own and open it.</p>
       ) : (
         <p>{view.reason}</p>
       )}

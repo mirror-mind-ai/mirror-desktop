@@ -38,7 +38,7 @@ export function MirrorHomeSetup({ binding, error, brokenHome, onCreate, onChoose
 
   return (
     <>
-      <p className="eyebrow">Mirror Desktop TS</p>
+      <p className="eyebrow">Nautilus for Mirror</p>
       <h1>Create your Mirror</h1>
       <p>Your Mirror keeps your Journeys, Conversations and memory in one folder on this Mac. Nothing outside it is written.</p>
       {brokenHome ? <p className="provider-note">The Mirror home this app opened before can no longer be opened: {brokenHome} Create a new one, or open another.</p> : null}
@@ -72,7 +72,7 @@ export function MirrorHomeSetup({ binding, error, brokenHome, onCreate, onChoose
           <button className="secondary-button" type="button" disabled={binding} onClick={() => void chooseFolder()}>Create it in another folder…</button>
         </div>
       </form>
-      <p>Already have a Mirror home made by Mirror Desktop TS?</p>
+      <p>Already have a Mirror home made by Nautilus?</p>
       <div className="provider-actions">
         <button className="secondary-button" type="button" disabled={binding} onClick={onChoose}>Open an existing Mirror home…</button>
       </div>

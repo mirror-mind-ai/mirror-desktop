@@ -28,7 +28,7 @@ describe("SelfUpdatePanel", () => {
     const html = renderToStaticMarkup(
       <SelfUpdatePanel runtimeBusy={false} checkUpdates={neverCheck} installUpdate={neverInstall} />,
     );
-    expect(html).toContain("Mirror Desktop updates");
+    expect(html).toContain("Nautilus updates");
     expect(html).toContain("Check for updates");
     expect(html).toContain("signed trusted update channel");
     expect(html).toContain("memory.db");

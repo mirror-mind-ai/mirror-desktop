@@ -90,7 +90,7 @@ export function adoptionView(inspection: Extract<HomeAdoptionInspection, { marke
     case "ahead":
       return {
         kind: "refuse",
-        reason: "This home was updated by a newer Mirror than this app carries. Update Mirror Desktop TS first, then open it again.",
+        reason: "This home was updated by a newer Mirror than this app carries. Update Nautilus first, then open it again.",
       };
     case "not_mirror":
       return { kind: "refuse", reason: "The memory.db in this folder is not a Mirror database." };

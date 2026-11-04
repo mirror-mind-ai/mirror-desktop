@@ -80,7 +80,7 @@ describe("verified update installation boundary", () => {
     })).toMatchObject({
       status: "ready_to_apply",
       expectedVersion: "0.2.0",
-      preserve: ["Mirror homes", "memory.db", "runtime-binding.v1.json", "Journey registry and conversations", "Mirror Desktop app data", "Nautilus Harness state"],
+      preserve: ["Mirror homes", "memory.db", "runtime-binding.v1.json", "Journey registry and conversations", "Nautilus app data", "Nautilus Harness state"],
     });
   });
 

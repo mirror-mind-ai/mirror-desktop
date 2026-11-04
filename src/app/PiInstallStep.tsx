@@ -30,9 +30,9 @@ export function piInstallProgressLabel(view: Extract<PiInstallView, { kind: "ins
 export function PiInstallStep({ view, onInstall }: PiInstallStepProps) {
   return (
     <>
-      <p className="eyebrow">Mirror Desktop TS</p>
+      <p className="eyebrow">Nautilus for Mirror</p>
       <h1>Install Pi</h1>
-      <p>Mirror Desktop TS talks to models through Pi, an open-source agent. It installs the version it was made with into its own folder: about 24 MB to download, each package checked before it is used.</p>
+      <p>Nautilus talks to models through Pi, an open-source agent. It installs the version it was made with into its own folder: about 24 MB to download, each package checked before it is used.</p>
       <p>A Pi you already have is left alone. The sign-ins Pi keeps on this Mac are used as they are.</p>
       {view.kind === "installing" ? (
         <div className="pi-install-progress" role="status">
