@@ -51,6 +51,7 @@ delivering anything.
 - [CR189: Route the Persona by What the Turn Is About](../rs022-mirror-core-debts/cr189-route-the-persona-by-what-the-turn-is-about.md) — captured here, **moved to RS022** (Core) by the Navigator, 2026-11-03
 - [CR190: Show the Person in the Header and in Their Turns](cr190-show-the-person-in-the-header-and-in-their-turns.md) — **done** · Desktop · Navigator, 2026-11-03; avatar button, the person's name on their turns, Chapters in the menu, a plainer reset
 - [CR191: Notice a New Version While the App Stays Open](cr191-notice-a-new-version-while-the-app-stays-open.md) — **done** · Desktop · Navigator, 2026-11-04; shipped in v0.3.0-alpha.15, seen in production with alpha.16 without a restart; the update notice appears only when the app loads, and the app is rarely closed
+- [CR192: The 0.2 Carry Left Segment Receipts Stale](cr192-the-0-2-carry-left-segment-receipts-stale.md) — **captured** · Desktop state · found building CV-013.DS-003, 2026-11-04; 893 segments carried from 0.2 fail their recorded hash, provably only because their session paths moved
 
 ## Queue After the Cutover
 
@@ -74,6 +75,7 @@ is proposed and awaits the Navigator.
 | 1 | [CR187](cr187-take-a-correction-sent-in-the-first-seconds-of-a-turn.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
 | 2 | [CR190](cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
 | 3 | [CR191](cr191-notice-a-new-version-while-the-app-stays-open.md) | RS026 | done | shipped in v0.3.0-alpha.15; checked in production with alpha.16, 2026-11-04 |
+| 4 | [CR192](cr192-the-0-2-carry-left-segment-receipts-stale.md) | RS026 | captured | found building CV-013.DS-003; proposed to be repaired in Nautilus's folder before DS-004 |
 | 3 | [RS027](../rs027-re-examine-the-older-open-work/index.md): CR159, CR163, CR166, CR164, CR155, CR161, CR148, CR131, CR157 | RS027 | — | moved there by the Navigator, 2026-11-03; each needs a verdict before any build |
 | — | [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md) | RS016 | parked | absorbed by CV-012, Navigator, 2026-11-03 |
 | — | [CR171](cr171-retire-the-nautilus-harness-interface-label.md) | RS026 | done | absorbed by CV-013 and delivered by its DS-002 slice 3, 2026-11-04 |
