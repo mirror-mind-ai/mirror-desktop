@@ -2,7 +2,7 @@
 
 # CV-013.DS-003 - Carry the State
 
-**Status:** 🔵 In progress — started by the Navigator on 2026-11-04 ("comece a DS-003"); the script is built and rehearsed
+**Status:** ✅ Done — started by the Navigator on 2026-11-04 ("comece a DS-003"); accepted the same day ("o dev abriu certo")
 
 ## Outcome
 
@@ -43,7 +43,8 @@ node scripts/carry_03_state.mjs [--dev] [--from <0.3 app data>] [--recorded-as <
 - **A segment receipt verifies in Nautilus exactly when it verified in 0.3.** A Conversation
   Segment's `complete.json` holds the SHA-256 of its manifest and of each segment, and the app
   checks them before showing older history. When a segment's bytes change, its hash is recomputed
-  only if the recorded hash held in the source; a stale one stays stale (see CR192).
+  only if the recorded hash held in the source. A stale one stays stale, unless it is one the 0.2
+  carry left stale and the 0.2 original proves it ([CR192](../../../refinement/rs026-after-the-0-3-cutover/cr192-the-0-2-carry-left-segment-receipts-stale.md)).
 - **The key is carried as bytes.** Since CR180 the OpenRouter key is an owner-only file in the app
   data folder, not a Keychain item, so it travels with the folder and the person does not enter it
   again. The script never parses or prints it; its receipt says only whether the file existed.
@@ -96,4 +97,6 @@ first reading rule tried to parse. The rule became the homes' records only.
 - The rehearsal on a clone of production carries every file, moves every session path and keeps
   every receipt's verification as it was. ✅
 - Nautilus Dev, opened on the carried development folder, shows the Journeys and Conversations the
-  0.3 dev build had, and continues one of them. (Owed: the Navigator's check.)
+  0.3 dev build had, and continues one of them. ✅ Navigator, 2026-11-04: "o dev abriu certo".
+- The receipts the 0.2 carry left stale are repaired on proof (CR192). ✅ On the production clone,
+  the production home's 249 segments all verify in Nautilus's folder.

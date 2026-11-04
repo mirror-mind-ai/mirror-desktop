@@ -5,8 +5,7 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | 1 CV-013 · depois RS027 |
-| **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🟡 |
-| ↳　CR192 · The 0.2 Carry Left Segment Receipts Stale | 🟡 captured · consertar na pasta do Nautilus antes da DS-004 |
+| **RS026 · After the 0.3 Cutover** | 🔄 ativa · sem CR aberto |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress |
 | ↳　CR163 · A Hung Mirror Append Freezes Every Exit | 🔵 in_progress |
@@ -35,8 +34,7 @@
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
 | **CV-013 · Nautilus for Mirror** | 🔵 em andamento · último passo antes da divulgação |
 | ↳　DS-002 · The Nautilus Line | 🔵 fatias 1 a 3 feitas, com o ícone · a 4, a 0.4.0-alpha.1, espera a DS-003 |
-| ↳　DS-003 · Carry the State | 🔵 script pronto e ensaiado · falta abrir o Nautilus Dev na pasta transferida |
-| ↳　DS-004 · The Navigator's Cutover | 🟡 planejada |
+| ↳　DS-004 · The Navigator's Cutover | 🟡 próxima · publicar a 0.4.0-alpha.1 (fatia 4 da DS-002) e transferir |
 | ↳　DS-005 · The Mirror Site Points to Nautilus, and Nautilus Gets Its Own Site | 🟡 planejada · nautilus.mirrormind.sh, pasta em mirrormind-site |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
