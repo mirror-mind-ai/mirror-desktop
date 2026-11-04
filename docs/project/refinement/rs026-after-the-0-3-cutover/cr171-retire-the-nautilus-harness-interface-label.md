@@ -23,3 +23,5 @@ both. Rewriting old rows is a separate decision and probably not worth it.
 
 Parked by the Navigator: a future demand, not yet recorded, will absorb this CR. Unpark it
 when that demand is captured, and merge it there.
+
+The demand that absorbs it is [CV-013](../../roadmap/cv-013-nautilus-for-mirror/index.md) (Navigator, 2026-11-03).

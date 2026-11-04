@@ -90,3 +90,5 @@ criterion for it has been established**, and this document does not invent one.
 
 Parked by the Navigator: a future demand, not yet recorded, will absorb this CR. Unpark it
 when that demand is captured, and merge it there.
+
+The demand that absorbs it is [CV-012](../../roadmap/cv-012-a-canonical-core-and-extensions/index.md) (Navigator, 2026-11-03).
