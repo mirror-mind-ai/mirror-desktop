@@ -30,7 +30,7 @@ delivering anything.
 - [CR168: Name a Channel Refusal Instead of invalid_record](cr168-name-a-channel-refusal-instead-of-invalid-record.md) — **done** · Desktop
 - [CR169: Tell a Dev Build Apart From the User Build](cr169-tell-a-dev-build-apart-from-the-user-build.md) — **done** · Desktop
 - [CR170: Pass the Invocation Directory to the Core Explicitly](../rs022-mirror-core-debts/cr170-pass-the-invocation-directory-to-the-core-explicitly.md) — **captured** · Core · **moved to RS022** by the Navigator, 2026-11-03
-- [CR171: Retire the nautilus_harness Interface Label](cr171-retire-the-nautilus-harness-interface-label.md) — **captured** · Desktop + Core data
+- [CR171: Retire the nautilus_harness Interface Label](cr171-retire-the-nautilus-harness-interface-label.md) — **done** · Desktop (delivered by CV-013.DS-002 slice 3)
 - [CR172: Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) — **done** · the public site (another Journey's repository) · put first by the Navigator
 - [CR173: Make Anthropic Access the Desktop's Own Provider](cr173-make-anthropic-access-the-desktops-own-provider.md) — **done** · Desktop · Navigator, 2026-11-02; closes CR167 without waiting on the bridge's author
 - [CR174: A Bound Home That No Longer Opens Must Not Hold the App](cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) — **done** · Desktop · found by the Navigator testing CR173 in dev, 2026-11-02
@@ -75,7 +75,8 @@ is proposed and awaits the Navigator.
 | 2 | [CR190](cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | done | shipped in v0.3.0-alpha.13; checked in production 2026-11-04 |
 | 3 | [CR191](cr191-notice-a-new-version-while-the-app-stays-open.md) | RS026 | done | shipped in v0.3.0-alpha.15; checked in production with alpha.16, 2026-11-04 |
 | 3 | [RS027](../rs027-re-examine-the-older-open-work/index.md): CR159, CR163, CR166, CR164, CR155, CR161, CR148, CR131, CR157 | RS027 | — | moved there by the Navigator, 2026-11-03; each needs a verdict before any build |
-| — | [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md), [CR171](cr171-retire-the-nautilus-harness-interface-label.md) | RS016, RS026 | parked | absorbed by CV-012 (CR156) and CV-013 (CR171), Navigator, 2026-11-03 |
+| — | [CR156](../rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md) | RS016 | parked | absorbed by CV-012, Navigator, 2026-11-03 |
+| — | [CR171](cr171-retire-the-nautilus-harness-interface-label.md) | RS026 | done | absorbed by CV-013 and delivered by its DS-002 slice 3, 2026-11-04 |
 | — | [CR094](../rs022-mirror-core-debts/cr094-mirror-mode-activation-rebinds-desktop-conversation-journey.md), [CR170](../rs022-mirror-core-debts/cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS022 | parked | Core debts; re-read against the TypeScript Core before resuming |
 | — | [RS028](../rs028-journey-management/index.md): CR098, CR099 | RS028 | — | Journey management features, moved there by the Navigator, 2026-11-03; not yet ordered |
 | 2 | [CR172](cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | done | deployed to mirrormind.sh and mirrormind.com.br 2026-11-02; validated and closed by the Navigator the same day |

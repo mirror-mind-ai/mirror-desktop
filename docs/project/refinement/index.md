@@ -258,7 +258,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR168](rs026-after-the-0-3-cutover/cr168-name-a-channel-refusal-instead-of-invalid-record.md) | RS026 | Name a Channel Refusal Instead of invalid_record | done | @alissonvale | `main`, dev-validated |
 | — | [CR169](rs026-after-the-0-3-cutover/cr169-tell-a-dev-build-apart-from-the-user-build.md) | RS026 | Tell a Dev Build Apart From the User Build | done | @alissonvale | `main`, dev-validated |
 | — | [CR170](rs022-mirror-core-debts/cr170-pass-the-invocation-directory-to-the-core-explicitly.md) | RS022 | Pass the Invocation Directory to the Core Explicitly | parked | — | — |
-| — | [CR171](rs026-after-the-0-3-cutover/cr171-retire-the-nautilus-harness-interface-label.md) | RS026 | Retire the nautilus_harness Interface Label | parked | — | — |
+| — | [CR171](rs026-after-the-0-3-cutover/cr171-retire-the-nautilus-harness-interface-label.md) | RS026 | Retire the nautilus_harness Interface Label | done | — | — |
 | — | [CR172](rs026-after-the-0-3-cutover/cr172-bring-the-sites-install-guides-to-the-typescript-core-and-mirror-desktop-0-3.md) | RS026 | Bring the Site's Install Guides to the TypeScript Core and Mirror Desktop 0.3 | done | @alissonvale | `mirrormind-site` `main`, deployed |
 | — | [CR173](rs026-after-the-0-3-cutover/cr173-make-anthropic-access-the-desktops-own-provider.md) | RS026 | Make Anthropic Access the Desktop's Own Provider | done | @alissonvale | `main`, dev-validated |
 | — | [CR174](rs026-after-the-0-3-cutover/cr174-a-bound-home-that-no-longer-opens-must-not-hold-the-app.md) | RS026 | A Bound Home That No Longer Opens Must Not Hold the App | done | @alissonvale | `main`, dev-validated |

@@ -2,7 +2,7 @@
 
 # CR171: Retire the nautilus_harness Interface Label
 
-**Status:** parked
+**Status:** done
 **Line:** 0.3 · Desktop, and conversation data in the home
 
 ## Friction
@@ -25,3 +25,11 @@ Parked by the Navigator: a future demand, not yet recorded, will absorb this CR.
 when that demand is captured, and merge it there.
 
 The demand that absorbs it is [CV-013](../../roadmap/cv-013-nautilus-for-mirror/index.md) (Navigator, 2026-11-03).
+
+## Delivered (2026-11-04)
+
+Delivered by [CV-013.DS-002](../../roadmap/cv-013-nautilus-for-mirror/ds-002-the-nautilus-line/index.md)
+slice 3 (`8c8ecbb6`). With the app named Nautilus again, the new label is `nautilus`, not the
+`mirror_desktop` proposed above. New Conversations carry it; the core relabels an open Conversation
+when it is ensured again, and learning asks for both labels until then. Old rows are not rewritten.
+The messages' `sourceInterface` (`nautilus-harness`) is kept, since replay compares it.

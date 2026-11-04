@@ -67,8 +67,48 @@ The Navigator asked to bring back the icon the app had as Nautilus Harness. Git 
 - `0c4684cb` (2026-09-02): a luminous violet spiral on a dark plum square, with a `DEV` badge for the
   development build; the last Nautilus Harness icon, replaced by the mirror (`da611ab8`).
 
-Which one returns is the Navigator's choice. The stable, development and evaluation icons (PNG and
-SVG) follow it, and the `EVAL` badge is redrawn on the same artwork. Built with slice 2.
+The Navigator chose `0c4684cb`, the violet spiral, with its `DEV` variant for development. Built in
+`86b37424`: the stable and development PNGs are that commit's files, pinned by hash in
+`runtimeChannelConfiguration.test.ts`; the evaluation icon is the same spiral with the green `EVAL`
+badge, rendered from its SVG. The design note is [`docs/product/nautilus-icon.md`](../../../../product/nautilus-icon.md).
+
+## Slices 2 and 3 Built (2026-11-04)
+
+**Slice 2, the words** (`023f7cb2`). The interface, the native messages, the microphone permission and
+the release route's output say Nautilus; the first-run eyebrows say Nautilus for Mirror. The
+release candidate's DMG name comes from the current line. A census in the spec refuses any visible
+"Mirror Desktop" in `src/app`, `src/domain`, `src/agent`, the Rust sources outside their tests,
+`Info.plist` and the release scripts. Two inherited guards that forbade Nautilus wording
+(`runtimeChannelConfiguration`) now require it.
+
+**Slice 3, the labels** (`8c8ecbb6`).
+
+| Label | Written now | Still read |
+| --- | --- | --- |
+| Prompt envelope marker | `[Nautilus Journey authority]`, class `nautilus` | `[Mirror Desktop Journey authority]`, `[Nautilus Harness Journey authority]` |
+| Pi session name | `<Journey> · Nautilus · Generation N` | nothing parses it |
+| Mirror Conversation interface (CR171) | `nautilus` | learning asks for `nautilus` and `nautilus_harness` |
+
+The core rewrites a Conversation's interface only when the Conversation is ensured again, so the
+Conversations already open keep `nautilus_harness`. Each learning run therefore asks for both
+labels, newest first, within the same ten pieces, and sums their counts or stops at the first answer
+that does not learn.
+
+**Kept on purpose:**
+
+- The messages' `sourceInterface`, `nautilus-harness`. The core stores it in each message's
+  metadata and compares that metadata when a message is replayed; changing it would turn the replay
+  of a message written before the change (a settlement recovery, an outbox retry) into an
+  `idempotency_conflict`.
+- The `product` schema name, `Mirror Desktop`, in the update, release-reading and voice manifests:
+  a contract between publisher and reader that nobody sees.
+- The repository, the npm and Cargo package names and the `mirror-desktop:*` event and storage
+  names, renamed later with the repository (DS-001).
+
+**Evidence.** Spec `cv013Ds002NautilusLine.test.mjs`, now 26 tests, failing first for each slice;
+three new Rust tests (the Nautilus marker with both old ones, the labels learned, one run's pieces
+shared and its counts summed). Thirteen mutations across the two slices and the icon, all caught.
+Suites: TypeScript 2,608 tests, Rust 476 passed and 10 ignored.
 
 ## What Moving the Identifier Costs (carried by DS-003)
 
