@@ -116,3 +116,5 @@ mutation.
   corrections no longer fix, a new subject that should start clean, or a context large enough to
   make turns slow or costly. When the context is only long and the thread should be kept, it points
   to **Compact now**, which summarizes instead of discarding.
+- The reset dialog has a **Close** button at the top right of its header, the same as Settings,
+  disabled while a reset is running.
