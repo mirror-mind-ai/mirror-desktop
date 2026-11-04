@@ -33,7 +33,7 @@
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
 | **CV-013 · Nautilus for Mirror** | 🔵 em andamento · último passo antes da divulgação |
-| ↳　DS-006 · Nautilus Gets Its Own Site | 🔵 feito localmente, com as câmaras · faltam DNS, nginx, push e deploy |
+| ↳　DS-006 · Nautilus Gets Its Own Site | 🔵 feito localmente, com as câmaras · DNS, nginx e certificado prontos · faltam push e deploy |
 | ↳　Instalação da Veronica | ⏸ parked · sem data |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |

@@ -41,7 +41,12 @@ Portuguese), its own stylesheet and the app icon as favicon. Checked in a browse
 
 ## Owed Before It Is Public
 
-- DNS: `nautilus.mirrormind.sh` does not resolve yet (checked 2026-11-04).
-- On `szen-vps`: a web root for `nautilus/`, an nginx server block and a certificate.
+- ✅ DNS: the Navigator created `nautilus` as an `A` record to `51.222.160.3` in Cloudflare, DNS
+  only (2026-11-04).
+- ✅ On `szen-vps`: web root `/var/www/nautilus-site` (empty), server block
+  `/etc/nginx/sites-available/nautilus-site` (linked in `sites-enabled`, `nginx -t` passed), and a
+  Let's Encrypt certificate by `certbot --nginx --redirect`, valid to 2027-02-02 and renewed by
+  `certbot.timer`. HTTP redirects to HTTPS; HTTPS answers 403 until the site is deployed; the
+  Mirror sites and the update channel still answer 200. To undo: remove the link, reload nginx.
 - Push and deploy, each with the Navigator's word. Then the Mirror site's `nautilus` links can move
   from its own Nautilus page to `nautilus.mirrormind.sh`.
