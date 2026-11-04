@@ -39,4 +39,8 @@ Two functions that exist today leave the canonical app and become its first exte
 
 ## Delivery Stories
 
-None yet. An Explorer Mode pass comes first.
+| Code | Delivery Story | Outcome | Status |
+|------|----------------|---------|--------|
+| [CV-012.DS-001](ds-001-launch-with-only-the-canonical-set/index.md) | Launch With Only the Canonical Set | The Context Map and the Agent's Canvas are hidden by default and can be turned back on in Settings, before the launch | 🟡 Candidate |
+
+The extension mechanism itself waits for an Explorer Mode pass.

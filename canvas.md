@@ -4,7 +4,7 @@
 
 | Item | Estado |
 | --- | --- |
-| **Fila** | 1 CR187 · 2 CR190 · 3 RS027 |
+| **Fila até o lançamento** | 1 CR187 · 2 CR190 · 3 CV-012.DS-001 · 4 CV-013 · depois RS027 |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 2 🟡 · 1 ⏸️ |
 | ↳　CR187 · Take a Correction Sent in the First Seconds of a Turn | 🟡 captured · próxima |
 | ↳　CR190 · Show the Person in the Header and in Their Turns | 🟡 captured · depois da CR187 |
@@ -34,8 +34,9 @@
 | Item | Estado |
 | --- | --- |
 | **CV-011 · Embedded Pi** | 🟡 Candidate · nenhum horizonte selecionado |
-| **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · depende da CV-008.DS-003 |
-| **CV-013 · Nautilus for Mirror** | 🟡 Candidate |
+| **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
+| ↳　DS-001 · Launch With Only the Canonical Set | 🟡 Candidate · 3ª da fila |
+| **CV-013 · Nautilus for Mirror** | 🟡 Candidate · 4ª da fila · último passo antes da divulgação |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
 | **CV-009 · Trusted macOS Distribution** | 🟡 Planned · aguarda a Apple |
