@@ -7,8 +7,8 @@
 ## Outcome
 
 A person who installs the app sees only the canonical set: Journeys and their conversations. The
-Context Map and the Agent's Canvas are hidden by default and can be turned back on in Settings,
-marked experimental.
+Context Map, the Agent's Canvas, Ariad and the Tactical and Strategic altitudes are hidden by
+default and can be turned back on in Settings, marked experimental.
 
 ## Why Now (Navigator, 2026-11-03)
 
@@ -18,8 +18,11 @@ taking it away from them. Hiding it before the launch costs little, because the 
 
 ## Candidate Scope
 
-- `OperationalWorkspaceSwitcher` offers Conversation only by default; Context Map (`artifacts`) and
-  Agent's Canvas (`canvas`) appear when their setting is on.
+- `OperationalWorkspaceSwitcher` offers Conversation only by default; Context Map (`artifacts`),
+  Agent's Canvas (`canvas`) and Ariad (`ariad`) appear when their setting is on.
+- `JourneyAltitudeSwitcher` is hidden by default, so the Journey opens at the Operational altitude
+  only; Tactical and Strategic appear when their setting is on. With one surface and one altitude
+  left, neither switcher needs to show at all.
 - One Settings switch per function, off by default for a new installation. The Navigator's
   installation keeps them on, because the Navigator uses the Canvas daily; how that is decided
   (carried setting or a first-run default) is a planning question.
@@ -28,7 +31,9 @@ taking it away from them. Hiding it before the launch costs little, because the 
 
 ## Open Before Planning
 
-- **Ariad** and the **Tactical and Strategic altitudes** are also outside the canonical set the
-  Navigator named. Hide them too in this story, or leave them for now? The Navigator decides.
+- ~~Ariad and the Tactical and Strategic altitudes: hide them too?~~ **Decided by the Navigator,
+  2026-11-03: yes, they are outside the canonical set too and are hidden in this story.**
+- One switch per function, or one switch for "Nautilus method" (Ariad and the altitudes) and one per
+  surface.
 - Whether hiding also stops the work behind each surface (reads, prompts to the agent about the
   Canvas), or only the surface.

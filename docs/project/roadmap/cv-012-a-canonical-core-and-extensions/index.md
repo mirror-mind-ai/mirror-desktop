@@ -20,7 +20,8 @@ Everything else is an extension.
 
 ## The First Extensions
 
-Two functions that exist today leave the canonical app and become its first extensions:
+Functions that exist today leave the canonical app and become its first extensions (Ariad and the
+Tactical and Strategic altitudes added by the Navigator, 2026-11-03):
 
 - the **Context Map** (CR105's context surface), which absorbs
   [CR156 Simplify the Context Map](../../refinement/rs016-ongoing-product-improvements-and-adjustments/cr156-simplify-the-context-map.md);
@@ -41,6 +42,6 @@ Two functions that exist today leave the canonical app and become its first exte
 
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| [CV-012.DS-001](ds-001-launch-with-only-the-canonical-set/index.md) | Launch With Only the Canonical Set | The Context Map and the Agent's Canvas are hidden by default and can be turned back on in Settings, before the launch | 🟡 Candidate |
+| [CV-012.DS-001](ds-001-launch-with-only-the-canonical-set/index.md) | Launch With Only the Canonical Set | The Context Map, the Agent's Canvas, Ariad and the Tactical and Strategic altitudes are hidden by default and can be turned back on in Settings, before the launch | 🟡 Candidate |
 
 The extension mechanism itself waits for an Explorer Mode pass.

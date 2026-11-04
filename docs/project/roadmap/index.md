@@ -97,7 +97,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 
 1. CR187 (RS026), a correction sent in the first seconds of a turn.
 2. CR190 (RS026), the person in the header and in their turns.
-3. [CV-012.DS-001](cv-012-a-canonical-core-and-extensions/ds-001-launch-with-only-the-canonical-set/index.md), the Context Map and the Agent's Canvas hidden by default, so they are not launched as canonical functions.
+3. [CV-012.DS-001](cv-012-a-canonical-core-and-extensions/ds-001-launch-with-only-the-canonical-set/index.md), the Context Map, the Agent's Canvas, Ariad and the Tactical and Strategic altitudes hidden by default, so they are not launched as canonical functions.
 4. [CV-013](cv-013-nautilus-for-mirror/index.md), the rename, the last step before promotion.
 
 CV-009 (signing) follows the rename as soon as Apple allows, so the app is signed once, under its final name. CV-008.DS-003 (persona conversations) and the extension mechanism of CV-012 can come after the launch: they add to the app and take nothing away. History: CV-010 was the **selected** horizon from 2026-10-27. On 2026-10-28 it was re-based on a **0.3 line embedding the TypeScript Mirror**, with 0.2 frozen at alpha.58 ([decision](cv-010-first-run-assistant/decision-2026-10-28-the-0-3-line.md)). It was originally decided decided by the Navigator together with the Refinement Suspension. Its first Delivery Story serves people who already use Mirror; installation from nothing follows. CV-009's Apple enrollment is submitted and awaits Apple.
