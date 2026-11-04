@@ -45,3 +45,9 @@ deserves its own place instead of living inside the Core's install guides.
 `mirrormind-site` commit `e1a49df`, local: 8 pages and the README. Checked in a browser on a local
 server: both macOS guides title the block "Nautilus for Mirror" and their button links the Nautilus
 DMG. Not pushed and not deployed; each needs the Navigator's word.
+
+Then, asked by the Navigator ("faça o bloco dos agentes"), commit `19082e3`: under "choose how
+you talk to it", the macOS and Linux guides in both languages give Claude Code, Codex, Antigravity
+and Grok Build their own block, where they were a footnote under Pi. Mirror enters them as a
+plugin; the Claude Code and Codex steps are Mirror Core 0.39.4's Getting Started, section 6, and the
+others link to it. The install guides' menu says `nautilus`, which the rename had missed there.
