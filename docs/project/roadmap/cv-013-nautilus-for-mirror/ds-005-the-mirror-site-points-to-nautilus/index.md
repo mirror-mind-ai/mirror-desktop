@@ -2,7 +2,7 @@
 
 # CV-013.DS-005 - The Mirror Site Points to Nautilus
 
-**Status:** 🔵 In progress — requested and shaped by the Navigator on 2026-11-04; started the same day ("pode começar os ajustes no site oficial do mirror")
+**Status:** ✅ Done — requested and shaped by the Navigator on 2026-11-04; started and published the same day ("faça push/deploy")
 
 ## Outcome
 
@@ -58,3 +58,15 @@ dropped), what it does, how to install it and the download. The home hero is tex
 site's `nautilus` links lead to that page. It is the seed of [DS-006](../ds-006-nautilus-gets-its-own-site/index.md),
 which can move it to `nautilus.mirrormind.sh`. The four `mirror-desktop-screenshot*.jpg` files are
 no longer referenced and stay until the Navigator decides.
+
+Then (commit `eaf1cc8`), asked by the Navigator: the site no longer names Mirror Desktop; the note for
+people coming from it is gone from Nautilus's page and the macOS guides.
+
+## Published (2026-11-04)
+
+`mirrormind-site` pushed at `eaf1cc8` and deployed to `szen-vps` the canonical way: a backup of the
+live folder (`/root/mirrormind-site-backup-20261104-211745.tgz`), `git archive HEAD site`, an rsync
+dry run (13 pages changed, Nautilus's two pages and its screenshot added, nothing removed), then the
+copy, `favicon.png` excluded. Checked from outside: every changed page answers 200; Nautilus's pages
+on both domains; the macOS guide links the Nautilus DMG, has the agents block and "More about
+Nautilus"; the home has no image; no checked page says "Mirror Desktop"; the DMG answers.
