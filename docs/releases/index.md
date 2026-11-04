@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.3.0-alpha.14 — Only the Canonical Set](v0.3.0-alpha.14.md) — a Journey opens on its Conversation alone; the Agent Field (formerly Context Map) and the Agent Canvas become extensions, off by default, in a new Settings › Extensions tab. Intel only, not signed.
 - [v0.3.0-alpha.13 — The Person at the Top Right](v0.3.0-alpha.13.md) — a correction sent in the first seconds of a turn waits and is taken; the person is at the top right and on their turns; Chapters moves into the ⋯ menu; a clearer reset dialog. Intel only, not signed.
 - [v0.3.0-alpha.12 — The Persona Above the Answer](v0.3.0-alpha.12.md) — each answer names its persona above the text, from the context the Mirror delivered; no trailing signature. Intel only, not signed.
 - [v0.3.0-alpha.11 — Settings by Intent](v0.3.0-alpha.11.md) — Settings grouped by intent; setup offers Claude through Claude Code; a `~/` project path is honoured. Intel only, not signed.
