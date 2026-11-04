@@ -6,7 +6,7 @@
 | --- | --- |
 | **Fila até o lançamento** | 1 CR191 · 2 CV-013 · depois RS027 |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🔵 · 1 ⏸️ |
-| ↳　CR191 · Notice a New Version While the App Stays Open | 🔵 construída · publicar e validar em produção |
+| ↳　CR191 · Notice a New Version While the App Stays Open | 🔵 publicada em v0.3.0-alpha.15 · validar com a próxima versão, app aberto |
 | ↳　CR171 · Retire the nautilus_harness Interface Label | ⏸️ parked · vai para a CV-013 |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress |
