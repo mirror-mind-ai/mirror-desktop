@@ -7,7 +7,8 @@ describe("dedicated conversation context reset lifecycle", () => {
   it("requires explicit confirmation and explains preservation", () => {
     expect(appSource).toContain("Reset agent context…");
     expect(appSource).toContain('aria-label="Confirm agent context reset"');
-    expect(appSource).toContain("messages will not be copied verbatim into the new Pi context");
+    // CR190: the same preservation, said plainly.
+    expect(appSource).toContain("its messages are not carried into the new context");
     expect(appSource).toContain("No model will be called and no synthetic greeting will be created.");
     expect(appSource).toContain("The current generation remains active unless the replacement is fully verified.");
   });

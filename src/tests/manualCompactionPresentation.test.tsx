@@ -99,9 +99,10 @@ describe("manual compaction presentation", () => {
       appSource.indexOf("Reset agent context"),
     );
     expect(resetItem).toContain("compactionInFlight");
+    // CR190: Chapters is now an item of the ⋯ menu.
     const chapterButton = appSource.slice(
-      appSource.indexOf('className="chat-header-action-hint"'),
-      appSource.indexOf("conversation-chapter-glyph"),
+      appSource.indexOf("CR190: Chapters moved here"),
+      appSource.indexOf("Chapters…"),
     );
     expect(chapterButton).toContain("compactionInFlight");
   });

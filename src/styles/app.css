@@ -1846,8 +1846,7 @@ button.journey-agent-status:focus-visible {
 }
 
 .conversation-search-shortcut svg,
-.conversation-turn-shortcut svg,
-.conversation-chapter-shortcut svg {
+.conversation-turn-shortcut svg {
   fill: none;
   height: 18px;
   stroke: currentColor;
@@ -1858,29 +1857,8 @@ button.journey-agent-status:focus-visible {
 }
 
 
-/* CR080: a disabled control that says nothing leaves the Navigator guessing whether the
-   feature is broken or simply has nothing to show. Browsers do not surface a title on a
-   disabled button, so the hint lives on this wrapper and the button stops absorbing the
-   hover that would otherwise hide it. */
-.chat-header-action-hint {
-  display: inline-flex;
-}
-
-.chat-header-action-hint > button:disabled {
-  pointer-events: none;
-}
-
-.conversation-chapter-glyph {
-  display: inline-block;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
-  transform: translateY(-1px);
-}
-
 .conversation-search-shortcut.selected,
-.conversation-turn-shortcut.selected,
-.conversation-chapter-shortcut.selected {
+.conversation-turn-shortcut.selected {
   background: rgba(var(--ui-accent-rgb), 0.12);
   border-color: rgba(var(--ui-accent-rgb), 0.48);
   color: #bff2eb;
@@ -1905,6 +1883,57 @@ button.journey-agent-status:focus-visible {
   color: #d8e7eb;
   padding: 9px 10px;
   text-align: left;
+  width: 100%;
+}
+
+/* CR190: the reason a menu item is unavailable, shown in the item because a browser shows no
+   title on a disabled control (CR080). */
+.journey-menu-reason {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  margin-top: 3px;
+  opacity: 0.85;
+  white-space: normal;
+}
+
+.journey-menu:has(.journey-menu-reason) {
+  min-width: 260px;
+}
+
+/* CR190: the person at the top right, round like the buttons beside it. */
+.person-button-wrap {
+  position: relative;
+}
+
+.person-button {
+  font-size: 0.86rem;
+  font-weight: 760;
+  overflow: hidden;
+  padding: 0;
+}
+
+.person-button.has-image img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.person-popover {
+  min-width: 0;
+  padding: 10px 14px;
+  white-space: nowrap;
+}
+
+.person-popover-name {
+  font-weight: 650;
+  margin: 0;
+}
+
+.user-name-card input {
+  margin-top: 10px;
+  max-width: 360px;
   width: 100%;
 }
 

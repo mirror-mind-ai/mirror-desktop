@@ -170,24 +170,17 @@ describe("chapter index panel", () => {
   // A disabled control that says nothing leaves the Navigator guessing whether the feature
   // is broken or simply has nothing to show. A browser also will not surface a title on a
   // disabled button, so the hint lives on a wrapper that still receives the hover.
-  it("explains on hover why the chapter button is unavailable", () => {
-    expect(appSource).toContain("conversationChapters.length === 0");
-    expect(appSource).toContain("chat-header-action-hint");
-    expect(appSource).toContain("has not been compacted");
-    // The hint is on the wrapper, not on the button the browser will not hover.
-    const wrap = appSource.slice(
-      appSource.indexOf('className="chat-header-action-hint"'),
-      appSource.indexOf("conversation-chapter-glyph"),
+  it("says in the menu item why Chapters is unavailable", () => {
+    // CR190: Chapters is an item of the ⋯ menu. A browser still shows no title on a disabled
+    // control, so the reason is visible text inside the item rather than a hover hint.
+    const item = appSource.slice(
+      appSource.indexOf("CR190: Chapters moved here"),
+      appSource.indexOf("</button>", appSource.indexOf("Chapters…")),
     );
-    expect(wrap).toContain("title={");
-    // And the button no longer carries a title of its own that would win the hover.
-    expect(wrap).not.toContain('title="Chapters"');
-    expect(cssSource).toContain(".chat-header-action-hint");
-    const hintRule = cssSource.slice(
-      cssSource.indexOf(".chat-header-action-hint > button:disabled"),
-      cssSource.indexOf("}", cssSource.indexOf(".chat-header-action-hint > button:disabled")),
-    );
-    expect(hintRule).toContain("pointer-events: none");
+    expect(item).toContain("conversationChapters.length === 0");
+    expect(item).toMatch(/<small className="journey-menu-reason">[\s\S]*has not been compacted/);
+    expect(item).not.toContain("title={");
+    expect(cssSource).toContain(".journey-menu-reason");
   });
 
   // A long index opens on its oldest entries, which are the least likely targets.
@@ -240,14 +233,14 @@ describe("chapter index panel", () => {
     expect(listRule).not.toContain("overflow-y");
   });
 
-  it("draws the chapter header icon as a visible text glyph, not a fragile SVG", () => {
-    expect(appSource).toContain("conversation-chapter-glyph");
-    expect(appSource).toContain("§");
-    const glyphRule = cssSource.slice(
-      cssSource.indexOf(".conversation-chapter-glyph"),
-      cssSource.indexOf("}", cssSource.indexOf(".conversation-chapter-glyph")),
+  // CR190: the header glyph gave way to a menu item that opens the same panel.
+  it("opens the chapter panel from the ⋯ menu", () => {
+    const item = appSource.slice(
+      appSource.indexOf("CR190: Chapters moved here"),
+      appSource.indexOf("Chapters…"),
     );
-    expect(glyphRule).toContain("font-size");
-    expect(cssSource).toContain(".conversation-chapter-shortcut.selected");
+    expect(item).toContain('role="menuitem"');
+    expect(item).toContain("setConversationChaptersOpen((open) => !open)");
+    expect(item).toContain('aria-label="Navigate conversation chapters"');
   });
 });

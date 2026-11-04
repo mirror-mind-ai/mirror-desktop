@@ -1,3 +1,4 @@
+import { normalizeDisplayName } from "./personName";
 import { findJourneyById, type JourneyListOrder, type JourneyPreferences, type JourneyRegistry } from "./journeyRegistry";
 import { parseApplicationTheme, type ApplicationTheme } from "./applicationTheme";
 import { defaultVoiceLanguage, parseVoiceLanguage, type VoiceLanguage } from "./voiceTranscription";
@@ -60,6 +61,9 @@ export type PersistedJourneyPreferences = {
     // CR151, after the field: which of the three success tones plays. Separate from the switch above
     // so that turning the sound off and on again restores the chosen tone rather than resetting it.
     turnCompletionToneId: TurnCompletionToneId;
+    // CR190: the name the person wrote for themselves. Absent means the name read from the home's
+    // user. Global, like the avatar it sits beside.
+    userDisplayName?: string;
   };
   savedAt: string;
 };
@@ -149,6 +153,8 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
   // future version with a fourth option must not make the sound disappear.
   const turnCompletionToneId = parseTurnCompletionToneId(preferences.turnCompletionToneId)
     ?? defaultJourneyPreferenceState.turnCompletionToneId;
+  // CR190 takes the same departure: a bad name falls back to the home's user and costs nothing else.
+  const userDisplayName = normalizeDisplayName(preferences.userDisplayName);
   const voiceLanguage = preferences.voiceLanguage === undefined
     ? defaultVoiceLanguage
     : parseVoiceLanguage(preferences.voiceLanguage);
@@ -183,6 +189,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       hideMirrorHistory,
       turnCompletionSound,
       turnCompletionToneId,
+      ...(userDisplayName ? { userDisplayName } : {}),
     },
     savedAt: record.savedAt,
   };
@@ -217,6 +224,7 @@ export function sanitizeJourneyPreferenceState(
     // not a Journey, so there is no registry entry it could be stale against.
     turnCompletionSound: preferences.turnCompletionSound,
     turnCompletionToneId: preferences.turnCompletionToneId,
+    ...(preferences.userDisplayName ? { userDisplayName: preferences.userDisplayName } : {}),
   };
 }
 

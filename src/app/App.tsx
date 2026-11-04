@@ -555,7 +555,8 @@ import { SettlementAbandonmentNotice } from "./SettlementAbandonmentNotice";
 import { currentMirrorDesktopVersion, type SelfUpdateCheckResult } from "./selfUpdateStorage";
 import { loadResolvedWhatsNewState, saveWhatsNewState } from "./whatsNewStorage";
 import { acknowledgeWhatsNew, resolveWhatsNewState, type ResolvedWhatsNewState } from "../domain/whatsNewState";
-import { UserAvatarSettings } from "./UserAvatar";
+import { PersonButton, UserAvatarSettings, UserNameSettings } from "./UserAvatar";
+import { displayNameFromMirrorUser, normalizeDisplayName, resolvePerson } from "../domain/personName";
 import { importUserAvatar, loadUserAvatar, removeUserAvatar } from "./userAvatarStorage";
 import { useDelayedVisibility } from "./useDelayedVisibility";
 
@@ -689,6 +690,10 @@ export function App({ model }: AppProps) {
   const [journeyAppearanceBusy, setJourneyAppearanceBusy] = useState(false);
   const [journeyAppearanceMessage, setJourneyAppearanceMessage] = useState<string>();
   const [userAvatar, setUserAvatar] = useState<string>();
+  // CR190: what the person wrote as their name; empty means the home's user is read as one.
+  const [userDisplayName, setUserDisplayName] = useState("");
+  const [personMenuOpen, setPersonMenuOpen] = useState(false);
+  const personMenuRef = useRef<HTMLDivElement | null>(null);
   const [userAvatarBusy, setUserAvatarBusy] = useState(false);
   const [userAvatarMessage, setUserAvatarMessage] = useState<string>();
   const [relativeTimeNow, setRelativeTimeNow] = useState(() => Date.now());
@@ -1721,6 +1726,20 @@ export function App({ model }: AppProps) {
     selectedRuntimeBusy,
   ]);
 
+  const person = useMemo(
+    () => resolvePerson(userDisplayName, runtimeChannel?.mirrorUser),
+    [userDisplayName, runtimeChannel?.mirrorUser],
+  );
+
+  useEffect(() => {
+    if (!personMenuOpen) return;
+    function closePersonOnOutsidePointer(event: MouseEvent) {
+      if (!personMenuRef.current?.contains(event.target as Node)) setPersonMenuOpen(false);
+    }
+    document.addEventListener("mousedown", closePersonOnOutsidePointer);
+    return () => document.removeEventListener("mousedown", closePersonOnOutsidePointer);
+  }, [personMenuOpen]);
+
   useEffect(() => {
     if (!journeyMenuOpen) {
       return;
@@ -1994,6 +2013,7 @@ export function App({ model }: AppProps) {
       setHideMirrorHistory(sanitizedPreferences.hideMirrorHistory);
       setTurnCompletionSound(sanitizedPreferences.turnCompletionSound);
       setTurnCompletionToneId(sanitizedPreferences.turnCompletionToneId);
+      setUserDisplayName(sanitizedPreferences.userDisplayName ?? "");
       dispatchConversationExpansion({ type: "restore", journeyIds: sanitizedPreferences.expandedConversationJourneyIds });
       setHiddenConversations(sanitizedPreferences.hiddenConversationIdsByJourneyId);
       setLastConversationSelection(sanitizedPreferences.lastConversationSelectionByJourneyId);
@@ -2665,8 +2685,9 @@ export function App({ model }: AppProps) {
       hideMirrorHistory,
       turnCompletionSound,
       turnCompletionToneId,
+      ...(normalizeDisplayName(userDisplayName) ? { userDisplayName: normalizeDisplayName(userDisplayName) } : {}),
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, turnCompletionSound, turnCompletionToneId, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, turnCompletionSound, turnCompletionToneId, userDisplayName, registryLoaded, preferencesLoaded]);
 
   // CR133: disclosures restored from the preference file load their catalogs one after
   // another. Reopening with many groups expanded must not start many catalog subprocesses
@@ -6593,26 +6614,6 @@ export function App({ model }: AppProps) {
                     <circle cx="4" cy="18" r="1" />
                   </svg>
                 </button>
-                <span
-                  className="chat-header-action-hint"
-                  title={conversationChapters.length === 0
-                    ? "No chapters yet. This Conversation has not been compacted, so it is still one chapter."
-                    : "Chapters"}
-                >
-                  <button
-                    className={`menu-button conversation-chapter-shortcut ${conversationChaptersOpen ? "selected" : ""}`}
-                    type="button"
-                    onClick={() => {
-                      showConversation();
-                      setConversationChaptersOpen((open) => !open);
-                    }}
-                    disabled={compactionInFlight || altitudeSwitchDisabled || conversationChapters.length === 0 || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
-                    aria-label="Navigate conversation chapters"
-                    aria-pressed={conversationChaptersOpen}
-                  >
-                    <span className="conversation-chapter-glyph" aria-hidden="true">§</span>
-                  </button>
-                </span>
                 <div className="journey-menu-wrap" ref={journeyMenuRef}>
                   <button
                     className="menu-button"
@@ -6627,6 +6628,27 @@ export function App({ model }: AppProps) {
                   </button>
                   {journeyMenuOpen ? (
                     <div className="journey-menu" role="menu">
+                      {/* CR190: Chapters moved here from its own header button (Navigator, 2026-11-03). */}
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setJourneyMenuOpen(false);
+                          showConversation();
+                          setConversationChaptersOpen((open) => !open);
+                        }}
+                        disabled={compactionInFlight || altitudeSwitchDisabled || conversationChapters.length === 0 || selectedConversationSpace.kind === "mirror_history" || journeyThreadState.kind !== "ready"}
+                        aria-label="Navigate conversation chapters"
+                        aria-pressed={conversationChaptersOpen}
+                      >
+                        Chapters…
+                        {/* CR080's reason, kept visible: a browser shows no title on a disabled item. */}
+                        {conversationChapters.length === 0 ? (
+                          <small className="journey-menu-reason">
+                            No chapters yet. This Conversation has not been compacted, so it is still one chapter.
+                          </small>
+                        ) : null}
+                      </button>
                       <button
                         type="button"
                         role="menuitem"
@@ -6638,6 +6660,14 @@ export function App({ model }: AppProps) {
                       </button>
                     </div>
                   ) : null}
+                </div>
+                <div ref={personMenuRef}>
+                  <PersonButton
+                    person={person}
+                    avatar={userAvatar}
+                    open={personMenuOpen}
+                    onOpenChange={setPersonMenuOpen}
+                  />
                 </div>
               </div>
             </div>
@@ -6830,6 +6860,7 @@ export function App({ model }: AppProps) {
               runtimeProjectionMessageId={runtimeProjectionMessageId}
               basePath={selectedJourneyBasePath}
               userAvatar={userAvatar}
+              person={person}
               onLocalPathClick={handleChatLocalPath}
               searchOpen={conversationSearchOpen}
               turnNavigatorOpen={conversationTurnNavigatorOpen}
@@ -7336,8 +7367,14 @@ export function App({ model }: AppProps) {
                 <p className="eyebrow">Fresh context boundary</p>
                 <h2>Reset agent context?</h2>
                 <p className="settings-intro">
-                  Mirror Desktop will keep this conversation and create Generation {journeyThreadState.activeGeneration.generation + 1} with a fresh Pi working context and Mirror conversation.
-                  Generation {journeyThreadState.activeGeneration.generation} and its transcript will remain preserved and read-only, but its messages will not be copied verbatim into the new Pi context.
+                  The agent will start with no memory of what was said in this Conversation.
+                  Mirror Desktop keeps the Conversation and begins Generation {journeyThreadState.activeGeneration.generation + 1}, with a fresh Pi working context and a new Mirror conversation.
+                </p>
+                {/* CR190: what is kept and what is not, in plain words. No code path reactivates a
+                    past generation; the history below is a record, not a set of choices. */}
+                <p className="settings-intro">
+                  Generation {journeyThreadState.activeGeneration.generation} and its transcript stay readable, but its messages are not carried into the new context, and it cannot be made active again from the app.
+                  The Mirror's memories are not affected.
                 </p>
               </div>
             </header>
@@ -7752,8 +7789,14 @@ export function App({ model }: AppProps) {
                 aria-labelledby="settings-tab-you"
               >
                 {/* CR175: the person first, then how the app looks (Navigator, 2026-11-03). */}
+                <UserNameSettings
+                  value={userDisplayName}
+                  placeholder={displayNameFromMirrorUser(runtimeChannel?.mirrorUser) ?? "Your name"}
+                  onChange={setUserDisplayName}
+                />
                 <UserAvatarSettings
                   avatar={userAvatar}
+                  initial={person.initial}
                   busy={userAvatarBusy}
                   message={userAvatarMessage}
                   onChoose={() => void chooseUserAvatar()}

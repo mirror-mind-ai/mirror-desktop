@@ -1,4 +1,5 @@
 import type { ConversationMessage } from "../agent/piTaskPacket";
+import type { Person } from "../domain/personName";
 
 export type MessageSpeaker = {
   label: string;
@@ -11,9 +12,13 @@ const embeddedCertifiedPersonaPattern = /✦\s*Persona:\s*([a-z0-9-]+)\s*/i;
 // CR188: the 0.3 Core asks the model to `sign ◇ <persona>`, and the model signs on the last line.
 const trailingPersonaSignaturePattern = /\n[ \t]*[◇✦][ \t]*(?:Persona:[ \t]*)?([a-z0-9]+(?:-[a-z0-9]+)*)[ \t]*\s*$/i;
 
-export function inferMessageSpeaker(message: Pick<ConversationMessage, "role" | "content">): MessageSpeaker {
+export function inferMessageSpeaker(
+  message: Pick<ConversationMessage, "role" | "content">,
+  person: Person = { name: "You", initial: "Y" },
+): MessageSpeaker {
+  // CR190: the person's own name and initial, where "You" and a hard-coded "N" used to be.
   if (message.role === "user") {
-    return { label: "You", avatar: "N", kind: "user" };
+    return { label: person.name, avatar: person.initial, kind: "user" };
   }
 
   const persona = message.content.match(personaSignaturePattern)?.[1]?.trim()

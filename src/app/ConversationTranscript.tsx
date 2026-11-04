@@ -19,6 +19,7 @@ import { MessageFileAttachments } from "./MessageFileAttachments";
 import { SteeringMessages } from "./SteeringMessages";
 import { MessageSpeakerAvatar } from "./UserAvatar";
 import { inferMessageSpeaker, personaSpeaker, stripMessageSpeakerSignature } from "./conversationPresentation";
+import type { Person } from "../domain/personName";
 import { projectAgentTurnPresentation } from "./conversationTurnPresentation";
 import type { RuntimeProjectionState } from "./runtimeActivityModel";
 import type { AssistantTurnProximity } from "./turnProximity";
@@ -46,6 +47,8 @@ type ConversationTranscriptProps = {
   runtimeProjectionMessageId?: string;
   basePath?: string;
   userAvatar?: string;
+  /** CR190: whose turns these are, for their name and initial. */
+  person?: Person;
   onLocalPathClick: (path: string) => void;
   searchOpen?: boolean;
   turnNavigatorOpen?: boolean;
@@ -75,6 +78,7 @@ type ConversationMessageRowProps = {
   exactRuntimeProjection?: RuntimeProjectionState;
   basePath?: string;
   userAvatar?: string;
+  person?: Person;
   onLocalPathClick: (path: string) => void;
   highlightQuery?: string;
   responseModel?: ResponseModelBadge;
@@ -169,13 +173,14 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   interruptedFragment,
   basePath,
   userAvatar,
+  person,
   onLocalPathClick,
   highlightQuery,
   responseModel,
 }: ConversationMessageRowProps) {
   const contentWithoutSurfaces = stripMirrorSurfaceBlocks(message.content);
   const renderedContent = stripMirrorModeBlocks(contentWithoutSurfaces);
-  const speaker = inferMessageSpeaker({ ...message, content: renderedContent });
+  const speaker = inferMessageSpeaker({ ...message, content: renderedContent }, person);
 
   if (message.role === "assistant") {
     const presentation = projectAgentTurnPresentation({
@@ -250,6 +255,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
   runtimeProjectionMessageId,
   basePath,
   userAvatar,
+  person,
   onLocalPathClick,
   searchOpen = false,
   turnNavigatorOpen = false,
@@ -394,7 +400,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
             {turnItems.map((item) => (
               <li key={item.messageId}>
                 <button type="button" onClick={() => scrollToMessage(item.messageId)} aria-label={`Go to user turn ${item.ordinal}: ${item.snippet}`}>
-                  <MessageSpeakerAvatar speakerKind="user" fallback="N" userAvatar={userAvatar} />
+                  <MessageSpeakerAvatar speakerKind="user" fallback={person?.initial ?? "Y"} userAvatar={userAvatar} />
                   <q>{item.snippet}</q>
                   <span className="conversation-turn-number" aria-hidden="true">{item.ordinal}</span>
                 </button>
@@ -478,6 +484,7 @@ export const ConversationTranscript = memo(function ConversationTranscript({
               linkedActivity={importedActivity.byMessageId.get(message.id) ?? EMPTY_ACTIVITY}
               basePath={basePath}
               userAvatar={userAvatar}
+              person={person}
               onLocalPathClick={onLocalPathClick}
               highlightQuery={searchOpen ? searchQuery : undefined}
             />

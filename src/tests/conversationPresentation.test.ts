@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { inferMessageSpeaker, stripMessageSpeakerSignature, withCertifiedPersona } from "../app/conversationPresentation";
 
 describe("conversation presentation", () => {
-  it("uses Navigator speaker metadata for user messages", () => {
-    expect(inferMessageSpeaker({ role: "user", content: "Hello" })).toEqual({ label: "You", avatar: "N", kind: "user" });
+  // CR190: the person's name and initial; "You" and its initial only when no name is known.
+  it("uses the person's name for user messages", () => {
+    expect(inferMessageSpeaker({ role: "user", content: "Hello" }, { name: "Alisson Vale", initial: "A" }))
+      .toEqual({ label: "Alisson Vale", avatar: "A", kind: "user" });
+    expect(inferMessageSpeaker({ role: "user", content: "Hello" })).toEqual({ label: "You", avatar: "Y", kind: "user" });
   });
 
   it("detects persona signatures in assistant messages", () => {
