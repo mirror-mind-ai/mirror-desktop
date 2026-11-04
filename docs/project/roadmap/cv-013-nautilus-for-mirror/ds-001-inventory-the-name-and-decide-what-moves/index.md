@@ -2,7 +2,7 @@
 
 # CV-013.DS-001 - Inventory the Name and Decide What Moves
 
-**Status:** 🔵 In progress — inventory done 2026-11-04; awaiting the Navigator's decisions
+**Status:** 🔵 In progress — inventory done 2026-11-04; machine coordinates move too (Navigator), proposal awaiting approval
 
 ## Outcome
 
@@ -56,6 +56,46 @@ The updater replaces the installed bundle in place. The folder on disk may stay
 `/Applications/Mirror Desktop TS.app` while the app inside calls itself Nautilus for Mirror. This is
 checked with the `self-update` test configuration before the release, and if it holds, the release
 notes tell the person they can rename the file or reinstall from the DMG.
+
+## Revised Direction: Move the Machine Coordinates Too (Navigator, 2026-11-04)
+
+The Navigator asked for a careful strategy to rename the machine coordinates as well, so that new
+people arrive with the right identifiers. There are two installations today: the Navigator's, moved
+now, and one more, moved later with the same tool. This replaces the recommendation above.
+
+The repository already did this once: 0.2 to 0.3 moved from `ai.mirrormind.desktop` to
+`ai.mirrormind.desktop.ts` as a new **release line** (`scripts/release_line.mjs`), with its own
+channel, and `scripts/carry_02_state.mjs` carried the app's state across. CV-013 repeats that
+pattern instead of inventing one.
+
+| Coordinate | Proposed |
+| --- | --- |
+| Release line | `0.4`, product name `Nautilus for Mirror`, first version `0.4.0-alpha.1` |
+| Bundle identifier | `ai.mirrormind.nautilus` (dev: `ai.mirrormind.nautilus.dev`) |
+| App-data folder | `~/Library/Application Support/ai.mirrormind.nautilus`, following the identifier |
+| Update channel | `https://updates.mirrormind.sh/nautilus/...` |
+| Local storage keys | `nautilus:*` |
+| Conversation interface label (CR171) | `nautilus` for new conversations; readers accept `nautilus_harness` |
+| Repository and packages | renamed later, separately; invisible to the person |
+
+Stories:
+
+- **DS-002, the Nautilus line.** Name, identifier, channel, release gate and CR171 move together.
+  The 0.3 line stays in `RELEASE_LINES` so the guard can refuse cross-publication.
+- **DS-003, carry the state.** A script modelled on `carry_02_state.mjs`: copies the 0.3 app-data
+  folder (homes, Pi, sessions, model settings, provider state, avatar) into the Nautilus folder,
+  rewrites the absolute paths records hold into the old folder, never writes the old one, dry run
+  by default, all or nothing. Rehearsed on an APFS clone before the real run.
+- **DS-004, the Navigator's cutover.** Install Nautilus from the DMG, carry, verify Journeys,
+  conversations and models, keep Mirror Desktop TS installed and untouched as the way back.
+- **Later, the second installation.** Same DMG and script, when the Navigator decides.
+
+The 0.3 channel keeps answering. One last 0.3 release, `0.3.0-alpha.16`, also validates CR191
+(noticed while open) and is the final version on that line.
+
+What does not move: the Mirror home (`~/.mirror-minds/...`) lives outside the app-data folder and
+is only re-bound. Window-only preferences kept in the webview's storage (such as the sidebar width)
+start fresh.
 
 ## Decisions Needed From the Navigator
 
