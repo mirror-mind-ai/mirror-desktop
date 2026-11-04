@@ -1,5 +1,6 @@
 import type { JourneyAltitude } from "./journeyAltitudePreview";
 import type { OperationalSurface } from "./OperationalWorkspaceSwitcher";
+import { DEFAULT_APP_EXTENSIONS, type AppExtensions } from "../domain/appExtensions";
 
 export const journeySurfaceAvailability = Object.freeze({
   altitude: {
@@ -32,12 +33,27 @@ export function isOperationalSurfaceAvailable(surface: OperationalSurface): bool
   return journeySurfaceAvailability.operational[surface];
 }
 
+/**
+ * CV-012.DS-001: a surface is shown when it is available and, for the two that became extensions,
+ * when the person turned it on in Settings › Extensions.
+ */
+export function isOperationalSurfaceShown(
+  surface: OperationalSurface,
+  extensions: Readonly<AppExtensions> = DEFAULT_APP_EXTENSIONS,
+): boolean {
+  if (!isOperationalSurfaceAvailable(surface)) return false;
+  if (surface === "artifacts") return extensions.agentField;
+  if (surface === "canvas") return extensions.agentCanvas;
+  return true;
+}
+
 export function normalizeJourneySurfaceSelection(
   altitude: JourneyAltitude,
   operationalSurface: OperationalSurface,
+  extensions: Readonly<AppExtensions> = DEFAULT_APP_EXTENSIONS,
 ): { altitude: JourneyAltitude; operationalSurface: OperationalSurface } {
   return {
     altitude: isJourneyAltitudeAvailable(altitude) ? altitude : "operational",
-    operationalSurface: isOperationalSurfaceAvailable(operationalSurface) ? operationalSurface : "chat",
+    operationalSurface: isOperationalSurfaceShown(operationalSurface, extensions) ? operationalSurface : "chat",
   };
 }

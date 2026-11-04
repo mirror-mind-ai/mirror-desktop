@@ -151,6 +151,8 @@ describe("Journey preference persistence", () => {
       // not a Journey, so pruning a departed Journey has nothing to prune here.
       turnCompletionSound: true,
       turnCompletionToneId: "chime",
+      // CV-012.DS-001: absent in the input, so both extensions stay off.
+      extensions: { agentField: false, agentCanvas: false },
       lastWorkedAtByJourneyId: { amplia: "2026-08-23T09:00:00.000Z" },
       applicationTheme: "ember",
       journeyAppearanceById: { amplia: { kind: "system", icon: "book" } },

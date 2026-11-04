@@ -1,4 +1,5 @@
-import { isOperationalSurfaceAvailable } from "./journeySurfaceAvailability";
+import { isOperationalSurfaceShown } from "./journeySurfaceAvailability";
+import { DEFAULT_APP_EXTENSIONS, type AppExtensions } from "../domain/appExtensions";
 
 export type OperationalSurface = "chat" | "artifacts" | "canvas" | "ariad";
 
@@ -6,6 +7,8 @@ type OperationalWorkspaceSwitcherProps = {
   value: OperationalSurface;
   onChange: (surface: OperationalSurface) => void;
   disabled?: boolean;
+  /** CV-012.DS-001: which of the extensions the person turned on. */
+  extensions?: Readonly<AppExtensions>;
 };
 
 const operationalSurfaces = [
@@ -13,11 +16,12 @@ const operationalSurfaces = [
   // CR105: the surface stopped being a list of artifacts and became a partial view of what
   // effectively entered the agent's context. The id stays `artifacts` because it is persisted
   // selection state, not a label. Field and territory went back to the Nautilus method.
-  { id: "artifacts", label: "Context Map", icon: "▱", iconName: "artifacts" },
+  // CV-012.DS-001: renamed Agent Field, the Nautilus framework's name for it (Navigator, 2026-11-04).
+  { id: "artifacts", label: "Agent Field", icon: "▱", iconName: "artifacts" },
   // CR112: the drawing the Journey's agent keeps, hosted rather than computed, and deliberately
   // not named by genre. Context Map answers what entered this Conversation; Agent’s Canvas shows
   // whatever the Journey decided deserves to be drawn.
-  { id: "canvas", label: "Agent’s Canvas", icon: "▤", iconName: "canvas" },
+  { id: "canvas", label: "Agent Canvas", icon: "▤", iconName: "canvas" },
   { id: "ariad", label: "Ariad", icon: "△", iconName: "ariad" },
 ] as const satisfies readonly {
   id: OperationalSurface;
@@ -30,11 +34,15 @@ export function OperationalWorkspaceSwitcher({
   value,
   onChange,
   disabled = false,
+  extensions = DEFAULT_APP_EXTENSIONS,
 }: OperationalWorkspaceSwitcherProps) {
-  const selectedValue = isOperationalSurfaceAvailable(value) ? value : "chat";
+  const shown = operationalSurfaces.filter(({ id }) => isOperationalSurfaceShown(id, extensions));
+  // CV-012.DS-001: a switcher with one tab offers no choice, so it is not drawn.
+  if (shown.length <= 1) return null;
+  const selectedValue = isOperationalSurfaceShown(value, extensions) ? value : "chat";
   return (
     <div className="operational-workspace-switcher" role="tablist" aria-label="Operational workspace">
-      {operationalSurfaces.filter(({ id }) => isOperationalSurfaceAvailable(id)).map((surface) => {
+      {shown.map((surface) => {
         const selected = surface.id === selectedValue;
         return (
           <button

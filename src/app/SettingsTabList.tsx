@@ -11,6 +11,8 @@ export const settingsTabs = [
   // CR151: renamed at the Navigator's request after the completion-sound settings moved here; the
   // id was kept, since only the label moved.
   { id: "voice", label: "Sound & Voice" },
+  // CV-012.DS-001: the bridge to the extension mechanism still being built (Navigator, 2026-11-04).
+  { id: "extensions", label: "Extensions" },
   { id: "updates", label: "Updates" },
   { id: "diagnostics", label: "Diagnostics" },
 ] as const;

@@ -6,9 +6,10 @@ import documentationBrowserSource from "../app/JourneyDocumentationBrowser.tsx?r
 import switcherSource from "../app/OperationalWorkspaceSwitcher.tsx?raw";
 
 describe("Operational Journey workspace", () => {
-  it("shows only functional Conversation, Context Map and Agent’s Canvas controls", () => {
+  // CV-012.DS-001: with both extensions on; renamed Agent Field and Agent Canvas.
+  it("shows only functional Conversation, Agent Field and Agent Canvas controls", () => {
     const html = renderToStaticMarkup(
-      <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} />,
+      <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} extensions={{ agentField: true, agentCanvas: true }} />,
     );
 
     expect(html).toContain('aria-label="Operational workspace"');
@@ -16,11 +17,11 @@ describe("Operational Journey workspace", () => {
     expect(html).toContain("Conversation");
     // CR105: the surface shows what effectively entered the agent's context, not an artifact
     // list. The id stays `artifacts` because it is persisted selection state, not a label.
-    expect(html).toContain("Context Map");
+    expect(html).toContain("Agent Field");
     expect(html).not.toContain(">Context<");
     // CR112: Canvas hosts the drawing the Journey's agent keeps. It is a separate surface with
     // its own persisted id, not another region inside Context.
-    expect(html).toContain("Agent’s Canvas");
+    expect(html).toContain("Agent Canvas");
     expect(html).not.toContain(">Canvas<");
     expect(html).toContain('aria-controls="operational-canvas-panel"');
     // The genre is deliberately unnamed, which is the whole finding of the Canvas pivot.
@@ -39,7 +40,7 @@ describe("Operational Journey workspace", () => {
 
   it("keeps Operational surface switching disabled during active work", () => {
     const html = renderToStaticMarkup(
-      <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} disabled />,
+      <OperationalWorkspaceSwitcher value="chat" onChange={() => undefined} disabled extensions={{ agentField: true, agentCanvas: true }} />,
     );
 
     expect(html.match(/disabled=""/g)).toHaveLength(3);

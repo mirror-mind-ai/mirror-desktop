@@ -1,4 +1,5 @@
 import { normalizeDisplayName } from "./personName";
+import { DEFAULT_APP_EXTENSIONS, parseAppExtensions, type AppExtensions } from "./appExtensions";
 import { findJourneyById, type JourneyListOrder, type JourneyPreferences, type JourneyRegistry } from "./journeyRegistry";
 import { parseApplicationTheme, type ApplicationTheme } from "./applicationTheme";
 import { defaultVoiceLanguage, parseVoiceLanguage, type VoiceLanguage } from "./voiceTranscription";
@@ -64,6 +65,8 @@ export type PersistedJourneyPreferences = {
     // CR190: the name the person wrote for themselves. Absent means the name read from the home's
     // user. Global, like the avatar it sits beside.
     userDisplayName?: string;
+    // CV-012.DS-001: the extensions the person turned on in Settings › Extensions; both off by default.
+    extensions?: AppExtensions;
   };
   savedAt: string;
 };
@@ -89,6 +92,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   // like it never arrived.
   turnCompletionSound: true,
   turnCompletionToneId: DEFAULT_TURN_COMPLETION_TONE_ID,
+  extensions: { ...DEFAULT_APP_EXTENSIONS },
 };
 
 export function createPersistedJourneyPreferences(
@@ -190,6 +194,8 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       turnCompletionSound,
       turnCompletionToneId,
       ...(userDisplayName ? { userDisplayName } : {}),
+      // CV-012.DS-001 takes CR133's departure: a bad value turns the extensions off and costs nothing else.
+      extensions: parseAppExtensions(preferences.extensions),
     },
     savedAt: record.savedAt,
   };
@@ -225,6 +231,7 @@ export function sanitizeJourneyPreferenceState(
     turnCompletionSound: preferences.turnCompletionSound,
     turnCompletionToneId: preferences.turnCompletionToneId,
     ...(preferences.userDisplayName ? { userDisplayName: preferences.userDisplayName } : {}),
+    extensions: parseAppExtensions(preferences.extensions),
   };
 }
 

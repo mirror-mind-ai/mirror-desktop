@@ -16,6 +16,8 @@ const PANELS = {
   mirror: ['aria-label="Mirror home"', 'aria-label="Mirror home binding"', 'variant="settings"', "{describeLearning(mirrorLearning)}"],
   you: ['aria-label="Application appearance"', "<UserAvatarSettings"],
   voice: ['aria-label="Turn completion sound"', "<VoiceSettingsPanel"],
+  // CV-012.DS-001: the bridge to extensions, a question of its own (what else the app shows).
+  extensions: ["<ExtensionsSettings"],
   updates: ["<SelfUpdatePanel"],
   diagnostics: ['aria-label="Runtime channel"', 'aria-label="Current session invocation controls"'],
 } as const;
@@ -33,17 +35,18 @@ function panel(id: string): string {
 }
 
 describe("CR175: Settings tabs by intent", () => {
-  it("offers Models, Mirror, You, Sound & Voice, Updates and Diagnostics, in that order", () => {
+  it("offers Models, Mirror, You, Sound & Voice, Extensions, Updates and Diagnostics, in that order", () => {
     expect(settingsTabs.map((tab) => [tab.id, tab.label])).toEqual([
       ["models", "Models"],
       ["mirror", "Mirror"],
       ["you", "You"],
       ["voice", "Sound & Voice"],
+      ["extensions", "Extensions"],
       ["updates", "Updates"],
       ["diagnostics", "Diagnostics"],
     ]);
     const html = renderToStaticMarkup(<SettingsTabList selected="models" onSelect={() => undefined} />);
-    expect(html.match(/role="tab"/g)).toHaveLength(6);
+    expect(html.match(/role="tab"/g)).toHaveLength(7);
     expect(html).toContain('aria-controls="settings-panel-diagnostics"');
   });
 
@@ -51,7 +54,8 @@ describe("CR175: Settings tabs by intent", () => {
     expect(nextSettingsTab("models", "ArrowRight")).toBe("mirror");
     expect(nextSettingsTab("mirror", "ArrowRight")).toBe("you");
     expect(nextSettingsTab("you", "ArrowRight")).toBe("voice");
-    expect(nextSettingsTab("voice", "ArrowRight")).toBe("updates");
+    expect(nextSettingsTab("voice", "ArrowRight")).toBe("extensions");
+    expect(nextSettingsTab("extensions", "ArrowRight")).toBe("updates");
     expect(nextSettingsTab("updates", "ArrowRight")).toBe("diagnostics");
     expect(nextSettingsTab("diagnostics", "ArrowRight")).toBe("models");
     expect(nextSettingsTab("models", "ArrowLeft")).toBe("diagnostics");
@@ -67,7 +71,7 @@ describe("CR175: Settings tabs by intent", () => {
         expect(settingsWindow.split(marker).length - 1, `${marker} once`).toBe(1);
       }
     }
-    expect(settingsWindow.match(/id="settings-panel-/g)).toHaveLength(6);
+    expect(settingsWindow.match(/id="settings-panel-/g)).toHaveLength(7);
   });
 
   it("puts the person's avatar before the app's appearance in You", () => {

@@ -556,6 +556,8 @@ import { currentMirrorDesktopVersion, type SelfUpdateCheckResult } from "./selfU
 import { loadResolvedWhatsNewState, saveWhatsNewState } from "./whatsNewStorage";
 import { acknowledgeWhatsNew, resolveWhatsNewState, type ResolvedWhatsNewState } from "../domain/whatsNewState";
 import { PersonButton, UserAvatarSettings, UserNameSettings } from "./UserAvatar";
+import { ExtensionsSettings } from "./ExtensionsSettings";
+import { DEFAULT_APP_EXTENSIONS, type AppExtensions } from "../domain/appExtensions";
 import { displayNameFromMirrorUser, normalizeDisplayName, resolvePerson } from "../domain/personName";
 import { claimOnboardingName, forgetOnboardingName, rememberOnboardingName } from "./onboardingNameHandoff";
 import { importUserAvatar, loadUserAvatar, removeUserAvatar } from "./userAvatarStorage";
@@ -644,7 +646,11 @@ export function App({ model }: AppProps) {
   const [finishingPhases, setFinishingPhases] = useState<Record<string, FinishingPhasePresentation>>({});
   const [selectedAltitude, setSelectedAltitude] = useState(defaultJourneyAltitude);
   const [selectedOperationalSurface, setSelectedOperationalSurface] = useState<OperationalSurface>("chat");
-  const presentedJourneySurface = normalizeJourneySurfaceSelection(selectedAltitude, selectedOperationalSurface);
+  // CV-012.DS-001: the Agent Field and the Agent Canvas, shown only when turned on in Settings.
+  const [extensions, setExtensions] = useState<AppExtensions>({ ...DEFAULT_APP_EXTENSIONS });
+  const extensionsRef = useRef(extensions);
+  extensionsRef.current = extensions;
+  const presentedJourneySurface = normalizeJourneySurfaceSelection(selectedAltitude, selectedOperationalSurface, extensions);
   const presentedAltitude = presentedJourneySurface.altitude;
   const presentedOperationalSurface = presentedJourneySurface.operationalSurface;
   const [artifactNavigationRequest, setArtifactNavigationRequest] = useState<{
@@ -2023,6 +2029,7 @@ export function App({ model }: AppProps) {
       setTurnCompletionSound(sanitizedPreferences.turnCompletionSound);
       setTurnCompletionToneId(sanitizedPreferences.turnCompletionToneId);
       setUserDisplayName(sanitizedPreferences.userDisplayName ?? "");
+      setExtensions(sanitizedPreferences.extensions ?? { ...DEFAULT_APP_EXTENSIONS });
       dispatchConversationExpansion({ type: "restore", journeyIds: sanitizedPreferences.expandedConversationJourneyIds });
       setHiddenConversations(sanitizedPreferences.hiddenConversationIdsByJourneyId);
       setLastConversationSelection(sanitizedPreferences.lastConversationSelectionByJourneyId);
@@ -2432,8 +2439,10 @@ export function App({ model }: AppProps) {
    * is the Navigator saying they want to look at it, and the reload control is them asking again.
    * No watcher and no polling: disk change is noticed by gesture, as in Context's tree reload.
    */
-  const canvasSurfaceSelected = selectedAltitude === "operational"
-    && selectedOperationalSurface === "canvas";
+  // CV-012.DS-001: the presented surface, so a remembered Canvas selection does not read the
+  // drawing while the Agent Canvas is turned off.
+  const canvasSurfaceSelected = presentedAltitude === "operational"
+    && presentedOperationalSurface === "canvas";
 
   useEffect(() => {
     if (!runtimeBindingReady || !selectedJourney || !registryLoaded) return;
@@ -2695,8 +2704,9 @@ export function App({ model }: AppProps) {
       turnCompletionSound,
       turnCompletionToneId,
       ...(normalizeDisplayName(userDisplayName) ? { userDisplayName: normalizeDisplayName(userDisplayName) } : {}),
+      extensions,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, turnCompletionSound, turnCompletionToneId, userDisplayName, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, turnCompletionSound, turnCompletionToneId, userDisplayName, extensions, registryLoaded, preferencesLoaded]);
 
   // CR133: disclosures restored from the preference file load their catalogs one after
   // another. Reopening with many groups expanded must not start many catalog subprocesses
@@ -5512,7 +5522,9 @@ export function App({ model }: AppProps) {
     try {
       const disposition = await classifyChatLocalReference(ownerJourneyId, path);
       if (selectedJourneyRef.current !== ownerJourneyId) return;
-      if (disposition.kind === "journey_document") {
+      // CV-012.DS-001: with the Agent Field off there is no surface to show it in, so the document
+      // opens outside the app like any other local reference.
+      if (disposition.kind === "journey_document" && extensionsRef.current.agentField) {
         setSelectedAltitude("operational");
         setSelectedOperationalSurface("artifacts");
         setArtifactNavigationRequest({
@@ -6696,6 +6708,7 @@ export function App({ model }: AppProps) {
                   value={presentedOperationalSurface}
                   onChange={setSelectedOperationalSurface}
                   disabled={altitudeSwitchDisabled}
+                  extensions={extensions}
                 />
               ) : null}
             </div>
@@ -7963,6 +7976,17 @@ export function App({ model }: AppProps) {
                 />
               </div>
             ) : null}
+            {settingsTab === "extensions" ? (
+              <div
+                className="settings-tab-panel"
+                id="settings-panel-extensions"
+                role="tabpanel"
+                aria-labelledby="settings-tab-extensions"
+              >
+                <ExtensionsSettings value={extensions} onChange={setExtensions} />
+              </div>
+            ) : null}
+
             {settingsTab === "updates" ? (
               <div
                 className="settings-tab-panel"

@@ -30,9 +30,14 @@ describe("temporary Journey surface availability", () => {
       altitude: "operational",
       operationalSurface: "chat",
     });
-    expect(normalizeJourneySurfaceSelection("strategic", "artifacts")).toEqual({
+    // CV-012.DS-001: the Agent Field is an extension now, so it survives only when turned on.
+    expect(normalizeJourneySurfaceSelection("strategic", "artifacts", { agentField: true, agentCanvas: false })).toEqual({
       altitude: "operational",
       operationalSurface: "artifacts",
+    });
+    expect(normalizeJourneySurfaceSelection("strategic", "artifacts")).toEqual({
+      altitude: "operational",
+      operationalSurface: "chat",
     });
     expect(normalizeJourneySurfaceSelection("operational", "chat")).toEqual({
       altitude: "operational",
