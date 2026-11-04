@@ -2,7 +2,7 @@
 
 # CV-013.DS-001 - Inventory the Name and Decide What Moves
 
-**Status:** 🔵 In progress — inventory done 2026-11-04; machine coordinates move too (Navigator), proposal awaiting approval
+**Status:** ✅ Done — name and coordinates decided by the Navigator on 2026-11-04
 
 ## Outcome
 
@@ -103,7 +103,12 @@ start fresh.
 app menu is **Nautilus**, within macOS's 15-character guidance. The "for" reads as an app made for a
 platform, which is CV-013's point: one front end among others for the Core.
 
-## Decisions Needed From the Navigator
+## Approved (Navigator, 2026-11-04)
+
+"aprovado: subdomínio, mesma repo, comece pela alpha.16": the revised direction stands, with DS-002
+to DS-005 as proposed, and the 0.3 line closes with `0.3.0-alpha.16`.
+
+## Decisions Needed From the Navigator (superseded by the approval above)
 
 1. Keep every machine coordinate, including the bundle identifier (recommended), or move it.
 2. The exact visible name, `Nautilus for Mirror`, without `TS`.

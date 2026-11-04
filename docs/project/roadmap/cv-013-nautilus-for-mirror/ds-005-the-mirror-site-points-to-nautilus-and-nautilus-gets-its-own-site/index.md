@@ -2,7 +2,7 @@
 
 # CV-013.DS-005 - The Mirror Site Points to Nautilus, and Nautilus Gets Its Own Site
 
-**Status:** 🟡 Proposed — requested by the Navigator on 2026-11-04
+**Status:** 🟡 Planned — requested and shaped by the Navigator on 2026-11-04
 
 ## Outcome
 
@@ -33,9 +33,10 @@ deserves its own place instead of living inside the Core's install guides.
 - **The download link** follows the Nautilus channel (DS-002); the old DMG path keeps answering, or
   redirects, so links already shared still work.
 
-## Open Before Building
+## Decided (Navigator, 2026-11-04)
 
-1. The Nautilus site's address: a domain of its own, or a subdomain such as `nautilus.mirrormind.sh`.
-2. Where it lives: a new repository, or a folder in `mirrormind-site`.
-3. When the Mirror site changes: with the first Nautilus release, so the site never points to a
-   download that does not exist yet.
+- **Address:** the subdomain `nautilus.mirrormind.sh`.
+- **Where it lives:** a folder in `mirrormind-site`, served by the same host and deployed the same
+  way.
+- **When:** the Mirror site changes with the first Nautilus release, so it never points to a
+  download that does not exist yet.
