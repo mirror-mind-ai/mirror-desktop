@@ -2,7 +2,7 @@
 
 # CV-013 - Nautilus for Mirror
 
-**Status:** 🔵 In progress — started by the Navigator on 2026-11-04 ("comece a CV-013")
+**Status:** ✅ Done — started by the Navigator on 2026-11-04 ("comece a CV-013") and closed the same day ("feche a CV-013 e leve a Veronica para o pós-lançamento")
 
 ## Outcome
 
@@ -34,6 +34,13 @@ returns to the Nautilus name it was incubated under (Nautilus Harness, see the
 - Whether the bundle identifier changes at all; changing it makes macOS treat it as a new app.
 - Order against CV-009 (signing): signing under the final name avoids doing it twice.
 - The site keeps "Mirror Desktop" until DS-005 changes it, with the first Nautilus release.
+
+## Closed (2026-11-04)
+
+The Navigator works in Nautilus for Mirror v0.4.0-alpha.1 on the carried state; the Mirror site
+names it and links `nautilus.mirrormind.sh`, its own site. The second installation (Veronica's)
+moves after the launch, with the same DMG and `scripts/carry_03_state.mjs`, when the Navigator
+gives it a date; it is not a Delivery Story of this CV.
 
 ## Delivery Stories
 

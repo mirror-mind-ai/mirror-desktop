@@ -4,7 +4,7 @@
 
 | Item | Estado |
 | --- | --- |
-| **Fila até o lançamento** | 1 CV-013 · depois RS027 |
+| **Fila até o lançamento** | RS027 |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · sem CR aberto |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress |
@@ -30,10 +30,9 @@
 
 | Item | Estado |
 | --- | --- |
+| **Pós-lançamento · Instalação da Veronica no Nautilus** | ⏸ parked · sem data · mesmo DMG e script de transferência |
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
-| **CV-013 · Nautilus for Mirror** | 🔵 em andamento · último passo antes da divulgação |
-| ↳　Instalação da Veronica | ⏸ parked · sem data |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
 | **CV-009 · Trusted macOS Distribution** | 🟡 Planned · aguarda a Apple |
