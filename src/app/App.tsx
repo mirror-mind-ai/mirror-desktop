@@ -6661,6 +6661,8 @@ export function App({ model }: AppProps) {
                           </small>
                         ) : null}
                       </button>
+                      {/* CR190: navigating and resetting are different kinds of act (Navigator). */}
+                      <div className="journey-menu-separator" role="separator" />
                       <button
                         type="button"
                         role="menuitem"
@@ -7390,6 +7392,16 @@ export function App({ model }: AppProps) {
                 </p>
               </div>
             </header>
+            {/* CR190: why a person would do this, and the lighter act when the context is only long. */}
+            <div className="restart-reasons">
+              <h3>When to reset</h3>
+              <ul>
+                <li>The agent keeps returning to a wrong idea or direction, and correcting it no longer helps.</li>
+                <li>You are starting a different subject and want the agent to begin without the earlier one.</li>
+                <li>Turns have become slow or expensive because the context is very large.</li>
+              </ul>
+              <p>If the context is only long and you want the agent to keep the thread, use <strong>Compact now</strong> instead: it summarizes the context rather than discarding it.</p>
+            </div>
             <div className="restart-assurances">
               <p>No model will be called and no synthetic greeting will be created.</p>
               <p>The current generation remains active unless the replacement is fully verified.</p>
@@ -7403,12 +7415,13 @@ export function App({ model }: AppProps) {
               ))}
             </div>
             {journeyReloadStatus ? <p className="journey-reload-status" aria-live="polite">{journeyReloadStatus}</p> : null}
+            {/* CR190: the safe act is the default and the emphasized one; resetting is deliberate. */}
             <div className="provider-actions">
-              <button type="button" onClick={() => void confirmConversationRestart()} disabled={isJourneyReloading}>
-                {isJourneyReloading ? "Resetting context…" : "Reset agent context"}
-              </button>
-              <button className="secondary-button" type="button" onClick={() => setRestartConfirmationOpen(false)} disabled={isJourneyReloading}>
+              <button type="button" autoFocus onClick={() => setRestartConfirmationOpen(false)} disabled={isJourneyReloading}>
                 Cancel
+              </button>
+              <button className="secondary-button" type="button" onClick={() => void confirmConversationRestart()} disabled={isJourneyReloading}>
+                {isJourneyReloading ? "Resetting context…" : "Reset agent context"}
               </button>
             </div>
           </section>

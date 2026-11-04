@@ -5760,6 +5760,30 @@ dd {
 
 .restart-assurances p { margin: 0; }
 
+/* CR190: why a person would reset, before what resetting keeps. */
+.restart-reasons {
+  margin: 4px 0 12px;
+}
+
+.restart-reasons h3 {
+  font-size: 0.95rem;
+  margin: 0 0 6px;
+}
+
+.restart-reasons ul {
+  margin: 0 0 8px;
+  padding-left: 1.2em;
+}
+
+.restart-reasons li + li {
+  margin-top: 3px;
+}
+
+.restart-reasons p {
+  margin: 0;
+  opacity: 0.85;
+}
+
 .generation-history {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;

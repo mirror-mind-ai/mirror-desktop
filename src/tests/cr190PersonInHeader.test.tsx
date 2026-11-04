@@ -101,3 +101,28 @@ describe("CR190 the reset dialog", () => {
     expect(dialog).toContain("The Mirror's memories are not affected.");
   });
 });
+
+describe("CR190 after the Navigator's review", () => {
+  const menu = appSource.slice(appSource.indexOf("CR190: Chapters moved here"), appSource.indexOf("Reset agent context…"));
+  const dialog = appSource.slice(appSource.indexOf('aria-label="Confirm agent context reset"'), appSource.indexOf("conversationCreateOpen ? ("));
+  const actions = dialog.slice(dialog.indexOf('className="provider-actions"'));
+
+  it("separates Chapters from Reset agent context in the ⋯ menu", () => {
+    expect(menu).toMatch(/Chapters…[\s\S]*<div className="journey-menu-separator" role="separator" \/>/);
+  });
+
+  it("makes Cancel the default and emphasized action, and Reset the secondary one", () => {
+    const cancel = actions.slice(actions.indexOf("<button"), actions.indexOf("Cancel"));
+    const reset = actions.slice(actions.indexOf("confirmConversationRestart"), actions.indexOf('"Reset agent context"'));
+    expect(actions.indexOf("Cancel")).toBeLessThan(actions.indexOf("confirmConversationRestart"));
+    expect(cancel).toContain("autoFocus");
+    expect(cancel).not.toContain("secondary-button");
+    expect(actions.slice(actions.lastIndexOf("<button", actions.indexOf("confirmConversationRestart")), actions.indexOf("confirmConversationRestart"))).toContain("secondary-button");
+    expect(reset).not.toContain("autoFocus");
+  });
+
+  it("says why a person would reset, and points to compaction for a merely long context", () => {
+    expect(dialog).toContain("When to reset");
+    expect(dialog).toContain("Compact now");
+  });
+});
