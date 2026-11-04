@@ -33,7 +33,7 @@
 | --- | --- |
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
-| ↳　DS-001 · Launch With Only the Canonical Set | 🟡 Candidate · 3ª da fila |
+| ↳　DS-001 · Launch With Only the Canonical Set | 🔧 construída · validar em dev |
 | **CV-013 · Nautilus for Mirror** | 🟡 Candidate · 4ª da fila · último passo antes da divulgação |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |

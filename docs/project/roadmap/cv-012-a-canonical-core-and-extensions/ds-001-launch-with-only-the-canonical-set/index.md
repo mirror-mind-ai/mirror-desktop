@@ -2,7 +2,7 @@
 
 # CV-012.DS-001 - Launch With Only the Canonical Set
 
-**Status:** 🟡 Candidate — ordered by the Navigator on 2026-11-03; not planned
+**Status:** 🔧 Built — awaiting validation in development
 
 ## Outcome
 
@@ -37,3 +37,31 @@ taking it away from them. Hiding it before the launch costs little, because the 
   surface.
 - Whether hiding also stops the work behind each surface (reads, prompts to the agent about the
   Canvas), or only the surface.
+
+## Decided and Built (Navigator, 2026-11-04)
+
+The Navigator chose neither of the two switch layouts proposed above. Instead:
+
+- **Settings › Extensions**, a new tab, holds two switches: **Agent Field** and **Agent Canvas**.
+  Both are off by default, the Navigator's installation included, and each shows or hides its tab
+  beside Conversation.
+- The tab says that extensions are still being built and that these options are a bridge from
+  what exists to how it will work.
+- **Renamed:** the Context Map is now the **Agent Field**, the Nautilus framework's name for it, and
+  Agent's Canvas is now **Agent Canvas**. The persisted surface ids (`artifacts`, `canvas`) are
+  unchanged.
+- **Ariad and the Tactical and Strategic altitudes** needed no switch. They were already hidden by
+  `journeySurfaceAvailability`, so the question above is moot.
+
+What the build also does:
+
+- With both switches off, only Conversation is left and the surface switcher is not drawn.
+- A remembered selection of a surface that is off falls back to Conversation.
+- The Canvas is read only while it is actually shown.
+- A Journey document clicked in a conversation opens outside the app when the Agent Field is off,
+  since there is no surface to show it in.
+
+Code: `src/domain/appExtensions.ts`, `src/app/ExtensionsSettings.tsx`, and the surface rules in
+`journeySurfaceAvailability.ts`. Spec: `src/tests/cv012Ds001ExtensionsTab.test.tsx`, checked
+failing first and by mutation. Six older guards were re-aimed to the seventh Settings tab and the
+new names.
