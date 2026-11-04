@@ -83,17 +83,17 @@ impl RuntimeChannel {
 
     pub fn product_name(self) -> &'static str {
         match self {
-            Self::User => "Mirror Desktop TS",
-            Self::Development => "Mirror Desktop TS Dev",
-            Self::Evaluation => "Mirror Desktop TS Eval",
+            Self::User => "Nautilus for Mirror",
+            Self::Development => "Nautilus for Mirror Dev",
+            Self::Evaluation => "Nautilus for Mirror Eval",
         }
     }
 
     pub fn bundle_identifier(self) -> &'static str {
         match self {
-            Self::User => "ai.mirrormind.desktop.ts",
-            Self::Development => "ai.mirrormind.desktop.ts.dev",
-            Self::Evaluation => "ai.mirrormind.desktop.ts",
+            Self::User => "ai.mirrormind.nautilus",
+            Self::Development => "ai.mirrormind.nautilus.dev",
+            Self::Evaluation => "ai.mirrormind.nautilus",
         }
     }
 
@@ -119,7 +119,7 @@ impl RuntimeChannel {
                     bundle_identifier.as_deref(),
                     localized_name.as_deref(),
                 ) {
-                    return Err("Close Mirror Desktop TS before opening Mirror Desktop TS Eval. Both applications use the production app-data boundary.".to_string());
+                    return Err("Close Nautilus for Mirror before opening Nautilus for Mirror Eval. Both applications use the production app-data boundary.".to_string());
                 }
             }
         }
@@ -159,7 +159,7 @@ impl RuntimeChannel {
                 Self::User => unreachable!("stable channel does not override the Dock icon"),
             });
             let icon = NSImage::initWithData(NSImage::alloc(), &data).ok_or_else(|| {
-                "Could not decode the Mirror Desktop channel Dock icon.".to_string()
+                "Could not decode the Nautilus channel Dock icon.".to_string()
             })?;
             let application = NSApplication::sharedApplication(marker);
             unsafe { application.setApplicationIconImage(Some(&icon)) };
@@ -173,9 +173,11 @@ pub(crate) fn evaluation_conflicts_with_running_application(
     bundle_identifier: Option<&str>,
     localized_name: Option<&str>,
 ) -> bool {
+    // The stable app may report its full name or its menu name (CV-013.DS-002); the evaluation
+    // build shares its identifier but never either name.
     channel == RuntimeChannel::Evaluation
-        && bundle_identifier == Some("ai.mirrormind.desktop.ts")
-        && localized_name == Some("Mirror Desktop TS")
+        && bundle_identifier == Some(RuntimeChannel::User.bundle_identifier())
+        && matches!(localized_name, Some("Nautilus for Mirror") | Some("Nautilus"))
 }
 
 pub(crate) fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
@@ -301,9 +303,9 @@ impl RuntimeChannelDiagnostic {
 
 /// The refusal every `uv` route meets on the 0.3 line.
 pub(crate) const UV_RETIRED: &str =
-    "Mirror Desktop TS never runs the Python Mirror; this Mirror operation is not available in it yet.";
+    "Nautilus never runs the Python Mirror; this Mirror operation is not available in it yet.";
 pub(crate) const UNBOUND_0_3: &str =
-    "Mirror Desktop TS is unbound. Choose a Mirror home made for Mirror Desktop TS.";
+    "Nautilus is unbound. Choose a Mirror home made for Nautilus.";
 
 impl RuntimeChannelProfile {
     /// The profile of the bound 0.3 home (CV-010.DS-005 slice 2d-1); nothing names a Mirror source
@@ -550,15 +552,15 @@ mod tests {
         let development = RuntimeChannelProfile::for_home(RuntimeChannel::Development, home);
         let evaluation = RuntimeChannelProfile::for_home(RuntimeChannel::Evaluation, home);
 
-        assert_eq!(user.bundle_identifier, "ai.mirrormind.desktop.ts");
-        assert_eq!(development.bundle_identifier, "ai.mirrormind.desktop.ts.dev");
+        assert_eq!(user.bundle_identifier, "ai.mirrormind.nautilus");
+        assert_eq!(development.bundle_identifier, "ai.mirrormind.nautilus.dev");
         // A 0.3 profile is its home: the cwd, the Mirror home and the database all come from it.
         assert_eq!(development.mirror_home, home.join("Mirror Homes/development"));
         assert_eq!(development.mirror_root, development.mirror_home);
         assert_eq!(development.db_path, development.mirror_home.join("memory.db"));
         assert_ne!(user.mirror_home, development.mirror_home);
-        assert_eq!(evaluation.product_name, "Mirror Desktop TS Eval");
-        assert_eq!(evaluation.bundle_identifier, "ai.mirrormind.desktop.ts");
+        assert_eq!(evaluation.product_name, "Nautilus for Mirror Eval");
+        assert_eq!(evaluation.bundle_identifier, "ai.mirrormind.nautilus");
         assert_eq!(evaluation.mirror_home, user.mirror_home);
         assert_eq!(evaluation.db_path, user.db_path);
         assert!(RuntimeChannel::User.supports_updater());
@@ -570,24 +572,29 @@ mod tests {
     fn evaluation_exclusion_recognizes_only_the_stable_application() {
         assert_eq!(RuntimeChannel::Evaluation.as_str(), "user");
         assert_eq!(RuntimeChannel::Evaluation.diagnostic_str(), "evaluation");
-        assert!(super::evaluation_conflicts_with_running_application(
-            RuntimeChannel::Evaluation,
-            Some("ai.mirrormind.desktop.ts"),
-            Some("Mirror Desktop TS"),
-        ));
-        assert!(!super::evaluation_conflicts_with_running_application(
-            RuntimeChannel::Evaluation,
-            Some("ai.mirrormind.desktop.ts"),
-            Some("Mirror Desktop TS Eval"),
-        ));
+        for name in ["Nautilus for Mirror", "Nautilus"] {
+            assert!(super::evaluation_conflicts_with_running_application(
+                RuntimeChannel::Evaluation,
+                Some("ai.mirrormind.nautilus"),
+                Some(name),
+            ));
+        }
+        for name in ["Nautilus for Mirror Eval", "Nautilus Eval"] {
+            assert!(!super::evaluation_conflicts_with_running_application(
+                RuntimeChannel::Evaluation,
+                Some("ai.mirrormind.nautilus"),
+                Some(name),
+            ));
+        }
         assert!(!super::evaluation_conflicts_with_running_application(
             RuntimeChannel::User,
-            Some("ai.mirrormind.desktop.ts"),
-            Some("Mirror Desktop TS"),
+            Some("ai.mirrormind.nautilus"),
+            Some("Nautilus for Mirror"),
         ));
+        // The closed 0.3 app is another application, with its own data folder.
         assert!(!super::evaluation_conflicts_with_running_application(
             RuntimeChannel::Evaluation,
-            Some("other.bundle"),
+            Some("ai.mirrormind.desktop.ts"),
             Some("Mirror Desktop TS"),
         ));
     }
@@ -597,39 +604,45 @@ mod tests {
         let channel = RuntimeChannel::Development;
         assert!(channel
             .validate_app_identity(
-                "ai.mirrormind.desktop.ts",
-                Path::new("/tmp/ai.mirrormind.desktop.ts.dev")
+                "ai.mirrormind.nautilus",
+                Path::new("/tmp/ai.mirrormind.nautilus.dev")
             )
             .is_err());
         assert!(channel
             .validate_app_identity(
-                "ai.mirrormind.desktop.ts.dev",
-                Path::new("/tmp/ai.mirrormind.desktop.ts")
+                "ai.mirrormind.nautilus.dev",
+                Path::new("/tmp/ai.mirrormind.nautilus")
             )
             .is_err());
         assert!(channel
             .validate_app_identity(
-                "ai.mirrormind.desktop.ts.dev",
-                Path::new("/tmp/ai.mirrormind.desktop.ts.dev")
+                "ai.mirrormind.nautilus.dev",
+                Path::new("/tmp/ai.mirrormind.nautilus.dev")
             )
             .is_ok());
     }
 
-    /// CV-010.DS-005 phase 0: the 0.3 line never opens the frozen 0.2 line's app data, which
-    /// holds production's turn journals, outbox and binding. The launch-time identity check is
-    /// the enforcement, so every channel must refuse both 0.2 folders under either identifier.
+    /// CV-010.DS-005 phase 0, extended by CV-013.DS-002: Nautilus never opens a closed line's app
+    /// data, which holds that app's turn journals, outbox and binding. The launch-time identity
+    /// check is the enforcement, so every channel must refuse the 0.2 and 0.3 folders under either
+    /// identifier.
     #[test]
-    fn no_channel_accepts_the_frozen_0_2_app_data() {
-        let line_0_2 = ["ai.mirrormind.desktop", "ai.mirrormind.desktop.dev"];
+    fn no_channel_accepts_a_closed_lines_app_data() {
+        let closed_lines = [
+            "ai.mirrormind.desktop",
+            "ai.mirrormind.desktop.dev",
+            "ai.mirrormind.desktop.ts",
+            "ai.mirrormind.desktop.ts.dev",
+        ];
         for channel in [
             RuntimeChannel::User,
             RuntimeChannel::Development,
             RuntimeChannel::Evaluation,
         ] {
-            assert!(!line_0_2.contains(&channel.bundle_identifier()));
-            assert!(channel.bundle_identifier().starts_with("ai.mirrormind.desktop.ts"));
-            assert!(channel.product_name().starts_with("Mirror Desktop TS"));
-            for folder in line_0_2 {
+            assert!(!closed_lines.contains(&channel.bundle_identifier()));
+            assert!(channel.bundle_identifier().starts_with("ai.mirrormind.nautilus"));
+            assert!(channel.product_name().starts_with("Nautilus for Mirror"));
+            for folder in closed_lines {
                 let root = Path::new("/tmp").join(folder);
                 assert!(channel.validate_app_identity(folder, &root).is_err());
                 assert!(channel
@@ -650,7 +663,7 @@ mod tests {
             RuntimeChannel::Development,
             Path::new("/Users/example"),
         );
-        let diagnostic = profile.diagnostic(Path::new("/tmp/ai.mirrormind.desktop.ts.dev"));
+        let diagnostic = profile.diagnostic(Path::new("/tmp/ai.mirrormind.nautilus.dev"));
         let value = serde_json::to_value(diagnostic).unwrap();
         // The 0.3 diagnostic names the home and its database, and no Mirror source tree or user.
         assert_eq!(value.as_object().unwrap().len(), 9);
@@ -667,11 +680,11 @@ mod tests {
     fn unavailable_diagnostic_keeps_the_application_channel_visible() {
         let diagnostic = super::RuntimeChannelDiagnostic::unavailable(
             RuntimeChannel::User,
-            Path::new("/tmp/ai.mirrormind.desktop.ts"),
+            Path::new("/tmp/ai.mirrormind.nautilus"),
             "Mirror Desktop runtime is unbound.".to_string(),
         );
         assert_eq!(diagnostic.status, "unbound");
-        assert_eq!(diagnostic.bundle_identifier, "ai.mirrormind.desktop.ts");
+        assert_eq!(diagnostic.bundle_identifier, "ai.mirrormind.nautilus");
         assert_eq!(diagnostic.mirror_root, None);
         assert_eq!(serde_json::to_value(&diagnostic).unwrap().get("piInstalled"), None);
         assert_eq!(serde_json::to_value(&diagnostic).unwrap().get("anthropicInstalled"), None);
@@ -687,7 +700,7 @@ mod tests {
         };
         let value = serde_json::to_value(super::RuntimeChannelDiagnostic::without_pi(
             RuntimeChannel::Development,
-            Path::new("/tmp/ai.mirrormind.desktop.ts.dev"),
+            Path::new("/tmp/ai.mirrormind.nautilus.dev"),
             &home,
         ))
         .unwrap();

@@ -1,14 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Mirror Desktop TS Eval",
-  "identifier": "ai.mirrormind.desktop.ts",
+  "productName": "Nautilus for Mirror Eval",
+  "identifier": "ai.mirrormind.nautilus",
   "build": {
     "beforeBuildCommand": "npm run build"
   },
   "app": {
     "windows": [
       {
-        "title": "Mirror Desktop TS Eval",
+        "title": "Nautilus for Mirror Eval",
         "width": 1100,
         "height": 760,
         "minWidth": 860,
@@ -18,8 +18,15 @@
     ]
   },
   "bundle": {
-    "targets": ["app"],
+    "targets": [
+      "app"
+    ],
     "createUpdaterArtifacts": false,
-    "icon": ["icons/eval/icon.png"]
+    "icon": [
+      "icons/eval/icon.png"
+    ],
+    "macOS": {
+      "bundleName": "Nautilus Eval"
+    }
   }
 }

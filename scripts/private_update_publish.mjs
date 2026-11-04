@@ -25,7 +25,8 @@ export function deriveBaseUrlFromUpdaterConfig(config) {
 }
 
 export const defaultBaseUrl = deriveBaseUrlFromUpdaterConfig(JSON.parse(readFileSync(channelUpdaterConfigPath, "utf8")));
-const defaultWebRoot = "/var/www/mirror-desktop-updates/mirror-desktop";
+// The update host serves this folder at its root; a channel's base URL path is its folder inside.
+const updateHostRoot = "/var/www/mirror-desktop-updates";
 const defaultTargets = ["darwin", "darwin-x86_64", "darwin-aarch64"];
 
 function requireFile(path, label) {
@@ -47,7 +48,7 @@ function run(command, args, options = {}) {
 }
 
 export function updaterArtifactName(version) {
-  return `Mirror Desktop_${parseSemver(version)}.app.tar.gz`;
+  return `${CURRENT_RELEASE_LINE.artifactName}_${parseSemver(version)}.app.tar.gz`;
 }
 
 export function updaterArtifactUrl(version, baseUrl = defaultBaseUrl) {
@@ -55,7 +56,7 @@ export function updaterArtifactUrl(version, baseUrl = defaultBaseUrl) {
 }
 
 export function latestMacosDmgUrl(baseUrl = defaultBaseUrl) {
-  return `${baseUrl.replace(/\/$/, "")}/downloads/macos/mirror-desktop-latest.dmg`;
+  return `${baseUrl.replace(/\/$/, "")}/downloads/macos/${CURRENT_RELEASE_LINE.downloadAlias}`;
 }
 
 export function latestMacosDownloadManifestUrl(baseUrl = defaultBaseUrl) {
@@ -80,13 +81,15 @@ export function manifestPaths({ targets = defaultTargets, currentVersions }) {
   return targets.flatMap((target) => currentVersions.map((currentVersion) => `${target}/${parseSemver(currentVersion)}/latest.json`));
 }
 
-export function webRootForBaseUrl(baseUrl = defaultBaseUrl, rootWebRoot = defaultWebRoot) {
-  const url = new URL(baseUrl);
-  const marker = "/mirror-desktop";
-  const markerIndex = url.pathname.indexOf(marker);
-  if (markerIndex < 0) throw new Error("Private update base URL must include /mirror-desktop.");
-  const suffix = url.pathname.slice(markerIndex + marker.length).replace(/^\/+|\/+$/g, "");
-  return suffix ? `${rootWebRoot.replace(/\/$/, "")}/${suffix}` : rootWebRoot.replace(/\/$/, "");
+export function webRootForBaseUrl(baseUrl = defaultBaseUrl, rootWebRoot = updateHostRoot) {
+  // CV-013.DS-002: the folder follows the URL path, so every line's channel lands
+  // under the host's root. Read before URL parsing, which would silently resolve dot segments.
+  const rawPath = String(baseUrl).replace(/^https?:\/\/[^/]+/, "");
+  const segments = rawPath.split("/").filter(Boolean);
+  if (segments.length === 0 || segments.some((segment) => segment === "." || segment === ".." || !/^[A-Za-z0-9._-]+$/.test(segment))) {
+    throw new Error(`Private update base URL needs a plain channel path, not ${baseUrl}.`);
+  }
+  return `${rootWebRoot.replace(/\/$/, "")}/${segments.join("/")}`;
 }
 
 export function planPrivateUpdatePublication({ version, currentVersions, targets = defaultTargets, baseUrl = defaultBaseUrl, webRoot }) {
@@ -169,7 +172,7 @@ export function stagePrivateUpdatePublication(options) {
   if (options.dmg) {
     const dmgArtifactName = basename(options.dmg);
     copyFileSync(requireFile(resolve(repositoryRoot, options.dmg), "DMG artifact"), resolve(artifactsDir, dmgArtifactName));
-    copyFileSync(requireFile(resolve(repositoryRoot, options.dmg), "DMG artifact"), resolve(downloadsDir, "mirror-desktop-latest.dmg"));
+    copyFileSync(requireFile(resolve(repositoryRoot, options.dmg), "DMG artifact"), resolve(downloadsDir, CURRENT_RELEASE_LINE.downloadAlias));
     writeFileSync(resolve(downloadsDir, "latest.json"), `${JSON.stringify({
       version,
       dmg: plan.latestMacosDmgUrl,
@@ -190,13 +193,13 @@ export function stagePrivateUpdatePublication(options) {
   return { ...plan, stageDir };
 }
 
-export function publishStagedPrivateUpdate({ stageDir, sshHost = "szen-vps", webRoot = defaultWebRoot, manifestPaths }) {
+export function publishStagedPrivateUpdate({ stageDir, sshHost = "szen-vps", webRoot = webRootForBaseUrl(defaultBaseUrl), manifestPaths }) {
   const downloadsDir = resolve(stageDir, "downloads", "macos");
   const remoteDirs = ["artifacts", "releases", "downloads/macos", ...manifestPaths.map((path) => dirname(path))].map((path) => `${webRoot}/${path}`);
   run("ssh", [sshHost, `set -e; sudo mkdir -p ${remoteDirs.map(shellQuote).join(" ")}; sudo chown -R $USER:$USER ${shellQuote(webRoot)}`], { stdio: "inherit" });
   run("bash", ["-lc", `scp ${shellQuote(resolve(stageDir, "artifacts"))}/* ${shellQuote(`${sshHost}:${webRoot}/artifacts/`)}`], { stdio: "inherit" });
   run("bash", ["-lc", `scp ${shellQuote(resolve(stageDir, "releases"))}/* ${shellQuote(`${sshHost}:${webRoot}/releases/`)}`], { stdio: "inherit" });
-  if (existsSync(resolve(downloadsDir, "mirror-desktop-latest.dmg"))) {
+  if (existsSync(resolve(downloadsDir, CURRENT_RELEASE_LINE.downloadAlias))) {
     run("bash", ["-lc", `scp ${shellQuote(downloadsDir)}/* ${shellQuote(`${sshHost}:${webRoot}/downloads/macos/`)}`], { stdio: "inherit" });
   }
   for (const path of manifestPaths) {

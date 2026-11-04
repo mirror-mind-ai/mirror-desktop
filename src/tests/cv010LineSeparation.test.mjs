@@ -7,7 +7,7 @@ import {
   releaseLineFor,
 } from "../../scripts/release_line.mjs";
 import { deriveRetainedVersions, evidenceSlug } from "../../scripts/release_deploy.mjs";
-import { defaultBaseUrl, deriveBaseUrlFromUpdaterConfig } from "../../scripts/private_update_publish.mjs";
+import { defaultBaseUrl } from "../../scripts/private_update_publish.mjs";
 import { alphaBuildPlan } from "../../scripts/alpha_build.mjs";
 import { inspectSelfUpdateConfig } from "../../scripts/self_update_preflight.mjs";
 
@@ -18,6 +18,9 @@ import { inspectSelfUpdateConfig } from "../../scripts/self_update_preflight.mjs
  * version under the line's base URL. A 0.3 build on the 0.2 channel would be installed over
  * production; a 0.3 build under the 0.2 identifier would open production's app data. Every
  * check here exists to make one of those two crossings impossible rather than unlikely.
+ *
+ * CV-013.DS-002 added the 0.4 line, Nautilus for Mirror, and closed 0.3. The 0.2/0.3 guards below
+ * still hold; main's own configuration is now checked by cv013Ds002NautilusLine.test.mjs.
  */
 
 const read = (path) => readFileSync(path, "utf8");
@@ -37,11 +40,12 @@ const LINE_03 = {
 };
 
 describe("the release-line table", () => {
-  it("declares exactly the frozen 0.2 line and the 0.3 TypeScript line", () => {
-    expect(RELEASE_LINES.map((line) => line.line)).toEqual(["0.2", "0.3"]);
+  it("declares the frozen 0.2 line and the 0.3 TypeScript line, before Nautilus", () => {
+    // Two lines became three when CV-013.DS-002 added 0.4, now the current one.
+    expect(RELEASE_LINES.map((line) => line.line)).toEqual(["0.2", "0.3", "0.4"]);
     expect(RELEASE_LINES[0]).toMatchObject({ baseUrl: LINE_02.baseUrl, identifier: LINE_02.identifier, productName: LINE_02.productName });
     expect(RELEASE_LINES[1]).toMatchObject({ baseUrl: LINE_03.baseUrl, identifier: LINE_03.identifier, productName: LINE_03.productName });
-    expect(CURRENT_RELEASE_LINE.line).toBe("0.3");
+    expect(CURRENT_RELEASE_LINE.line).toBe("0.4");
     expect(Object.isFrozen(RELEASE_LINES)).toBe(true);
     expect(RELEASE_LINES.every((line) => Object.isFrozen(line))).toBe(true);
   });
@@ -49,7 +53,7 @@ describe("the release-line table", () => {
   it("finds a version's line by its major.minor and refuses versions of no line", () => {
     expect(releaseLineFor("0.2.0-alpha.58").line).toBe("0.2");
     expect(releaseLineFor("v0.3.0-alpha.1").line).toBe("0.3");
-    expect(() => releaseLineFor("0.4.0")).toThrow(/no release line/i);
+    expect(() => releaseLineFor("0.5.0")).toThrow(/no release line/i);
     expect(() => releaseLineFor("0.30.0")).toThrow(/no release line/i);
   });
 
@@ -76,50 +80,34 @@ describe("the release-line table", () => {
   });
 });
 
-describe("the 0.3 line's configuration", () => {
+describe("main's configuration", () => {
   const stable = json("src-tauri/tauri.conf.json");
-  const development = json("src-tauri/tauri.dev.conf.json");
-  const evaluation = json("src-tauri/tauri.eval.conf.json");
-  const updater = json("src-tauri/tauri.ts-update.conf.json");
   const packageJson = json("package.json");
 
-  it("carries a 0.3 version that agrees with the current line", () => {
+  it("carries a version that agrees with the current line", () => {
     expect(packageJson.version).toBe(stable.version);
     expect(releaseLineFor(stable.version)).toBe(CURRENT_RELEASE_LINE);
   });
 
-  it("uses the TS identity in every channel and never the 0.2 app-data folders", () => {
-    expect(stable).toMatchObject({ identifier: "ai.mirrormind.desktop.ts", productName: "Mirror Desktop TS" });
-    expect(stable.app.windows[0].title).toBe("Mirror Desktop TS");
-    expect(development).toMatchObject({ identifier: "ai.mirrormind.desktop.ts.dev", productName: "Mirror Desktop TS Dev" });
-    expect(development.app.windows[0].title).toBe("Mirror Desktop TS Dev");
-    expect(evaluation).toMatchObject({ identifier: "ai.mirrormind.desktop.ts", productName: "Mirror Desktop TS Eval" });
-    expect(evaluation.app.windows[0].title).toBe("Mirror Desktop TS Eval");
-  });
-
-  it("polls only the TS channel, and the 0.2 updater configuration is gone from this line", () => {
-    expect(updater.plugins.updater.endpoints).toEqual([
-      "https://updates.mirrormind.sh/mirror-desktop/ts/{{target}}/{{current_version}}/latest.json",
-    ]);
-    expect(deriveBaseUrlFromUpdaterConfig(updater)).toBe(CURRENT_RELEASE_LINE.baseUrl);
-    expect(defaultBaseUrl).toBe(CURRENT_RELEASE_LINE.baseUrl);
+  it("uses neither closed line's identity, and the 0.2 updater configuration is gone", () => {
+    for (const line of RELEASE_LINES.filter((candidate) => candidate !== CURRENT_RELEASE_LINE)) {
+      expect(stable.identifier).not.toBe(line.identifier);
+      expect(stable.productName).not.toBe(line.productName);
+      expect(defaultBaseUrl).not.toBe(line.baseUrl);
+    }
     expect(existsSync("src-tauri/tauri.alpha-update.conf.json")).toBe(false);
-    expect(packageJson.scripts["alpha:channel:check"]).toContain("src-tauri/tauri.ts-update.conf.json");
   });
 
-  it("passes the self-update preflight as the TS product, and the 0.2 identity does not", () => {
+  it("refuses the 0.2 identity at the self-update preflight", () => {
+    const updater = json(CURRENT_RELEASE_LINE.updaterConfig);
     const merged = { ...stable, ...updater, bundle: { ...stable.bundle, ...updater.bundle } };
     expect(inspectSelfUpdateConfig(merged).status).toBe("ready");
     const asLine02 = { ...merged, identifier: LINE_02.identifier, productName: LINE_02.productName };
     expect(inspectSelfUpdateConfig(asLine02).status).toBe("blocked");
   });
 
-  it("builds and promotes the TS bundle, never /Applications/Mirror Desktop.app", () => {
-    const plan = alphaBuildPlan({ version: "0.3.0-alpha.1" });
-    expect(plan.config).toBe("src-tauri/tauri.ts-update.conf.json");
-    expect(plan.app).toBe("src-tauri/target/release/bundle/macos/Mirror Desktop TS.app");
-    expect(plan.dmg).toBe("src-tauri/target/release/bundle/dmg/Mirror Desktop TS_0.3.0-alpha.1_x64.dmg");
-    expect(plan.updaterArtifact).toBe("src-tauri/target/release/bundle/macos/Mirror Desktop TS.app.tar.gz");
+  it("never promotes /Applications/Mirror Desktop.app", () => {
+    expect(alphaBuildPlan({ version: "0.4.0-alpha.1" }).config).toBe(CURRENT_RELEASE_LINE.updaterConfig);
     const promotion = read("scripts/promote_production.mjs");
     expect(promotion).toContain("CURRENT_RELEASE_LINE");
     expect(promotion).not.toMatch(/"Mirror Desktop\.app"|"ai\.mirrormind\.desktop"/);
@@ -161,7 +149,7 @@ describe("the release route keeps the lines apart", () => {
   });
 });
 
-describe("census: 0.2 identities appear nowhere in the 0.3 line's channel code", () => {
+describe("census: 0.2 identities appear nowhere in main's channel code", () => {
   // The release-line table is the only place allowed to name the 0.2 line, so the guard can
   // refuse it. Read-only diagnostics of production's 0.2 app data, and the RS018/RS019
   // harnesses that produced 0.2-line evidence, are deliberately outside this census.
@@ -174,7 +162,7 @@ describe("census: 0.2 identities appear nowhere in the 0.3 line's channel code",
     "src-tauri/tauri.conf.json": read("src-tauri/tauri.conf.json"),
     "src-tauri/tauri.dev.conf.json": read("src-tauri/tauri.dev.conf.json"),
     "src-tauri/tauri.eval.conf.json": read("src-tauri/tauri.eval.conf.json"),
-    "src-tauri/tauri.ts-update.conf.json": read("src-tauri/tauri.ts-update.conf.json"),
+    "src-tauri/tauri.nautilus-update.conf.json": read("src-tauri/tauri.nautilus-update.conf.json"),
     "src-tauri/src/runtime_channel.rs": withoutTests(read("src-tauri/src/runtime_channel.rs")),
     "src-tauri/src/main.rs": withoutTests(read("src-tauri/src/main.rs")),
     "src/app/runtimeChannelStorage.ts": read("src/app/runtimeChannelStorage.ts"),

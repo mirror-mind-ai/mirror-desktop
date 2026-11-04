@@ -15,40 +15,40 @@ const defaultUserSigningKey = resolve(process.env.HOME ?? "", ".mirror-desktop-u
 const channels = {
   user: {
     channel: "user",
-    identifier: "ai.mirrormind.desktop.ts",
-    args: ["dev", "--config", "src-tauri/tauri.ts-update.conf.json"],
-    bundle: "Mirror Desktop TS.app",
+    identifier: "ai.mirrormind.nautilus",
+    args: ["dev", "--config", "src-tauri/tauri.nautilus-update.conf.json"],
+    bundle: "Nautilus for Mirror.app",
   },
   dev: {
     channel: "development",
-    identifier: "ai.mirrormind.desktop.ts.dev",
+    identifier: "ai.mirrormind.nautilus.dev",
     args: ["dev", "--config", "src-tauri/tauri.dev.conf.json", "--features", "development-channel"],
-    bundle: "Mirror Desktop TS Dev.app",
+    bundle: "Nautilus for Mirror Dev.app",
   },
   "build-dev": {
     channel: "development",
-    identifier: "ai.mirrormind.desktop.ts.dev",
+    identifier: "ai.mirrormind.nautilus.dev",
     args: ["build", "--config", "src-tauri/tauri.dev.conf.json", "--features", "development-channel"],
-    bundle: "Mirror Desktop TS Dev.app",
+    bundle: "Nautilus for Mirror Dev.app",
   },
   "build-user": {
     channel: "user",
-    identifier: "ai.mirrormind.desktop.ts",
-    args: ["build", "--config", "src-tauri/tauri.ts-update.conf.json"],
-    bundle: "Mirror Desktop TS.app",
+    identifier: "ai.mirrormind.nautilus",
+    args: ["build", "--config", "src-tauri/tauri.nautilus-update.conf.json"],
+    bundle: "Nautilus for Mirror.app",
     requiresUpdaterSigning: true,
   },
   "build-eval": {
     channel: "evaluation",
-    identifier: "ai.mirrormind.desktop.ts",
+    identifier: "ai.mirrormind.nautilus",
     args: ["build", "--config", "src-tauri/tauri.eval.conf.json", "--features", "evaluation-channel"],
-    bundle: "Mirror Desktop TS Eval.app",
+    bundle: "Nautilus for Mirror Eval.app",
   },
   "install-eval": {
     channel: "evaluation",
-    identifier: "ai.mirrormind.desktop.ts",
+    identifier: "ai.mirrormind.nautilus",
     args: ["build", "--config", "src-tauri/tauri.eval.conf.json", "--features", "evaluation-channel"],
-    bundle: "Mirror Desktop TS Eval.app",
+    bundle: "Nautilus for Mirror Eval.app",
     installsEvaluationBundle: true,
   },
 };
@@ -73,11 +73,11 @@ function userBuildEnvironment() {
 
 function installEvaluationBundle(profile) {
   if (process.platform !== "darwin") {
-    console.error("Mirror Desktop TS Eval installation currently supports macOS only.");
+    console.error("Nautilus for Mirror Eval installation currently supports macOS only.");
     process.exit(2);
   }
   const source = resolve("src-tauri", "target", "release", "bundle", "macos", profile.bundle);
-  const destination = resolve(process.env.HOME ?? "", "Applications", "Mirror Desktop TS Eval.app");
+  const destination = resolve(process.env.HOME ?? "", "Applications", "Nautilus for Mirror Eval.app");
   if (!existsSync(source)) {
     console.error(`Built evaluation bundle is unavailable at ${source}.`);
     process.exit(1);
@@ -85,8 +85,8 @@ function installEvaluationBundle(profile) {
   const plist = resolve(source, "Contents", "Info.plist");
   const identifier = spawnSync("/usr/libexec/PlistBuddy", ["-c", "Print :CFBundleIdentifier", plist], { encoding: "utf8" });
   const name = spawnSync("/usr/libexec/PlistBuddy", ["-c", "Print :CFBundleName", plist], { encoding: "utf8" });
-  if (identifier.status !== 0 || identifier.stdout.trim() !== "ai.mirrormind.desktop.ts"
-    || name.status !== 0 || name.stdout.trim() !== "Mirror Desktop TS Eval") {
+  if (identifier.status !== 0 || identifier.stdout.trim() !== "ai.mirrormind.nautilus"
+    || name.status !== 0 || name.stdout.trim() !== "Nautilus Eval") {
     console.error("Built evaluation bundle identity is invalid.");
     process.exit(1);
   }
@@ -109,7 +109,7 @@ function installEvaluationBundle(profile) {
     if (replaced && !existsSync(destination) && existsSync(backup)) renameSync(backup, destination);
     throw error;
   }
-  console.log(`Installed Mirror Desktop TS Eval at ${destination}. It was not launched.`);
+  console.log(`Installed Nautilus for Mirror Eval at ${destination}. It was not launched.`);
 }
 
 function launchDesktopValidation() {

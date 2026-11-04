@@ -121,7 +121,8 @@ describe("post-publication verification", () => {
   const targets = ["darwin", "darwin-x86_64"];
   const retainedVersions = ["0.2.0-alpha.15", "0.2.0-alpha.16"];
   const aliasUrl = `${baseUrl}/downloads/macos/latest.json`;
-  const dmgUrl = `${baseUrl}/downloads/macos/mirror-desktop-latest.dmg`;
+  // The alias is the current line's (CV-013.DS-002: nautilus-latest.dmg).
+  const dmgUrl = `${baseUrl}/downloads/macos/nautilus-latest.dmg`;
   const dmgBytes = Buffer.from("mirror desktop installer bytes");
   const dmgSha256 = createHash("sha256").update(dmgBytes).digest("hex");
 
@@ -212,7 +213,7 @@ describe("post-publication verification", () => {
   it("fails closed when the site download still serves the previous installer", async () => {
     await expect(verifyPublishedEndpoints(harness({
       fetchBinary: async () => Buffer.from("the previous release installer"),
-    }))).rejects.toThrow(/mirror-desktop-latest\.dmg/);
+    }))).rejects.toThrow(/nautilus-latest\.dmg/);
     // The digest, not the announced version, is what proves the bytes.
     await expect(verifyPublishedEndpoints(harness({
       fetchBinary: async () => Buffer.from("the previous release installer"),

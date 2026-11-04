@@ -5,7 +5,7 @@ import packageJson from "../../package.json";
 import stableConfig from "../../src-tauri/tauri.conf.json";
 import developmentConfig from "../../src-tauri/tauri.dev.conf.json";
 import evaluationConfig from "../../src-tauri/tauri.eval.conf.json";
-import tsUpdaterConfig from "../../src-tauri/tauri.ts-update.conf.json";
+import nautilusUpdaterConfig from "../../src-tauri/tauri.nautilus-update.conf.json";
 import rustSource from "../../src-tauri/src/main.rs?raw";
 import piToolchainSource from "../../src-tauri/src/pi_toolchain.rs?raw";
 import runtimeChannelSource from "../../src-tauri/src/runtime_channel.rs?raw";
@@ -25,10 +25,10 @@ const evaluationIconSource = readFileSync(new URL("../../src-tauri/icons/eval/ic
 
 describe("runtime channel configuration", () => {
   it("keeps stable and development Tauri identities non-colliding", () => {
-    expect(stableConfig.identifier).toBe("ai.mirrormind.desktop.ts");
-    expect(stableConfig.productName).toBe("Mirror Desktop TS");
-    expect(developmentConfig.identifier).toBe("ai.mirrormind.desktop.ts.dev");
-    expect(developmentConfig.productName).toBe("Mirror Desktop TS Dev");
+    expect(stableConfig.identifier).toBe("ai.mirrormind.nautilus");
+    expect(stableConfig.productName).toBe("Nautilus for Mirror");
+    expect(developmentConfig.identifier).toBe("ai.mirrormind.nautilus.dev");
+    expect(developmentConfig.productName).toBe("Nautilus for Mirror Dev");
     expect(developmentConfig.bundle.icon).toContain("icons/dev/icon.png");
     expect(runtimeChannelSource).toContain("apply_macos_dock_icon");
     expect(runtimeChannelSource).toContain("setApplicationIconImage");
@@ -36,17 +36,17 @@ describe("runtime channel configuration", () => {
   });
 
   it("defines an evaluation identity that shares only the user app-data authority", () => {
-    expect(evaluationConfig.identifier).toBe("ai.mirrormind.desktop.ts");
-    expect(evaluationConfig.productName).toBe("Mirror Desktop TS Eval");
-    expect(evaluationConfig.app.windows[0].title).toBe("Mirror Desktop TS Eval");
+    expect(evaluationConfig.identifier).toBe("ai.mirrormind.nautilus");
+    expect(evaluationConfig.productName).toBe("Nautilus for Mirror Eval");
+    expect(evaluationConfig.app.windows[0].title).toBe("Nautilus for Mirror Eval");
     expect(evaluationConfig.bundle.icon).toContain("icons/eval/icon.png");
     expect(evaluationConfig.bundle.targets).toEqual(["app"]);
     expect(evaluationConfig.bundle.createUpdaterArtifacts).toBe(false);
     expect(scripts["tauri:build:eval"]).toContain("mirror_desktop_channel.mjs build-eval");
     expect(scripts["install:eval"]).toContain("mirror_desktop_channel.mjs install-eval");
     expect(channelLauncher).toContain('"evaluation-channel"');
-    expect(channelLauncher).toContain('"Mirror Desktop TS Eval.app"');
-    expect(channelLauncher).toContain('resolve(process.env.HOME ?? "", "Applications", "Mirror Desktop TS Eval.app")');
+    expect(channelLauncher).toContain('"Nautilus for Mirror Eval.app"');
+    expect(channelLauncher).toContain('resolve(process.env.HOME ?? "", "Applications", "Nautilus for Mirror Eval.app")');
   });
 
   /**
@@ -112,13 +112,13 @@ describe("runtime channel configuration", () => {
     expect(channelLauncher).toContain('"development-channel"');
     expect(channelLauncher).not.toContain("alisson-vale");
     expect(channelLauncher).not.toContain('MIRROR_USER: "mirror-dev"');
-    expect(channelLauncher).toContain('"ai.mirrormind.desktop.ts.dev"');
+    expect(channelLauncher).toContain('"ai.mirrormind.nautilus.dev"');
     expect(channelLauncher).toContain("installEvaluationBundle");
     expect(channelLauncher).toContain('const inheritedMirrorEnvironment = ["MIRROR_HOME", "MIRROR_USER", "DB_PATH"]');
     expect(channelLauncher).toContain('delete environment[name]');
     expect(channelLauncher).toContain('return { ...environment, ...extra };');
-    expect(channelLauncher).toContain('"Mirror Desktop TS.app"');
-    expect(channelLauncher).toContain('"Mirror Desktop TS Dev.app"');
+    expect(channelLauncher).toContain('"Nautilus for Mirror.app"');
+    expect(channelLauncher).toContain('"Nautilus for Mirror Dev.app"');
   });
 
   it("initializes the updater only for channels with an updater contract", () => {
@@ -129,12 +129,12 @@ describe("runtime channel configuration", () => {
   });
 
   it("makes every generic user-channel route carry the trusted alpha updater contract", () => {
-    expect(tsUpdaterConfig.bundle.createUpdaterArtifacts).toBe(true);
-    expect(tsUpdaterConfig.plugins.updater.endpoints).toEqual([
-      "https://updates.mirrormind.sh/mirror-desktop/ts/{{target}}/{{current_version}}/latest.json",
+    expect(nautilusUpdaterConfig.bundle.createUpdaterArtifacts).toBe(true);
+    expect(nautilusUpdaterConfig.plugins.updater.endpoints).toEqual([
+      "https://updates.mirrormind.sh/nautilus/{{target}}/{{current_version}}/latest.json",
     ]);
-    expect(tsUpdaterConfig.plugins.updater.pubkey).not.toHaveLength(0);
-    expect(channelLauncher.match(/"src-tauri\/tauri\.ts-update\.conf\.json"/g)).toHaveLength(2);
+    expect(nautilusUpdaterConfig.plugins.updater.pubkey).not.toHaveLength(0);
+    expect(channelLauncher.match(/"src-tauri\/tauri\.nautilus-update\.conf\.json"/g)).toHaveLength(2);
     expect(channelLauncher).toContain('const defaultUserSigningKey = resolve(process.env.HOME ?? "", ".mirror-desktop-updater", "alpha", "updater.key")');
     expect(channelLauncher).toContain('TAURI_SIGNING_PRIVATE_KEY: readFileSync(signingKey, "utf8")');
     expect(channelLauncher).toContain('User-channel build requires the trusted updater signing key');
@@ -184,7 +184,7 @@ describe("runtime channel configuration", () => {
     expect(appSource).not.toContain("PRODUCT_DESCRIPTOR");
     // CR169: the brand is the build's own name, every one of them Mirror Desktop's.
     expect(appSource).toContain("<strong>{buildName} ");
-    expect(appSource).toContain('const buildName = developmentChannel ? "Mirror Desktop TS Dev"');
+    expect(appSource).toContain('const buildName = developmentChannel ? "Nautilus for Mirror Dev"');
     expect(appSource).not.toContain("<strong>Nautilus ");
     expect(appSource).not.toContain("Using Harness agent defaults.");
     expect(appSource).not.toContain("channel-local Nautilus storage");
@@ -239,8 +239,8 @@ describe("runtime channel configuration", () => {
     expect(agentsSource).toContain("docs/development/environment-setup.md");
     expect(setupGuide).toContain("npm run tauri:dev");
     expect(setupGuide).toContain("$HOME/.mirror-journeys/mirror-mind/mirror-dev");
-    expect(setupGuide).toContain("ai.mirrormind.desktop.ts.dev");
+    expect(setupGuide).toContain("ai.mirrormind.nautilus.dev");
     expect(setupGuide).toContain("npm run promote:production");
-    expect(setupGuide).toContain("/Applications/Mirror Desktop TS.app");
+    expect(setupGuide).toContain("/Applications/Nautilus for Mirror.app");
   });
 });

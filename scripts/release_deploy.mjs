@@ -14,6 +14,7 @@ import {
   manifestPaths,
   publishStagedPrivateUpdate,
   stagePrivateUpdatePublication,
+  latestMacosDmgUrl,
 } from "./private_update_publish.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -188,7 +189,7 @@ async function verifyDownloadAlias({
 }) {
   const root = baseUrl.replace(/\/$/, "");
   const url = `${root}/downloads/macos/latest.json`;
-  const canonicalDmgUrl = `${root}/downloads/macos/mirror-desktop-latest.dmg`;
+  const canonicalDmgUrl = latestMacosDmgUrl(root);
   let document;
   try {
     document = await fetchJson(url);

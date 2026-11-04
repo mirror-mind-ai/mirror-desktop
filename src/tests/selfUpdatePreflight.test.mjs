@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { inspectSelfUpdateConfig, mergeConfig } from "../../scripts/self_update_preflight.mjs";
 
 const baseConfig = {
-  productName: "Mirror Desktop TS",
-  identifier: "ai.mirrormind.desktop.ts",
+  productName: "Nautilus for Mirror",
+  identifier: "ai.mirrormind.nautilus",
   version: "0.1.0",
   bundle: { createUpdaterArtifacts: true },
 };

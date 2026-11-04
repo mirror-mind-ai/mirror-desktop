@@ -13,10 +13,12 @@ import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { CURRENT_RELEASE_LINE } from "./release_line.mjs";
 
-// Promotion installs this line's bundle only. The 0.2 app belongs to release/0.2 and is never
-// replaced from here.
+// Promotion installs this line's bundle only. The closed lines' apps are other applications and are
+// never replaced from here. The menu name (CFBundleName) is shorter than the product name
+// (CFBundleDisplayName) since CV-013.DS-002.
 const EXPECTED_BUNDLE_ID = CURRENT_RELEASE_LINE.identifier;
 const EXPECTED_PRODUCT_NAME = CURRENT_RELEASE_LINE.productName;
+const EXPECTED_MENU_NAME = CURRENT_RELEASE_LINE.bundleName;
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const builtApp = resolve(
   repositoryRoot,
@@ -76,11 +78,12 @@ function assertStableBundle(appPath) {
     fail(`stable bundle was not produced at ${appPath}`);
   }
   const bundleId = bundleValue(appPath, "CFBundleIdentifier");
-  const productName = bundleValue(appPath, "CFBundleName");
-  if (bundleId !== EXPECTED_BUNDLE_ID || productName !== EXPECTED_PRODUCT_NAME) {
+  const menuName = bundleValue(appPath, "CFBundleName");
+  const productName = bundleValue(appPath, "CFBundleDisplayName");
+  if (bundleId !== EXPECTED_BUNDLE_ID || menuName !== EXPECTED_MENU_NAME || productName !== EXPECTED_PRODUCT_NAME) {
     fail(
-      `bundle identity mismatch: expected ${EXPECTED_PRODUCT_NAME} (${EXPECTED_BUNDLE_ID}), ` +
-        `received ${productName} (${bundleId})`,
+      `bundle identity mismatch: expected ${EXPECTED_PRODUCT_NAME} as ${EXPECTED_MENU_NAME} (${EXPECTED_BUNDLE_ID}), ` +
+        `received ${productName} as ${menuName} (${bundleId})`,
     );
   }
 }

@@ -14,7 +14,7 @@ Mirror Desktop now distinguishes two updater channels:
 | `private-test` | local rehearsal and disposable validation | `src-tauri/tauri.private-test-update.conf.json` | `/mirror-desktop/{{target}}/{{current_version}}/latest.json` | `~/.mirror-desktop-updater/private-test/updater.key` |
 | `alpha` | governed pre-production alpha distribution | `src-tauri/tauri.alpha-update.conf.json` | `/mirror-desktop/alpha/{{target}}/{{current_version}}/latest.json` | `~/.mirror-desktop-updater/alpha/updater.key` |
 
-| `ts` | the 0.3 line, *Mirror Desktop TS*, built on `main` (from 2026-10-28) | `src-tauri/tauri.ts-update.conf.json` | `/mirror-desktop/ts/{{target}}/{{current_version}}/latest.json` | `~/.mirror-desktop-updater/alpha/updater.key` (same key) |
+| `ts` | the 0.3 line, *Mirror Desktop TS*, closed at v0.3.0-alpha.16 | `src-tauri/tauri.ts-update.conf.json` (removed from `main` by CV-013.DS-002) | `/mirror-desktop/ts/{{target}}/{{current_version}}/latest.json` | `~/.mirror-desktop-updater/alpha/updater.key` (same key) |
 
 **Release lines (2026-10-28).** `alpha` now belongs to the frozen 0.2 line and is published only from
 `release/0.2`, where `src-tauri/tauri.alpha-update.conf.json` still lives. `main` publishes to `ts`. The
@@ -23,6 +23,17 @@ line (`scripts/release_line.mjs`), at prepare and again at publish. The two line
 the key proves authorship, and the channel path, not the key, keeps each line's apps on their own
 updates. The public download alias below is the 0.2 line's; the site will need a `ts` alias before the
 first 0.3 release is offered to new users.
+
+**The Nautilus line (2026-11-04, CV-013.DS-002).** `main` builds the 0.4 line, *Nautilus for Mirror*,
+under `ai.mirrormind.nautilus`, and publishes to its own channel:
+
+| Channel | Purpose | Overlay | Endpoint prefix | Key location |
+| --- | --- | --- | --- | --- |
+| `nautilus` | the 0.4 line, *Nautilus for Mirror*, built on `main` | `src-tauri/tauri.nautilus-update.conf.json` | `/nautilus/{{target}}/{{current_version}}/latest.json` | `~/.mirror-desktop-updater/alpha/updater.key` (same key) |
+
+Its stable download is `https://updates.mirrormind.sh/nautilus/downloads/macos/nautilus-latest.dmg`, next
+to `https://updates.mirrormind.sh/nautilus/downloads/macos/latest.json`. The `ts` channel keeps answering
+for the apps still on 0.3; nothing is published there from `main` again.
 
 The committed overlays contain only public keys. Private keys remain outside the repository.
 

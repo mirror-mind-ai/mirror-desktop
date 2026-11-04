@@ -5581,7 +5581,7 @@ export function App({ model }: AppProps) {
   const developmentChannel = runtimeChannel?.channel === "development";
   const evaluationChannel = runtimeChannel?.channel === "evaluation";
   // CR169: each build carries its own name where the person looks first.
-  const buildName = developmentChannel ? "Mirror Desktop TS Dev" : evaluationChannel ? "Mirror Desktop TS Eval" : "Mirror Desktop TS";
+  const buildName = developmentChannel ? "Nautilus for Mirror Dev" : evaluationChannel ? "Nautilus for Mirror Eval" : "Nautilus for Mirror";
   async function importJourneysAfterBinding() {
     setRuntimeOnboardingState("importing");
     setRuntimeOnboardingMessage(undefined);

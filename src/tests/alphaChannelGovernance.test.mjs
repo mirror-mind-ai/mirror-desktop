@@ -2,8 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { inspectSelfUpdatePreflight } from "../../scripts/self_update_preflight.mjs";
 
-// On main the governed channel is the 0.3 line's; the 0.2 alpha overlay lives on release/0.2.
-const alphaOverlay = JSON.parse(readFileSync("src-tauri/tauri.ts-update.conf.json", "utf8"));
+// On main the governed channel is the 0.4 Nautilus line's (CV-013.DS-002); the 0.2 alpha overlay
+// lives on release/0.2 and the 0.3 overlay closed with alpha.16.
+const alphaOverlay = JSON.parse(readFileSync("src-tauri/tauri.nautilus-update.conf.json", "utf8"));
 const privateTestOverlay = JSON.parse(readFileSync("src-tauri/tauri.private-test-update.conf.json", "utf8"));
 const governance = readFileSync("docs/update/alpha-channel-governance.md", "utf8");
 
@@ -13,14 +14,14 @@ function decodedPubkey(config) {
 
 describe("alpha channel governance", () => {
   it("keeps the alpha updater overlay preflight-ready", () => {
-    const report = inspectSelfUpdatePreflight({ configs: ["src-tauri/tauri.ts-update.conf.json"] });
+    const report = inspectSelfUpdatePreflight({ configs: ["src-tauri/tauri.nautilus-update.conf.json"] });
     expect(report.status).toBe("ready");
     expect(report.boundaries).toMatchObject({ publishesRelease: false, touchesMemoryDatabase: false });
   });
 
   it("uses the private HTTPS alpha endpoint with target and current-version placeholders", () => {
     const endpoints = alphaOverlay.plugins.updater.endpoints;
-    expect(endpoints).toEqual(["https://updates.mirrormind.sh/mirror-desktop/ts/{{target}}/{{current_version}}/latest.json"]);
+    expect(endpoints).toEqual(["https://updates.mirrormind.sh/nautilus/{{target}}/{{current_version}}/latest.json"]);
   });
 
   it("separates alpha and private-test updater public keys", () => {
@@ -36,6 +37,7 @@ describe("alpha channel governance", () => {
       "updates.mirrormind.sh",
       "updates.mirrormind.com.br",
       "downloads/macos/mirror-desktop-latest.dmg",
+      "nautilus/downloads/macos/nautilus-latest.dmg",
       "downloads/macos/latest.json",
       "npm run alpha:build",
       "Do not use a generic `npm run tauri -- build --bundles app,dmg`",

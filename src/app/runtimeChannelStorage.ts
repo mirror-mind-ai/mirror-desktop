@@ -44,8 +44,8 @@ export function parseRuntimeChannelDiagnostic(value: unknown): RuntimeChannelDia
     throw new Error("Runtime channel diagnostic contains an unsupported identity.");
   }
   const expectedIdentifier = diagnostic.channel === "development"
-    ? "ai.mirrormind.desktop.ts.dev"
-    : "ai.mirrormind.desktop.ts";
+    ? "ai.mirrormind.nautilus.dev"
+    : "ai.mirrormind.nautilus";
   if (diagnostic.bundleIdentifier !== expectedIdentifier) {
     throw new Error("Runtime channel diagnostic diverges from its bundle identity.");
   }
@@ -86,18 +86,18 @@ export async function chooseRuntimeDirectory(kind: "mirrorHome" | "homeFolder"):
   return (await invoke<string | null>("choose_runtime_directory", { kind })) ?? undefined;
 }
 
-/** CV-010.DS-005 slice 2d-1: bind this app to a Mirror home made for Mirror Desktop TS. */
+/** CV-010.DS-005 slice 2d-1: bind this app to a Mirror home made for Nautilus. */
 export async function bindMirrorHome(homePath: string): Promise<RuntimeChannelDiagnostic> {
   return parseRuntimeChannelDiagnostic(await invoke<unknown>("bind_mirror_home", { homePath }));
 }
 
 /**
- * CV-010.DS-005 slice 5a: what a chosen folder is, changing nothing. A home Mirror Desktop TS made
+ * CV-010.DS-005 slice 5a: what a chosen folder is, changing nothing. A home Nautilus made
  * answers `marked: true`; any other, what adopting it would change. Rejects an answer it cannot read.
  */
 export async function inspectHomeForAdoption(homePath: string): Promise<HomeAdoptionInspection> {
   const inspection = parseHomeAdoptionInspection(await invoke<unknown>("inspect_home_for_adoption", { homePath }));
-  if (!inspection) throw new Error("Mirror Desktop TS could not read what this home holds. Choose it again.");
+  if (!inspection) throw new Error("Nautilus could not read what this home holds. Choose it again.");
   return inspection;
 }
 

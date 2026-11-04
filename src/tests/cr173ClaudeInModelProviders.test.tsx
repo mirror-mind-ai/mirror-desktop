@@ -16,8 +16,8 @@ const mistral: PiProviderStatus = { id: "mistral", name: "Mistral", apiKey: true
 const handlers = () => ({ onSignIn: vi.fn(), onAnswer: vi.fn(), onCancel: vi.fn(), onOpenAgain: vi.fn(), onDisconnect: vi.fn(), onReload: vi.fn() });
 const claude = (installed: boolean, view: PiInstallView = { kind: "idle" }) => ({ installed, view, onConnect: vi.fn() });
 const validated = {
-  channel: "user", productName: "Mirror Desktop TS", bundleIdentifier: "ai.mirrormind.desktop.ts",
-  appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop.ts",
+  channel: "user", productName: "Nautilus for Mirror", bundleIdentifier: "ai.mirrormind.nautilus",
+  appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.nautilus",
   mirrorHome: "/Users/example/.mirror-minds/example", dbPath: "/Users/example/.mirror-minds/example/memory.db",
   status: "validated", piInstalled: true,
 };
@@ -69,7 +69,7 @@ describe("the runtime channel says whether the Desktop's Claude Code is installe
     expect(parseRuntimeChannelDiagnostic({ ...validated, anthropicInstalled: false }).anthropicInstalled).toBe(false);
     expect(() => parseRuntimeChannelDiagnostic({ ...validated, anthropicInstalled: "yes" })).toThrow();
     expect(() => parseRuntimeChannelDiagnostic({
-      channel: "user", productName: "Mirror Desktop TS", bundleIdentifier: "ai.mirrormind.desktop.ts",
+      channel: "user", productName: "Nautilus for Mirror", bundleIdentifier: "ai.mirrormind.nautilus",
       appDataRoot: "/x", status: "unbound", message: "Choose a home.", anthropicInstalled: true,
     })).toThrow();
     expect(channelSource).toContain("anthropic_installed: Some(self.anthropic_provider.is_some())");

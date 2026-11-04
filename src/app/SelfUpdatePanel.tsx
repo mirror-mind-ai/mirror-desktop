@@ -101,7 +101,7 @@ export function SelfUpdatePanel({
     return (
       <section className="settings-section self-update-card" aria-label="Trusted self-update">
         <h3>Mirror Desktop updates</h3>
-        <p className="provider-note">This build, {buildName}, does not update itself; updates reach Mirror Desktop TS.</p>
+        <p className="provider-note">This build, {buildName}, does not update itself; updates reach Nautilus for Mirror.</p>
       </section>
     );
   }

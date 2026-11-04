@@ -10,8 +10,8 @@ import channelSource from "../../src-tauri/src/runtime_channel.rs?raw";
 
 describe("updates in a build that does not update itself", () => {
   it("say why, and offer no check", () => {
-    const html = renderToStaticMarkup(<SelfUpdatePanel runtimeBusy={false} selfUpdates={false} buildName="Mirror Desktop TS Dev" />);
-    expect(html).toContain("This build, Mirror Desktop TS Dev, does not update itself; updates reach Mirror Desktop TS.");
+    const html = renderToStaticMarkup(<SelfUpdatePanel runtimeBusy={false} selfUpdates={false} buildName="Nautilus for Mirror Dev" />);
+    expect(html).toContain("This build, Nautilus for Mirror Dev, does not update itself; updates reach Nautilus for Mirror.");
     expect(html).not.toContain("Check for updates");
   });
 
@@ -29,7 +29,7 @@ describe("updates in a build that does not update itself", () => {
 
 describe("the sidebar's name", () => {
   it("is the development build's own, visibly", () => {
-    expect(appSource).toContain('const buildName = developmentChannel ? "Mirror Desktop TS Dev" : evaluationChannel ? "Mirror Desktop TS Eval" : "Mirror Desktop TS";');
+    expect(appSource).toContain('const buildName = developmentChannel ? "Nautilus for Mirror Dev" : evaluationChannel ? "Nautilus for Mirror Eval" : "Nautilus for Mirror";');
     expect(appSource).toContain("<strong>{buildName} {developmentChannel");
   });
 });

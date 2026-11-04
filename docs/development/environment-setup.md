@@ -1,21 +1,22 @@
-# Mirror Desktop TS Development Environment
+# Nautilus for Mirror Development Environment
 
 This is the canonical setup guide for humans and coding agents. It creates a development app that is visibly and structurally separate from the installed daily-use Mirror Desktop app.
 
 ## Result
 
 ```text
-Mirror Desktop TS       ai.mirrormind.desktop.ts       stable Mirror and app data
-Mirror Desktop TS Dev   ai.mirrormind.desktop.ts.dev   Mirror Dev and isolated app data
+Nautilus for Mirror       ai.mirrormind.nautilus       stable Mirror and app data
+Nautilus for Mirror Dev   ai.mirrormind.nautilus.dev   Mirror Dev and isolated app data
 ```
 
-**Release line (2026-10-28).** This guide describes `main`, the 0.3 line, *Mirror Desktop TS*. The frozen
-0.2 line (*Mirror Desktop*, `ai.mirrormind.desktop`, the `alpha` update channel) is maintained only on
-`release/0.2`, whose copy of this guide still describes it. No build from `main` uses a 0.2 identifier or
-the 0.2 app data, and `release:deploy` refuses to publish across lines. See the
-[decision](../project/roadmap/cv-010-first-run-assistant/decision-2026-10-28-the-0-3-line.md).
+**Release line (2026-11-04).** This guide describes `main`, the 0.4 line, *Nautilus for Mirror*
+(CV-013). The 0.3 line (*Mirror Desktop TS*, `ai.mirrormind.desktop.ts`, the `ts` update channel) closed
+at v0.3.0-alpha.16, and the frozen 0.2 line (*Mirror Desktop*, `ai.mirrormind.desktop`) is maintained
+only on `release/0.2`. No build from `main` uses a closed line's identifier or app data, and
+`release:deploy` refuses to publish across lines. The development app's data folder moved with its
+identifier: until the state is carried (CV-013.DS-003), a development build opens as a first run.
 
-Mirror Desktop TS Dev uses the checkout associated with Journey `mirror-dev` and its isolated runtime state:
+Nautilus for Mirror Dev uses the checkout associated with Journey `mirror-dev` and its isolated runtime state:
 
 ```text
 Mirror code   $HOME/.mirror-journeys/mirror-mind/mirror-dev
@@ -98,7 +99,7 @@ npm run build
 
 No `.env` file or compiled personal profile supplies runtime authority. On first launch, use **Settings → Runtime channel** to select the Mirror Dev source and home, enter the Mirror user, validate the complete binding and save it beneath the development app-data root.
 
-## 3. Launch Mirror Desktop TS Dev
+## 3. Launch Nautilus for Mirror Dev
 
 ```bash
 npm run tauri:dev
@@ -107,7 +108,7 @@ npm run tauri:dev
 This command always pairs:
 
 - `src-tauri/tauri.dev.conf.json`;
-- bundle identifier `ai.mirrormind.desktop.ts.dev`;
+- bundle identifier `ai.mirrormind.nautilus.dev`;
 - Cargo feature `development-channel`;
 - an independent channel-local `runtime-binding.v1.json` when configured.
 
@@ -115,14 +116,14 @@ Do not use `npm run tauri -- dev` for normal development because it does not dec
 
 ## 4. Verify Isolation
 
-In Finder, Dock or the application switcher, confirm the app is named **Mirror Desktop TS Dev** and uses the violet icon with a `DEV` badge.
+In Finder, Dock or the application switcher, confirm the app is named **Nautilus for Mirror Dev** and uses the violet icon with a `DEV` badge.
 
 Inside the app, confirm the sidebar shows `Mirror Desktop DEV`. Open **Settings → Runtime channel**. If the status is `unbound`, select the Mirror code and home directories, enter `mirror-dev`, choose **Validate**, then **Save binding**. Verify:
 
 ```text
 Channel       development
-Bundle        ai.mirrormind.desktop.ts.dev
-App data      .../ai.mirrormind.desktop.ts.dev
+Bundle        ai.mirrormind.nautilus.dev
+App data      .../ai.mirrormind.nautilus.dev
 Mirror code   $HOME/.mirror-journeys/mirror-mind/mirror-dev
 Mirror home   $HOME/.mirror-minds/mirror-dev
 Mirror user   mirror-dev
@@ -152,9 +153,9 @@ Production-data evaluation bundle:
 npm run install:eval
 ```
 
-This builds an unsigned `Mirror Desktop TS Eval` application with a green `EVAL` badge, verifies its macOS bundle identity and atomically installs it at `~/Applications/Mirror Desktop TS Eval.app` without launching it. Eval intentionally uses the stable `ai.mirrormind.desktop.ts` app-data and production Mirror binding so it can validate exact retained production debt. It disables the updater and refuses startup while the Stable `Mirror Desktop TS` application is already running. Stable must remain closed for the complete Eval session; close Eval before reopening Stable. Building and installing Eval do not authorize launching it or mutating production data.
+This builds an unsigned `Nautilus for Mirror Eval` application with a green `EVAL` badge, verifies its macOS bundle identity and atomically installs it at `~/Applications/Nautilus for Mirror Eval.app` without launching it. Eval intentionally uses the stable `ai.mirrormind.nautilus` app-data and production Mirror binding so it can validate exact retained production debt. It disables the updater and refuses startup while the Stable `Nautilus for Mirror` application is already running. Stable must remain closed for the complete Eval session; close Eval before reopening Stable. Building and installing Eval do not authorize launching it or mutating production data.
 
-The user-channel build always overlays `src-tauri/tauri.ts-update.conf.json` and creates signed updater artifacts. It fails closed unless the updater signing key exists at `$HOME/.mirror-desktop-updater/alpha/updater.key` (or the path named by `MIRROR_DESKTOP_UPDATER_SIGNING_KEY`). Use `npm run tauri:build:dev` for unsigned local validation; there is no unsigned user-identity build route.
+The user-channel build always overlays `src-tauri/tauri.nautilus-update.conf.json` and creates signed updater artifacts. It fails closed unless the updater signing key exists at `$HOME/.mirror-desktop-updater/alpha/updater.key` (or the path named by `MIRROR_DESKTOP_UPDATER_SIGNING_KEY`). Use `npm run tauri:build:dev` for unsigned local validation; there is no unsigned user-identity build route.
 
 A source-built bundle starts with channel-local state. Import the canonical Journey registry explicitly when needed:
 
@@ -193,13 +194,13 @@ The command:
 
 1. refuses a dirty Git worktree;
 2. runs frontend, Rust and production-build validation;
-3. builds only the stable `ai.mirrormind.desktop.ts` bundle;
+3. builds only the stable `ai.mirrormind.nautilus` bundle;
 4. verifies `CFBundleIdentifier` and `CFBundleName` from the native bundle;
 5. refuses to replace a running stable app;
 6. stages and replaces the app with rollback protection at:
 
 ```text
-/Applications/Mirror Desktop TS.app
+/Applications/Nautilus for Mirror.app
 ```
 
 It does not invoke `sudo`, alter stable Mirror Desktop app-data, copy development state, publish a release or push Git commits. Close the installed stable app before promotion. The development app may remain installed and its data remains isolated.
@@ -231,7 +232,7 @@ Confirm the checkout exists and is a real directory, not a symlink:
 ls -ld "$HOME/.mirror-journeys/mirror-mind/mirror-dev"
 ```
 
-Mirror Desktop TS Dev intentionally refuses to fall back to `$HOME/mirror`.
+Nautilus for Mirror Dev intentionally refuses to fall back to `$HOME/mirror`.
 
 ### Mirror Dev database is unavailable
 
@@ -277,8 +278,8 @@ Finder launches macOS apps with a minimal process `PATH`. Mirror Desktop does no
 There is no automatic reset command in this guide. Before deleting any development data, verify the path ends in either:
 
 ```text
-ai.mirrormind.desktop.ts.dev
+ai.mirrormind.nautilus.dev
 .mirror-minds/mirror-dev
 ```
 
-Never run a recursive deletion against `ai.mirrormind.desktop`, `ai.mirrormind.desktop.ts` or any stable Mirror home. A development reset must not touch stable Mirror Desktop or production Mirror state.
+Never run a recursive deletion against `ai.mirrormind.desktop`, `ai.mirrormind.desktop.ts`, `ai.mirrormind.nautilus` or any stable Mirror home. A development reset must not touch stable Mirror Desktop or production Mirror state.

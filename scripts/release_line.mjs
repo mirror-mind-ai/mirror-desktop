@@ -1,10 +1,14 @@
 // The release lines this repository has shipped or ships, and the guard that keeps them apart.
 //
-// 0.2 is frozen at alpha.58 and maintained only on the release/0.2 branch; production polls its
-// channel. 0.3 is Mirror Desktop TS, built on main. Publication writes a manifest for every
-// retained version under a line's base URL, so a version published under the other line's channel
-// would be offered to, and installed by, that line's apps. This table is the only place on main
-// allowed to name the 0.2 line, so that the guard can refuse it.
+// 0.2 is frozen at alpha.58 and maintained only on the release/0.2 branch. 0.3, Mirror Desktop TS,
+// closed at alpha.16 (CV-013). 0.4 is Nautilus for Mirror, built on main under its own identifier
+// and channel. Publication writes a manifest for every retained version under a line's base URL,
+// so a version published under another line's channel would be offered to, and installed by, that
+// line's apps. This table is the only place on main allowed to name the closed lines, so that the
+// guard can refuse them.
+//
+// bundleName is the menu name (CFBundleName); artifactName names the updater archive; downloadAlias
+// is the stable DMG link a site points at.
 
 export const RELEASE_LINES = Object.freeze([
   Object.freeze({
@@ -16,13 +20,25 @@ export const RELEASE_LINES = Object.freeze([
   Object.freeze({
     line: "0.3",
     productName: "Mirror Desktop TS",
+    bundleName: "Mirror Desktop TS",
     identifier: "ai.mirrormind.desktop.ts",
     baseUrl: "https://updates.mirrormind.sh/mirror-desktop/ts",
-    updaterConfig: "src-tauri/tauri.ts-update.conf.json",
+    artifactName: "Mirror Desktop",
+    downloadAlias: "mirror-desktop-latest.dmg",
+  }),
+  Object.freeze({
+    line: "0.4",
+    productName: "Nautilus for Mirror",
+    bundleName: "Nautilus",
+    identifier: "ai.mirrormind.nautilus",
+    baseUrl: "https://updates.mirrormind.sh/nautilus",
+    updaterConfig: "src-tauri/tauri.nautilus-update.conf.json",
+    artifactName: "Nautilus for Mirror",
+    downloadAlias: "nautilus-latest.dmg",
   }),
 ]);
 
-export const CURRENT_RELEASE_LINE = RELEASE_LINES[1];
+export const CURRENT_RELEASE_LINE = RELEASE_LINES[2];
 
 const normalizeUrl = (value) => String(value).replace(/\/+$/, "");
 

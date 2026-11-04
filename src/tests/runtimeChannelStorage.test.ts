@@ -9,9 +9,9 @@ import {
 
 const development = {
   channel: "development",
-  productName: "Mirror Desktop TS Dev",
-  bundleIdentifier: "ai.mirrormind.desktop.ts.dev",
-  appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop.ts.dev",
+  productName: "Nautilus for Mirror Dev",
+  bundleIdentifier: "ai.mirrormind.nautilus.dev",
+  appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.nautilus.dev",
   mirrorRoot: "/Users/example/Code/mirror-dev",
   mirrorHome: "/Users/example/.mirror-minds/mirror-dev",
   mirrorUser: "mirror-dev",
@@ -40,9 +40,9 @@ describe("runtime channel storage", () => {
   it("accepts a bounded unbound state without runtime coordinates", () => {
     expect(parseRuntimeChannelDiagnostic({
       channel: "user",
-      productName: "Mirror Desktop TS",
-      bundleIdentifier: "ai.mirrormind.desktop.ts",
-      appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop.ts",
+      productName: "Nautilus for Mirror",
+      bundleIdentifier: "ai.mirrormind.nautilus",
+      appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.nautilus",
       status: "unbound",
       message: "Mirror Desktop runtime is unbound.",
     }).status).toBe("unbound");
@@ -52,15 +52,15 @@ describe("runtime channel storage", () => {
     expect(parseRuntimeChannelDiagnostic({
       ...development,
       channel: "evaluation",
-      productName: "Mirror Desktop TS Eval",
-      bundleIdentifier: "ai.mirrormind.desktop.ts",
-      appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.desktop.ts",
-    })).toMatchObject({ channel: "evaluation", productName: "Mirror Desktop TS Eval" });
+      productName: "Nautilus for Mirror Eval",
+      bundleIdentifier: "ai.mirrormind.nautilus",
+      appDataRoot: "/Users/example/Library/Application Support/ai.mirrormind.nautilus",
+    })).toMatchObject({ channel: "evaluation", productName: "Nautilus for Mirror Eval" });
   });
 
   it("rejects unknown fields, cross-channel identifiers and incomplete validated state", () => {
     expect(() => parseRuntimeChannelDiagnostic({ ...development, token: "secret" })).toThrow(/unsupported fields/);
-    expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "ai.mirrormind.desktop.ts" })).toThrow(/bundle identity/);
+    expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "ai.mirrormind.nautilus" })).toThrow(/bundle identity/);
     // CV-010.DS-005 phase 0: the frozen 0.2 identities are foreign to every channel of this line.
     expect(() => parseRuntimeChannelDiagnostic({ ...development, bundleIdentifier: "ai.mirrormind.desktop.dev" })).toThrow(/bundle identity/);
     expect(() => parseRuntimeChannelDiagnostic({ ...development, channel: "user", bundleIdentifier: "ai.mirrormind.desktop" })).toThrow(/bundle identity/);
@@ -74,7 +74,7 @@ describe("runtime channel storage", () => {
     expect(parseRuntimeChannelDiagnostic({ ...development, piInstalled: true }).piInstalled).toBe(true);
     expect(() => parseRuntimeChannelDiagnostic({ ...development, piInstalled: "no" })).toThrow(/Pi outside a validated home/);
     expect(() => parseRuntimeChannelDiagnostic({
-      channel: "user", productName: "Mirror Desktop TS", bundleIdentifier: "ai.mirrormind.desktop.ts",
+      channel: "user", productName: "Nautilus for Mirror", bundleIdentifier: "ai.mirrormind.nautilus",
       appDataRoot: "/tmp/x", status: "unbound", message: "unbound", piInstalled: false,
     })).toThrow(/Pi outside a validated home/);
   });
