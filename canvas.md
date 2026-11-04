@@ -33,7 +33,9 @@
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
 | **CV-013 · Nautilus for Mirror** | 🔵 em andamento · último passo antes da divulgação |
-| ↳　DS-005 · The Mirror Site Points to Nautilus, and Nautilus Gets Its Own Site | 🟡 próxima · nautilus.mirrormind.sh, pasta em mirrormind-site |
+| ↳　DS-005 · The Mirror Site Points to Nautilus | 🔵 feito localmente no mirrormind-site · falta push e deploy |
+| ↳　DS-006 · Nautilus Gets Its Own Site | 🟡 depois · nautilus.mirrormind.sh |
+| ↳　Instalação da Veronica | ⏸ parked · sem data |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
 | **CV-009 · Trusted macOS Distribution** | 🟡 Planned · aguarda a Apple |

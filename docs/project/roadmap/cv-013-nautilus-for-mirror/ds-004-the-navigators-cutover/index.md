@@ -22,5 +22,7 @@ untouched, as the way back.
 
 ## Still Open Elsewhere
 
-- The second installation (Veronica's) moves later, with the same DMG and script.
-- The sites: [DS-005](../ds-005-the-mirror-site-points-to-nautilus-and-nautilus-gets-its-own-site/index.md).
+- The second installation (Veronica's) moves later, with the same DMG and script. ⏸ Parked by the
+  Navigator on 2026-11-04: no date yet.
+- The sites: [DS-005](../ds-005-the-mirror-site-points-to-nautilus/index.md) (the Mirror site), then
+  [DS-006](../ds-006-nautilus-gets-its-own-site/index.md) (Nautilus's own).

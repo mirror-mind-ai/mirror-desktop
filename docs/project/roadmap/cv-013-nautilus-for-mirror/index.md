@@ -43,4 +43,5 @@ returns to the Nautilus name it was incubated under (Nautilus Harness, see the
 | [CV-013.DS-002](ds-002-the-nautilus-line/index.md) | The Nautilus Line | Name, identifier `ai.mirrormind.nautilus`, channel, release gate and CR171 move together as line 0.4 | ✅ Done |
 | [CV-013.DS-003](ds-003-carry-the-state/index.md) | Carry the State | A dry-run-first, all-or-nothing script copies the 0.3 app's data into Nautilus's folder | ✅ Done |
 | [CV-013.DS-004](ds-004-the-navigators-cutover/index.md) | The Navigator's Cutover | Nautilus installed from the DMG, state carried and checked, Mirror Desktop TS kept as the way back | ✅ Done |
-| [CV-013.DS-005](ds-005-the-mirror-site-points-to-nautilus-and-nautilus-gets-its-own-site/index.md) | The Mirror Site Points to Nautilus, and Nautilus Gets Its Own Site | The Mirror site names Nautilus as its desktop front end; Nautilus gets a site of its own at `nautilus.mirrormind.sh` | 🟡 Planned |
+| [CV-013.DS-005](ds-005-the-mirror-site-points-to-nautilus/index.md) | The Mirror Site Points to Nautilus | The Mirror site names Nautilus as its desktop front end and links its download | 🔵 In progress |
+| [CV-013.DS-006](ds-006-nautilus-gets-its-own-site/index.md) | Nautilus Gets Its Own Site | Nautilus gets a site of its own at `nautilus.mirrormind.sh` | 🟡 Planned |
