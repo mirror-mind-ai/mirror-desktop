@@ -55,6 +55,37 @@ steps of `run_pi_process_unguarded` between `prepare_turn` and the prompt write,
 started from the app (its environment, stdin, its reading of stdout), and anything the renderer
 does in that window that the worker may wait on.
 
+## Instrumented on `main` (`a96ed07a`)
+
+`src-tauri/src/turn_start_timing.rs` times the start of every turn in the Pi worker. Each phase is
+named by the step that ends it and spans from the previous mark:
+
+| Phase | Ends when |
+|-------|-----------|
+| `admission` | the turn journal admitted the turn (debt materialized, record created) |
+| `worker_start` | the worker thread runs |
+| `session_baseline` | the session's leaf before this turn is read (`latest_pi_leaf_entry_id`) |
+| `journal_running` | the journal moved to `running` |
+| `extensions` | the global Pi extensions are resolved |
+| `mirror_context` | the Core answered `deliverMirrorContext` |
+| `workspace` | the session is anchored to the Journey's folder |
+| `spawn` | the Pi child started |
+| `prompt_write` | the prompt is written to Pi's stdin |
+| `first_output` | Pi's first stdout line arrived |
+| `agent_start` | Pi started its agent: it has the message |
+
+One record per turn, `"kind": "turn_start"`, goes into the Journey's `settlement-timings` ledger
+when Pi starts its agent, or with `outcome: "ended_before_agent_start"` when the worker ends first.
+A failed write is said on stderr and never fails the turn. The clock starts once the command holds
+the native serialization lock, which `native_command_serialization` requires to be taken first; the
+production window measured above starts after that lock too.
+
+Spec first: 5 tests (phases as intervals, first mark wins, taken once, accepted by the ledger, the
+worker's marks in order); 6 mutations, all caught. `cargo test` 481, `vitest` 2,632, `tsc` clean.
+
+Cost: the ledger keeps 256 records, so with a start record per turn it now holds about half as many
+settlements per Journey.
+
 ## Next
 
 Measure instead of guess: record the start of a turn phase by phase, as `settlement-timings`
