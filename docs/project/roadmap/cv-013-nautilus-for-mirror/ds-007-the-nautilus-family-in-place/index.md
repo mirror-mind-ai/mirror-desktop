@@ -1,0 +1,109 @@
+[< CV-013](../index.md)
+
+# CV-013.DS-007 - The Nautilus Family in Place
+
+**Status:** 🟢 In Progress. Asked by the Navigator on 2026-11-05 ("na migração do mirror desktop pro
+nautilus ainda faltou: renomear o repo, a minha journey e a pasta do checkout"); inventory started
+the same day ("leitura B ... você já poderia começar o inventário").
+
+## Outcome
+
+Nautilus is the name of a family with three bodies, a framework, an app and a protocol, and the
+folders, the Journeys and GitHub all say so:
+
+| Folder (`~/.mirror-journeys/vida-tecnica/ia-agentica/mirror-mind-ai/...`) | Journey path | GitHub |
+|---|---|---|
+| `nautilus` | Vida Técnica / IA Agêntica / Mirror Mind / Nautilus | `mirror-mind-ai/nautilus` (new, the family) |
+| `nautilus/nautilus-app` | ... / Nautilus / Nautilus App | `mirror-mind-ai/nautilus-app` |
+| `nautilus/nautilus-framework` | ... / Nautilus / Nautilus Agentic Framework | `mirror-mind-ai/nautilus-framework` |
+| `nautilus/nautilus-protocol` | ... / Nautilus / Nautilus Agentic Protocol | `mirror-mind-ai/nautilus-protocol` (new, public) |
+
+## Decided (Navigator, 2026-11-05)
+
+1. **Journey ids stay.** `mirror-desktop` keeps its id; only its display name becomes "Nautilus
+   App". The id is in 43 conversations, 83 memories and 57 tasks, in every per-Journey file of the
+   app's state and in each turn's authority envelope.
+2. **Reading B.** The method becomes the *framework*: the current `nautilus` repository is renamed
+   `nautilus-framework`, and a new `nautilus` repository presents the family. Changing "method" to
+   "framework" inside the framework's documents is that Journey's content work, outside this story.
+3. **The protocol is public.**
+4. **`nautilus-harness` and `nautilus-mirror-extension` are archived** as Journeys; their folders
+   in `vida-criativa/nautilus` stay where they are.
+5. **`mirror-mind-ai/mirror-desktop-app` archived** on GitHub (done 2026-11-05; recorded in CV-011).
+
+## Inventory (read only, 2026-11-05)
+
+### GitHub
+
+- `mirror-desktop` → `nautilus-app`: GitHub redirects the old name. The update channel is
+  `updates.mirrormind.sh`, not GitHub, so installed apps keep updating.
+  - **Must change in code:** `scripts/private_alpha_preflight.mjs` accepts only the
+    `mirror-desktop` origin URLs and names the repository for `gh release`; the release gate would
+    refuse the renamed origin. Spec first (`src/tests/releaseDeploy.test.mjs` names it too).
+  - Mentions in documents: 89 files in this repository (history; the redirect covers them), 8 in
+    `mirrormind-site`, 1 in `mirror-ts`, 1 in the framework repository.
+- `nautilus` → `nautilus-framework`, then a new `nautilus`. **Creating the new `nautilus` ends the
+  redirect** of the old name, so every live link moves first: 3 files in `mirrormind-site` (the
+  Nautilus site's method links), 2 in the framework repository itself, 1 here.
+- `nautilus-protocol`: a local repository at `vida-criativa/nautilus/agentic-protocol`, 3 commits,
+  one author, no remote. Its whole history was scanned for keys and tokens: none. It names its own
+  local path twice, harmless.
+
+### Folders
+
+- The framework's checkout is the folder that must become the parent: `nautilus` moves aside to a
+  temporary name, a new `nautilus` folder is made, and the framework goes inside as
+  `nautilus-framework`.
+- The family folder `nautilus` is the new `nautilus` repository's checkout, ignoring its three
+  children (`.gitignore`), so no repository is nested in another's history.
+- This checkout moves to `nautilus/nautilus-app` with the app closed: the agent works from inside
+  it, and the running Pi children have it as their working folder. `src-tauri/target` (17 GB) moves
+  with it by rename on the same volume; the next build rebuilds from scratch.
+- The protocol is copied (with `.git`) to `nautilus/nautilus-protocol`; the original stays.
+- No worktrees in either repository.
+
+### What carries the paths
+
+- **Mirror database** (`identity`, layer `journey`, `metadata`): `project_path` of `mirror-desktop`,
+  `mirror-desktop-rescue-journey`, `nautilus`, `nautilus-agentic-method` and
+  `nautilus-agentic-protocol`, and `sync_file` (a `JOURNEY.md` path) of the `nautilus*` Journeys.
+  Changed through the Core (`setProjectPath`, `updateJourney` for name and status, the app's
+  Journey editor), after a backup. Whether `setProjectPath` also moves `sync_file` is checked
+  before.
+- **`.mirror-journey.json`** in this repository and in the framework's: `journey_home` and
+  `target_project_path`.
+- **The app's state:** `journey-registry.json` caches the paths and is refreshed from the Core. The
+  Pi session header's `cwd` is re-anchored by the app on the next turn (`anchor_session_cwd`, CR176),
+  so nothing is rewritten by hand. `conversation-segments/`, `dedicated-journey-conversations/` and
+  `turn-journal/` mention the old path only inside past turns' text: history, left as it is.
+- **Terminal Pi history:** `~/.pi/agent/sessions/--Users-...-mirror-desktop--` is keyed by the old
+  folder; after the move `pi --resume` in the new folder does not list it unless that folder is
+  renamed too (optional).
+- `~/.pi/agent/AGENTS.md` names the Journey (`mirror-desktop`), not the folder: unchanged. This
+  repository's `AGENTS.md` uses `$HOME` paths of other checkouts only.
+
+## Plan
+
+From the most reversible to the least. Each act that pushes, renames on GitHub, writes the Mirror
+database or moves a folder is done by its own word.
+
+1. **Code:** the release preflight accepts the `nautilus-app` origin; spec first; committed and
+   pushed before the GitHub rename.
+2. **GitHub, the app:** rename `mirror-desktop` → `nautilus-app`; update `origin` here; run the
+   preflight.
+3. **GitHub, the framework:** rename `nautilus` → `nautilus-framework`; update its `origin`; move the
+   live links (site, framework, this repository); deploy the site.
+4. **GitHub, the protocol:** create `nautilus-protocol` (public) and push its history.
+5. **GitHub, the family:** create the new `nautilus` with a README presenting the three bodies.
+6. **Mirror database:** backup; display names ("Nautilus App", "Nautilus Agentic Framework");
+   `nautilus-agentic-method` back to active; harness and mirror-extension archived.
+7. **Folders:** one script the Navigator runs in Terminal with the app closed: dry run first, stops
+   at the first error; moves the folders, updates both `.mirror-journey.json` files, then sets the
+   five `project_path`s through the Core.
+8. **Check:** a turn in the moved Journey, the Journey path as designed, `git remote -v` and
+   `git status` in the three repositories, the site's links.
+
+## Done Condition
+
+The table under Outcome is true on this Mac and on GitHub, a turn answers in the moved Journey, and
+the release preflight passes from `nautilus/nautilus-app`.
