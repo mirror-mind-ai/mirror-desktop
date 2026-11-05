@@ -21,6 +21,7 @@ mod run_loop_guard;
 mod pi_toolchain;
 mod runtime_channel;
 mod turn_journal;
+mod turn_start_timing;
 mod voice_transcription;
 mod whats_new_state;
 mod window_geometry;
@@ -3593,7 +3594,14 @@ fn append_settlement_timing_record(
 #[tauri::command(async)]
 fn append_settlement_timing(app: AppHandle, journey_id: String, record: Value) -> Result<(), String> {
     let _serialized = crate::native_command_serialization::acquire();
-    let path = settlement_timing_path(&app, &journey_id)?;
+    write_settlement_timing(&app, &journey_id, record)
+}
+
+/// CR194: the ledger write itself, also used by the Pi worker for a turn's start. The Journey's
+/// persistence stripe guards the file; the command lock is the command's, not the ledger's.
+fn write_settlement_timing(app: &AppHandle, journey_id: &str, record: Value) -> Result<(), String> {
+    let journey_id = journey_id.to_string();
+    let path = settlement_timing_path(app, &journey_id)?;
     let persistence = app.state::<JourneyProjectionPersistenceState>();
     let stripe = persistence.stripe(&journey_id, 0);
     let _guard = persistence.stripes[stripe]
@@ -4030,6 +4038,8 @@ fn start_pi_invocation(
     run_authority: RunAuthority,
 ) -> Result<(), String> {
     let _serialized = crate::native_command_serialization::acquire();
+    // CR194: the turn's start, step by step, from the moment this command holds the lock.
+    let start_timer = crate::turn_start_timing::TurnStartTimer::start();
     let compaction_in_flight = compaction_state.in_flight.clone();
     if prompt.trim().is_empty() {
         return Err("Pi invocation requires a non-empty prompt packet.".to_string());
@@ -4066,6 +4076,8 @@ fn start_pi_invocation(
             admit_turn_journal(&app, &run_authority)
                 .map_err(describe_turn_journal_admission_failure)
                 .map_err(PiInvocationStartError::Admission)?;
+            start_timer.mark("admission");
+            let start_timer = start_timer.clone();
             let target = target.clone();
             thread::Builder::new()
                 .name(worker_name)
@@ -4077,6 +4089,7 @@ fn start_pi_invocation(
                     config,
                     run_authority,
                     authority,
+                    start_timer,
                 ))
                 .map(|_| ())
                 .map_err(|error| PiInvocationStartError::Worker(error.to_string()))
@@ -7906,7 +7919,9 @@ fn run_pi_process(
     config: ProviderConfig,
     run_authority: RunAuthority,
     authority: PiProcessEventAuthority,
+    start_timer: crate::turn_start_timing::TurnStartTimer,
 ) {
+    start_timer.mark("worker_start");
     // CR147: the hook cannot be handed the turn's authority — it runs process-wide for
     // every panic — so the thread announces which turn it is running. Set before the
     // guard and cleared after it, so a panic anywhere in the body is attributable and a
@@ -7921,6 +7936,11 @@ fn run_pi_process(
     // evidence be attributed to this turn rather than to the last one that happens to be in the
     // branch. By the time anything downstream asks, this turn's own answer has replaced it.
     let baseline_leaf_entry_id = latest_pi_leaf_entry_id(&run_authority);
+    start_timer.mark("session_baseline");
+    let timing_app = app.clone();
+    let timing_journey_id = authority.journey_id.clone();
+    let timing_run_id = authority.run_id.clone();
+    let timing = start_timer.clone();
     let unwind_app = app.clone();
     let unwind_registry = registry.clone();
     let unwind_target = target.clone();
@@ -7938,6 +7958,7 @@ fn run_pi_process(
                 run_authority,
                 authority,
                 baseline_leaf_entry_id,
+                start_timer,
             )
         },
         |report| {
@@ -7952,7 +7973,25 @@ fn run_pi_process(
             )
         },
     );
+    // CR194: a turn that ended before Pi started its agent still says how far its start got.
+    record_turn_start_timing(&timing_app, &timing_journey_id, &timing_run_id, &timing, "ended_before_agent_start");
     clear_panic_turn_context();
+}
+
+/// CR194: the turn's start into the settlement timing ledger, once. A diagnostic never fails a
+/// turn, so a refused write is only said on stderr.
+fn record_turn_start_timing(
+    app: &AppHandle,
+    journey_id: &str,
+    run_id: &str,
+    timer: &crate::turn_start_timing::TurnStartTimer,
+    outcome: &str,
+) {
+    if let Some(record) = timer.take_record(journey_id, run_id, outcome) {
+        if let Err(error) = write_settlement_timing(app, journey_id, record) {
+            eprintln!("turn start timing not recorded for {run_id}: {error}");
+        }
+    }
 }
 
 /// CR147: finish or report a turn whose run loop panicked.
@@ -8091,6 +8130,7 @@ fn run_pi_process_unguarded(
     // CR146: read by the guard before this body runs, and shared with the unwind path, so one
     // turn has one baseline rather than two readings of a file that moves underneath them.
     baseline_leaf_entry_id: Option<String>,
+    start_timer: crate::turn_start_timing::TurnStartTimer,
 ) {
     if let Err(error) = transition_running_journal(&app, &authority) {
         fail_pi_process_before_completion(
@@ -8102,6 +8142,7 @@ fn run_pi_process_unguarded(
         );
         return;
     }
+    start_timer.mark("journal_running");
     let mirror_mediated = config.invocation_mode == "mirror" && !config.safe_test_mode;
     let command = if config.safe_test_mode {
         "cat".to_string()
@@ -8144,6 +8185,7 @@ fn run_pi_process_unguarded(
         // checkout's `.pi/skills` and drove `uv run python -m memory`; a 0.3 home has neither, and
         // Mirror context returns through the host in phase 3.
         args.extend(mediated_turn_flags(&global_extensions));
+        start_timer.mark("extensions");
     }
     // CV-010.DS-005 slice 3d: Mirror's context before the model, never in place of the turn. The
     // doorman reads what the person typed, not the Journey authority envelope around it.
@@ -8152,6 +8194,7 @@ fn run_pi_process_unguarded(
         let (typed, _) = project_dedicated_user_text_and_envelope(&prompt);
         let (context, guard) =
             mirror_context::prepare_turn(&app, &run_authority.pi_session_file, &typed, &run_authority.journey_id);
+        start_timer.mark("mirror_context");
         if let Some(note) = context.note {
             emit(&app, &authority, PiProcessEventKind::Stderr, note);
         }
@@ -8234,6 +8277,7 @@ fn run_pi_process_unguarded(
             if let Some(note) = workspace.note {
                 emit(&app, &authority, PiProcessEventKind::Stderr, note);
             }
+            start_timer.mark("workspace");
             workspace.path
         }
         Err(error) => {
@@ -8273,7 +8317,10 @@ fn run_pi_process_unguarded(
         .stderr(Stdio::piped())
         .spawn()
     {
-        Ok(child) => child,
+        Ok(child) => {
+            start_timer.mark("spawn");
+            child
+        }
         Err(error) => {
             fail_pi_process_before_completion(
                 &app,
@@ -8307,10 +8354,19 @@ fn run_pi_process_unguarded(
         let authority = authority.clone();
         let settled = rpc_settled.clone();
         let responses = rpc_responses.clone();
+        let start_timer = start_timer.clone();
         thread::spawn(move || {
             for line in BufReader::new(stdout).lines() {
                 match line {
                     Ok(line) => {
+                        // CR194: the start ends when Pi starts its agent, which has the message.
+                        if !start_timer.has_mark("agent_start") {
+                            start_timer.mark("first_output");
+                            if crate::turn_start_timing::is_agent_start_line(&line) {
+                                start_timer.mark("agent_start");
+                                record_turn_start_timing(&app, &authority.journey_id, &authority.run_id, &start_timer, "agent_started");
+                            }
+                        }
                         if mirror_mediated {
                             match observe_pi_rpc_line(&line) {
                                 RpcObservation::Settled => settled.store(true, Ordering::Release),
@@ -8430,6 +8486,7 @@ fn run_pi_process_unguarded(
                     .map_err(|error| error.to_string())?;
                 stdin.flush().map_err(|error| error.to_string())?;
                 process.prompt_sent = true;
+                start_timer.mark("prompt_write");
                 Ok(())
             })
             .map_err(|error| match error {
