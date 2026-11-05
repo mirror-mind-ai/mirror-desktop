@@ -103,6 +103,15 @@ database or moves a folder is done by its own word.
 8. **Check:** a turn in the moved Journey, the Journey path as designed, `git remote -v` and
    `git status` in the three repositories, the site's links.
 
+## Progress
+
+- **Step 1 done (2026-11-05, `759de39b`).** `canonicalRepository` in `scripts/private_alpha_preflight.mjs`
+  accepts the `nautilus-app` origin in its three URL forms and, until this checkout's origin moves,
+  the `mirror-desktop` ones; the report names the repository the origin points at. Spec first (one
+  failing test), 4 of 4 mutations caught; `tsc` clean, `vitest` 2,633 passed. The live preflight
+  from this checkout still reports `mirror-mind-ai/mirror-desktop`, as expected.
+- **Next:** step 2, the GitHub rename, by the Navigator's word.
+
 ## Done Condition
 
 The table under Outcome is true on this Mac and on GitHub, a turn answers in the moved Journey, and
