@@ -6,7 +6,7 @@
 | --- | --- |
 | **Fila até o lançamento** | RS027 |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🔵 |
-| ↳　CR194 · The Message Takes Tens of Seconds to Reach Pi | 🔵 in_progress · extensão atualizada para 0.9.16 (41 s → 5 s na reprodução) · próximo: confirmar em produção |
+| ↳　CR194 · The Message Takes Tens of Seconds to Reach Pi | 🔵 in_progress · confirmado em produção: início do turno de 30 a 43 s para 8 a 13 s · próximo: fechar |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress |
 | ↳　CR163 · A Hung Mirror Append Freezes Every Exit | 🔵 in_progress |

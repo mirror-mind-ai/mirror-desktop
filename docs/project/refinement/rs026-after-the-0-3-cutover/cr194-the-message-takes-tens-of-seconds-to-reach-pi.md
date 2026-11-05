@@ -160,9 +160,24 @@ npm skipped one new dependency's install script (`protobufjs`), as it does by de
 harness, with the installed package, on a fresh clone of the same 167 MB session: 5.4 s and 4.9 s
 from the prompt to `agent_start`, down from 40.9 s.
 
+### Confirmed in production (2026-11-05)
+
+Five turns after the update, every phase under 200 ms omitted:
+
+| Journey | Total (s) | `session_baseline` | `mirror_context` | `first_output` |
+|---------|----------:|-------------------:|-----------------:|---------------:|
+| `mirror-desktop` | 12.8 | 1.04 | 6.7 | 5.0 |
+| `mirror-desktop` | 8.2 | 0.89 | 2.7 | 4.4 |
+| `mirror-desktop` | 11.5 | 0.93 | 5.1 | 5.2 |
+| `alissonvale-com` | 12.5 | 1.14 | 5.2 | 5.8 |
+| `alissonvale-com` | 12.1 | 0.93 | 5.3 | 5.6 |
+
+Pi's part fell from 26 to 38 s to 4.4 to 5.8 s; the whole start from 30 to 43 s to 8 to 13 s. The
+largest remaining step is now the Mirror context.
+
 ## Next
 
-1. Read the production `turn_start` records of the next `mirror-desktop` turns.
+1. Close this CR on the Navigator's word.
 2. Separately: the Mirror context's 3 to 6 s per turn.
 
 Earlier plan (done): record the start of a turn phase by phase, as `settlement-timings`
