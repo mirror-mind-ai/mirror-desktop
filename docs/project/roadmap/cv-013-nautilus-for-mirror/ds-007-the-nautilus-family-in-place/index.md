@@ -159,8 +159,15 @@ database or moves a folder is done by its own word.
     `nautilus-agentic-method` "Absorbed by Nautilus", `mirror-desktop` "Transfer accepted from
     Nautilus Harness". The Core's calls do not edit the stage; each Journey's content is its own
     work.
-- **Next:** the Navigator's choice for the mirror-extension status and the move of
-  `mirror-desktop` under `nautilus`; then step 7, the folders.
+- **Step 6 done (2026-11-05, Navigator: "marque mirror-extension como concluída e mova
+  mirror-desktop para baixo de nautilus").** A second backup first
+  (`memory_20261105_120951.zip`). `nautilus-mirror-extension` is `completed` (`updateJourney`).
+  `mirror-desktop` moved under `nautilus` (`moveJourney`), placed after the framework; its child
+  `mirror-desktop-rescue-journey` moved with it. Read back: ".../Mirror Mind / Nautilus / Nautilus
+  App"; the family reads framework, app, protocol, then the archived harness and the completed
+  mirror-extension. Ids, conversations and memories untouched.
+- **Next:** step 7, the folder script, written here, dry-run by the Navigator in Terminal with the
+  app closed.
 
 ## Done Condition
 
