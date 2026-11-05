@@ -122,8 +122,13 @@ database or moves a folder is done by its own word.
   eight method links (EN and PT pages) and its README point at `nautilus-framework` (`c4a1f14`, not
   pushed, not deployed). The link text still says "method": the wording is the framework Journey's
   content work. DS-006's mention here is history and stays.
-- **Next:** push the framework and the site, deploy the Nautilus site (each by its word); then
-  step 4, the protocol repository.
+- **Step 3 published (2026-11-05, Navigator: "envie o framework e o site e publique o site do
+  Nautilus").** Framework `92be64c` and site `c4a1f14` pushed. Nautilus site deployed to
+  `/var/www/nautilus-site` (backup `/root/nautilus-site-backup-20261105-114849.tgz`; the dry run
+  changed only `index.html` and `pt-br/index.html`, nothing deleted). Checked from outside: both
+  pages answer 200 and link only to `nautilus-framework` (4 links each).
+- **Next:** step 4, create `mirror-mind-ai/nautilus-protocol` (public) and push its history, by the
+  Navigator's word.
 
 ## Done Condition
 
