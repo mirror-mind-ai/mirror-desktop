@@ -132,8 +132,17 @@ database or moves a folder is done by its own word.
   `vida-criativa/nautilus/agentic-protocol` got `origin` and pushed `main` (3 commits, head
   `e92aef9`), in sync. Its untracked `.DS_Store` stayed out. The folder copy to
   `nautilus/nautilus-protocol` waits for step 7.
-- **Next:** step 5, create the family repository `mirror-mind-ai/nautilus` with a README presenting
-  the three bodies, by the Navigator's word.
+- **Name kept (2026-11-05, Navigator: "mantenha nautilus-app").** `nautilus-app` over
+  `nautilus-for-mirror` and `nautilus-app-for-mirror`: the repository names the body's role in the
+  family, the product name lives in the description and the README. The repository's description
+  and homepage now name Nautilus for Mirror and `nautilus.mirrormind.sh`; this README opens as
+  Nautilus for Mirror and links the family (`50e37bf`).
+- **Step 5 done (2026-11-05, same word).** `mirror-mind-ai/nautilus` created (public), one commit
+  (`d02c17b`) with the family README shown to the Navigator: the three bodies, each linked. The old
+  name no longer redirects to the framework; the live links had moved in step 3. All four
+  repositories answer 200.
+- **Next:** step 6, the Mirror database (backup; display names; `nautilus-agentic-method` active;
+  harness and mirror-extension archived), by the Navigator's word.
 
 ## Done Condition
 
