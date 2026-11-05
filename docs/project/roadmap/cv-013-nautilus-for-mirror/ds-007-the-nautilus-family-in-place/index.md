@@ -127,8 +127,13 @@ database or moves a folder is done by its own word.
   `/var/www/nautilus-site` (backup `/root/nautilus-site-backup-20261105-114849.tgz`; the dry run
   changed only `index.html` and `pt-br/index.html`, nothing deleted). Checked from outside: both
   pages answer 200 and link only to `nautilus-framework` (4 links each).
-- **Next:** step 4, create `mirror-mind-ai/nautilus-protocol` (public) and push its history, by the
-  Navigator's word.
+- **Step 4 done (2026-11-05, Navigator: "crie o repo nautilus-protocol e envie o histórico").**
+  `mirror-mind-ai/nautilus-protocol` created (public); the local repository at
+  `vida-criativa/nautilus/agentic-protocol` got `origin` and pushed `main` (3 commits, head
+  `e92aef9`), in sync. Its untracked `.DS_Store` stayed out. The folder copy to
+  `nautilus/nautilus-protocol` waits for step 7.
+- **Next:** step 5, create the family repository `mirror-mind-ai/nautilus` with a README presenting
+  the three bodies, by the Navigator's word.
 
 ## Done Condition
 
