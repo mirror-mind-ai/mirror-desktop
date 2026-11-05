@@ -19,7 +19,8 @@
 | **RS028 · Journey Management** | 🔄 ativa · 2 🟡 · sem ordem |
 | ↳　CR098 · Allow a Journey to Be Reparented | 🟡 captured |
 | ↳　CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured |
-| **RS022 · Mirror Core Debts** | 🔄 ativa · 3 ⏸️ · Core |
+| **RS022 · Mirror Core Debts** | 🔄 ativa · 1 🟡 · 3 ⏸️ · Core |
+| ↳　CR195 · The Mirror Context Takes Three to Seven Seconds Before Every Turn | 🟡 captured · branch do Core `cr198-capture-mirror-context-latency` · vai no PR único das CRs do Core |
 | ↳　CR094 · Mirror Mode Activation Rebinds a Desktop Conversation's Journey | ⏸️ parked |
 | ↳　CR170 · Pass the Invocation Directory to the Core Explicitly | ⏸️ parked |
 | ↳　CR189 · Route the Persona by What the Turn Is About | ⏸️ parked |

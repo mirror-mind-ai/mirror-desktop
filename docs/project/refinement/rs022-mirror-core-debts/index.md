@@ -70,6 +70,7 @@ expected to remain open for as long as the Desktop depends on a Mirror core it d
 
 - [CR170: Pass the Invocation Directory to the Core Explicitly](cr170-pass-the-invocation-directory-to-the-core-explicitly.md) — parked · 0.3 Core · an extension command learns the caller's folder only through `PWD`; moved from RS026 by the Navigator, 2026-11-03
 - [CR189: Route the Persona by What the Turn Is About](cr189-route-the-persona-by-what-the-turn-is-about.md) — parked · 0.3 Core · one stray keyword picks the persona; may be replaced by the Core's persona-management work
+- [CR195: The Mirror Context Takes Three to Seven Seconds Before Every Turn](cr195-the-mirror-context-takes-three-to-seven-seconds-before-every-turn.md) — captured · 0.4 Core · `deliverMirrorContext` takes 3 to 7 s before every turn, the embedding 1 to 1.8 s of it; Core branch `cr198-capture-mirror-context-latency` (local), for the Core PR of several CRs
 
 ## Boundaries
 

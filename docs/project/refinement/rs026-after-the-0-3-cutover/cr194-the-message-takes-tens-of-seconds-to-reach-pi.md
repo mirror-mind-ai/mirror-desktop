@@ -184,9 +184,9 @@ standing diagnostic.
 
 Not done here, and why:
 
-- **The Mirror context's 3 to 7 s** is Core work. It is captured in the Core's refinement as
-  CR198 (`mirror-ts`, RS010, "`deliverMirrorContext` takes three to seven seconds before every
-  Desktop turn"), on branch `cr198-capture-mirror-context-latency`.
+- **The Mirror context's 3 to 7 s** is Core work, registered as
+  [CR195](../rs022-mirror-core-debts/cr195-the-mirror-context-takes-three-to-seven-seconds-before-every-turn.md)
+  in RS022, with its Core capture (CR198) on branch `cr198-capture-mirror-context-latency`.
 - **A future slow extension** would wait in the same place. Nautilus carries the person's global
   extensions on purpose; the `first_output` phase now shows such a wait at once.
 
