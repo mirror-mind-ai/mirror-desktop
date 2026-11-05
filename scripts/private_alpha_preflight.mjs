@@ -8,11 +8,17 @@ import process from "node:process";
 import { checkRuntime, hostPlatform, readPin, validatePin } from "./mirror_host_pin.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const canonicalOrigins = new Set([
-  "https://github.com/mirror-mind-ai/mirror-desktop.git",
-  "git@github.com:mirror-mind-ai/mirror-desktop.git",
-  "ssh://git@github.com/mirror-mind-ai/mirror-desktop.git",
-]);
+// CV-013.DS-007: the repository is renamed mirror-desktop -> nautilus-app; GitHub redirects the old
+// name, so both are accepted until this checkout's origin is updated.
+const canonicalRepositories = ["mirror-mind-ai/nautilus-app", "mirror-mind-ai/mirror-desktop"];
+
+export function canonicalRepository(origin) {
+  return canonicalRepositories.find((repository) => [
+    `https://github.com/${repository}.git`,
+    `git@github.com:${repository}.git`,
+    `ssh://git@github.com/${repository}.git`,
+  ].includes(origin));
+}
 
 export function parseVersion(value) {
   const match = String(value).match(/(\d+)\.(\d+)\.(\d+)/);
@@ -122,7 +128,8 @@ export function runPreflight() {
   const architecture = capture("uname", ["-m"]);
   if (!["x86_64", "arm64"].includes(architecture)) throw new Error(`Unsupported architecture ${architecture}.`);
   const origin = sanitizeOrigin(capture("git", ["remote", "get-url", "origin"]));
-  if (!canonicalOrigins.has(origin)) throw new Error("Git origin is not the canonical private Mirror Desktop repository.");
+  const repository = canonicalRepository(origin);
+  if (!repository) throw new Error("Git origin is not the canonical Nautilus App repository.");
   for (const lockfile of ["package-lock.json", "src-tauri/Cargo.lock"]) {
     canonicalPath(resolve(repositoryRoot, lockfile), "file", `${lockfile} lockfile`);
   }
@@ -147,7 +154,7 @@ export function runPreflight() {
     schemaVersion: "1.0.0", status: "ready",
     sourceRevision: capture("git", ["rev-parse", "HEAD"]),
     worktreeClean: capture("git", ["status", "--porcelain"]) === "",
-    repository: "mirror-mind-ai/mirror-desktop",
+    repository,
     host: { architecture, macOS, minimumMacOS: compatibility.minimumMacOS },
     tools,
     runtime,

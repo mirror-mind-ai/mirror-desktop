@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 // @ts-expect-error The source-built preflight is a Node module outside the frontend graph.
-import { checkMirrorHost, parseArguments, sanitizeOrigin, supportsMinimumMacOS } from "../../scripts/private_alpha_preflight.mjs";
+import { canonicalRepository, checkMirrorHost, parseArguments, sanitizeOrigin, supportsMinimumMacOS } from "../../scripts/private_alpha_preflight.mjs";
 // @ts-expect-error The pin script is a Node module outside the frontend graph.
 import { readPin } from "../../scripts/mirror_host_pin.mjs";
 import preflightSource from "../../scripts/private_alpha_preflight.mjs?raw";
@@ -29,6 +29,29 @@ describe("private alpha preflight", () => {
     expect(() => parseArguments(["--token", "secret"])).toThrow(/Unsupported/);
     expect(() => parseArguments(["--mirror-root", "/mirror"])).toThrow(/Unsupported/);
     expect(sanitizeOrigin("https://token@example.com/repository.git")).toBe("https://example.com/repository.git");
+  });
+
+  // CV-013.DS-007: the repository becomes mirror-mind-ai/nautilus-app; the old name stays accepted
+  // until this checkout's origin is updated, and the report names the repository the origin points at.
+  it("accepts the nautilus-app origin and, until the remote moves, the mirror-desktop one", () => {
+    for (const origin of [
+      "https://github.com/mirror-mind-ai/nautilus-app.git",
+      "git@github.com:mirror-mind-ai/nautilus-app.git",
+      "ssh://git@github.com/mirror-mind-ai/nautilus-app.git",
+    ]) expect(canonicalRepository(origin)).toBe("mirror-mind-ai/nautilus-app");
+    for (const origin of [
+      "https://github.com/mirror-mind-ai/mirror-desktop.git",
+      "git@github.com:mirror-mind-ai/mirror-desktop.git",
+      "ssh://git@github.com/mirror-mind-ai/mirror-desktop.git",
+    ]) expect(canonicalRepository(origin)).toBe("mirror-mind-ai/mirror-desktop");
+    for (const origin of [
+      "https://github.com/mirror-mind-ai/nautilus.git",
+      "https://github.com/someone-else/nautilus-app.git",
+      "https://github.com/mirror-mind-ai/nautilus-app",
+      "https://example.com/mirror-mind-ai/nautilus-app.git",
+    ]) expect(canonicalRepository(origin)).toBeUndefined();
+    expect(preflightSource).toContain("repository,");
+    expect(preflightSource).not.toContain('repository: "mirror-mind-ai/mirror-desktop"');
   });
 
   it("rejects Big Sur before dependency installation and accepts Monterey", () => {
