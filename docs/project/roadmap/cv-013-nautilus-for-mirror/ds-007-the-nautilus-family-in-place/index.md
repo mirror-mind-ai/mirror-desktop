@@ -141,8 +141,26 @@ database or moves a folder is done by its own word.
   (`d02c17b`) with the family README shown to the Navigator: the three bodies, each linked. The old
   name no longer redirects to the framework; the live links had moved in step 3. All four
   repositories answer 200.
-- **Next:** step 6, the Mirror database (backup; display names; `nautilus-agentic-method` active;
-  harness and mirror-extension archived), by the Navigator's word.
+- **Step 6 partly done (2026-11-05, Navigator: "faça o passo 6 no banco").** Backup by `mirror
+  backup`: `~/.mirror-minds/alisson-vale/backups/memory_20261105_120504.zip` (its 30-day retention
+  removed six older backups). Through the Core's `updateJourney` (the installed `mirror-mind`
+  0.39.0, `mirror-mind/desktop`, the call the app's Journey editor makes, with
+  `expectedUpdatedAt`): `mirror-desktop` is named "Nautilus App"; `nautilus-agentic-method` is
+  named "Nautilus Agentic Framework" and is `active`. Read back through `readJourneyTree`.
+- **Found while doing it:**
+  - `nautilus-harness` was already `archived` (since 2026-09-04): nothing to do.
+  - The Core accepts only `active`, `completed`, `paused` and `planned` as a status, so
+    `nautilus-mirror-extension` cannot be set `archived` through it; the earlier `archived`
+    statuses were written by the Python era. Left `active`, waiting for the Navigator's choice.
+  - `mirror-desktop` is a child of `mirror-mind`, not of `nautilus`, so its path reads ".../Mirror
+    Mind / Nautilus App". The Outcome needs it under `nautilus` (`moveJourney`), a write not named
+    in step 6.
+  - Stale stages: `nautilus` "Method consolidation after repository transfer",
+    `nautilus-agentic-method` "Absorbed by Nautilus", `mirror-desktop` "Transfer accepted from
+    Nautilus Harness". The Core's calls do not edit the stage; each Journey's content is its own
+    work.
+- **Next:** the Navigator's choice for the mirror-extension status and the move of
+  `mirror-desktop` under `nautilus`; then step 7, the folders.
 
 ## Done Condition
 

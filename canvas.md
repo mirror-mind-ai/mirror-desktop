@@ -35,7 +35,7 @@
 | **Pós-lançamento · Instalação da Veronica no Nautilus** | ⏸ parked · sem data · mesmo DMG e script de transferência |
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
-| **CV-013 · Nautilus for Mirror** | 🟢 reaberta · DS-007 · passos 1 a 5 feitos (4 repos no GitHub) · próximo: banco do Mirror |
+| **CV-013 · Nautilus for Mirror** | 🟢 reaberta · DS-007 · passos 1 a 5 feitos, 6 em parte · falta: status do mirror-extension e mover a Journey do app para baixo de Nautilus |
 | **CV-014 · A Demonstration Video** | 🟡 Candidate · 7 DS · DS-001 é um protótipo de poucos segundos de ponta a ponta |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
