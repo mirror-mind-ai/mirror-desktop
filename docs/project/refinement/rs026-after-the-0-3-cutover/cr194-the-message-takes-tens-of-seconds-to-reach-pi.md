@@ -104,9 +104,31 @@ The development home (`ensaio-5c-2`) has no large session: its only started Jour
 The instrumentation works. On a small session the Mirror context already takes 6 s, and Pi about
 2 s more. The large-session gap is only visible in production, which needs a release.
 
+### Measured in production on v0.4.0-alpha.3 (2026-11-05)
+
+Seven turns, every phase under 200 ms omitted:
+
+| Journey | Total (s) | `session_baseline` | `mirror_context` | `first_output` |
+|---------|----------:|-------------------:|-----------------:|---------------:|
+| `mirror-desktop` | 38.7 | 0.95 | 6.2 | 31.4 |
+| `mirror-desktop` | 36.8 | 0.95 | 4.9 | 30.8 |
+| `mirror-desktop` | 41.5 | 0.94 | 2.7 | 37.7 |
+| `mirror-desktop` | 43.0 | 0.93 | 5.2 | 36.7 |
+| `alissonvale-com` | 36.4 | 0.94 | 4.9 | 30.4 |
+| `alissonvale-com` | 29.9 | 0.96 | 2.9 | 25.8 |
+| `alissonvale-com` | 37.5 | 0.99 | 5.5 | 30.8 |
+
+**The wait is inside Pi.** From the prompt written on its stdin to its first output line
+(`agent_start`, 8 ms later) takes 26 to 38 s, about 85 % of the start. The app's native steps take
+about 1 s together, and the Mirror context 3 to 6 s. Pi on a clone of the same session, with a fake
+model, reached its answer in 2.5 to 3.7 s, so the in-app difference is in how the app runs Pi
+(arguments, extensions, environment, working directory), not in the session's size alone.
+
 ## Next
 
-Measure instead of guess: record the start of a turn phase by phase, as `settlement-timings`
+Reproduce the app's exact Pi invocation on a clone and bisect its differences from the fast run.
+
+Earlier plan (done): record the start of a turn phase by phase, as `settlement-timings`
 already does for its end (journal running, context requested and answered, child spawned, prompt
 written, first Pi event, agent start), check it in development against a large session, then read
 it in production. The fix follows the measurement.
