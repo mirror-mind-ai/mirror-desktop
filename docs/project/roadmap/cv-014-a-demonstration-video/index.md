@@ -43,17 +43,33 @@ does; a video lets a person see it before installing an unsigned app.
 
 ## Candidate Delivery Stories
 
+The first story is a walking skeleton (Navigator, 2026-11-05): a prototype of a few seconds that
+already goes through every layer, script, video and audio, end to end. Each later story widens one
+layer of a path that already works.
+
 | Code | Delivery Story | Outcome | Status |
 |------|----------------|---------|--------|
-| CV-014.DS-001 | The Seed and the Script | The seed is chosen and the script is written in blocks, one action on screen per block, in each language | 🟡 Candidate |
-| CV-014.DS-002 | A Demonstration Home | A fresh home, made by the first-run assistant, holds one or two small Journeys and the real turns the video replays; nothing personal | 🟡 Candidate |
-| CV-014.DS-003 | The Staged Backstage | A demonstration layer serves the real interface in a browser, development only, with a test that keeps it out of every release build | 🟡 Candidate |
-| CV-014.DS-004 | The Narration | The Navigator's blocks recorded, cleaned and levelled for the web (or a chosen synthetic voice); their durations measured | 🟡 Candidate |
-| CV-014.DS-005 | Recording to the Voice | A browser script plays the script on the timings of the voice; the agent records it, then joins video, voice and captions with `ffmpeg` | 🟡 Candidate |
-| CV-014.DS-006 | Review and Publication | The Navigator approves the cut; it is published where decided, each publication by its own word | 🟡 Candidate |
+| CV-014.DS-001 | A Few Seconds, End to End | One block of a few seconds: one sentence of script, one action in the real interface on a minimal backstage, a voice, a caption, joined into one playable file the Navigator watches | 🟡 Candidate |
+| CV-014.DS-002 | The Seed and the Script | The seed is chosen and the whole script is written in blocks, one action on screen per block, in each language | 🟡 Candidate |
+| CV-014.DS-003 | A Demonstration Home | A fresh home, made by the first-run assistant, holds one or two small Journeys and the real turns the video replays; nothing personal | 🟡 Candidate |
+| CV-014.DS-004 | The Staged Backstage | The prototype's backstage grows to every action of the script, development only, with a test that keeps it out of every release build | 🟡 Candidate |
+| CV-014.DS-005 | The Narration | The chosen voice for every block, cleaned and levelled for the web, with its durations measured | 🟡 Candidate |
+| CV-014.DS-006 | The Whole Video | The prototype's pipeline records every block to its voice and joins the full cut with captions, in each language | 🟡 Candidate |
+| CV-014.DS-007 | Review and Publication | The Navigator approves the cut; it is published where decided, each publication by its own word | 🟡 Candidate |
 
-DS-001 and DS-002 can run together; DS-003 can start as soon as DS-002 holds the turns; DS-004
-needs DS-001's closed script; DS-005 needs DS-003 and DS-004.
+After DS-001, DS-002 and DS-003 can run together; DS-004 needs DS-003's turns; DS-005 needs
+DS-002's closed script; DS-006 needs DS-004 and DS-005.
+
+### What DS-001 Must Prove
+
+- The agent can drive the real interface in a browser it controls, with the native side stood in
+  for, and record it with the cursor visible.
+- A voice block can be measured and the browser action timed to it, with no hand adjustment.
+- Video, voice and a caption join into one file that plays on a Mac and in a browser.
+- The whole take is redone by one command, so changing a word costs minutes.
+
+Its seed, voice and data are placeholders where the later stories decide them: the prototype proves
+the path, not the content.
 
 ## Boundaries
 
