@@ -166,8 +166,28 @@ database or moves a folder is done by its own word.
   `mirror-desktop-rescue-journey` moved with it. Read back: ".../Mirror Mind / Nautilus / Nautilus
   App"; the family reads framework, app, protocol, then the archived harness and the completed
   mirror-extension. Ids, conversations and memories untouched.
-- **Next:** step 7, the folder script, written here, dry-run by the Navigator in Terminal with the
-  app closed.
+- **Step 7 script written and rehearsed (2026-11-05, Navigator: "escreva o script das pastas").**
+  [`step-7/move-folders.sh`](step-7/move-folders.sh) with
+  [`journey-markers.py`](step-7/journey-markers.py) and [`project-paths.mjs`](step-7/project-paths.mjs);
+  the Navigator runs the copy in `/private/tmp/nautilus-folders/`. Dry run by default, `--apply` to
+  act, `set -e`, nothing deleted. It refuses an open app, a dirty checkout, an un-renamed origin or
+  a second run; clones the family repository before touching a folder; backs up the database;
+  moves the framework aside, makes the family folder (the Navigator's `nautilus-icon.png` goes
+  there, untracked), moves framework and app in, copies the protocol; turns the family folder into
+  the `mirror-mind-ai/nautilus` checkout with a `.gitignore` for the three bodies (committed
+  locally); rewrites both `.mirror-journey.json`; sets four `project_path`s through
+  `setJourneyProjectPath` with read-back, and the moved sync files through `mirror tasks
+  sync-config` (`nautilus` keeps the same `JOURNEY.md`, now inside the framework). `nautilus` keeps
+  its `project_path`, the same path now holding the family.
+  - **Rehearsal:** shallow clones of the three repositories and a clone of the database under
+    `/private/tmp/nf-rehearsal`, pointed at by `REHEARSAL_*` variables. Dry run printed every act
+    and changed nothing; `--apply` exited 0 with the layout, origins, markers, project paths and
+    sync files as designed; a second run stopped at its first check. The real database was read
+    back unchanged and the rehearsal deleted.
+  - **Left for step 8:** the two `.mirror-journey.json` changes are uncommitted in the app and the
+    framework; the family's `.gitignore` commit is local. The terminal Pi history under
+    `~/.pi/agent/sessions/` keeps the old folder name; `src-tauri/target` rebuilds from scratch.
+- **Next:** the Navigator closes the app and runs the script in Terminal, dry run first.
 
 ## Done Condition
 
