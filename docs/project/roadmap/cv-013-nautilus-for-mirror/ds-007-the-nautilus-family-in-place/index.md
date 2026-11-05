@@ -110,7 +110,13 @@ database or moves a folder is done by its own word.
   the `mirror-desktop` ones; the report names the repository the origin points at. Spec first (one
   failing test), 4 of 4 mutations caught; `tsc` clean, `vitest` 2,633 passed. The live preflight
   from this checkout still reports `mirror-mind-ai/mirror-desktop`, as expected.
-- **Next:** step 2, the GitHub rename, by the Navigator's word.
+- **Step 2 done (2026-11-05, Navigator: "renomeie o repo do app").** `mirror-mind-ai/mirror-desktop`
+  renamed `mirror-mind-ai/nautilus-app` on GitHub (public, not archived). This checkout's `origin`
+  is now `https://github.com/mirror-mind-ai/nautilus-app.git`; fetch is in sync, the old URL still
+  answers through GitHub's redirect, and the live preflight reports `ready` for
+  `mirror-mind-ai/nautilus-app`.
+- **Next:** step 3, rename the framework repository and move its live links, by the Navigator's
+  word.
 
 ## Done Condition
 
