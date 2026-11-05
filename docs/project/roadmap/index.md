@@ -31,6 +31,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-011](cv-011-embedded-pi/index.md) | Embedded Pi | Mirror Desktop hosts Pi inside the app, as it hosts the TypeScript Mirror, instead of installing a Pi CLI and running it as a separate process | 🟡 Candidate |
 | [CV-012](cv-012-a-canonical-core-and-extensions/index.md) | A Canonical Core and Extensions | The app ships a minimal canonical set (Journey management, persona management, conversations by Journey and by persona); everything else, starting with the Context Map and the Agent Canvas, is an extension the person turns on or off | 🟡 Candidate |
 | [CV-013](cv-013-nautilus-for-mirror/index.md) | Nautilus for Mirror | The app is renamed from Mirror Desktop to Nautilus for Mirror, one front end among others for the Mirror Core | ✅ Done |
+| [CV-014](cv-014-a-demonstration-video/index.md) | A Demonstration Video | A short narrated video shows a new person what Nautilus does, recorded by the agent from a script in the real interface and reviewed by the Navigator before publication | 🟡 Candidate |
 
 ## Delivery Arc — Operable Agent Cockpit
 

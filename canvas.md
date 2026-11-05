@@ -34,6 +34,7 @@
 | **Pós-lançamento · Instalação da Veronica no Nautilus** | ⏸ parked · sem data · mesmo DMG e script de transferência |
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
+| **CV-014 · A Demonstration Video** | 🟡 Candidate · 6 DS propostas · falta: semente, voz, idiomas, destino |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
 | **CV-009 · Trusted macOS Distribution** | 🟡 Planned · aguarda a Apple |
