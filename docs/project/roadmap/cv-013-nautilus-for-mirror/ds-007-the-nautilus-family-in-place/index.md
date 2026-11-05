@@ -203,7 +203,11 @@ database or moves a folder is done by its own word.
     when the registered folder is missing. Repair: the Navigator reloads the Journey tree; the next
     turn re-anchors. A CR candidate: a registered folder that is missing should refresh the
     registry before falling back, and the fallback should be visible.
-- **Next:** the reload and one turn, then the commit and pushes by the Navigator's word.
+- **Repaired (2026-11-05, Navigator: "recarreguei").** After "Reload Journey tree" the registry
+  (14:09) holds `.../nautilus/nautilus-app` for `mirror-desktop`; the next turn ran there and the
+  Pi session's header was re-anchored to it. The empty `~/Mirror Journeys/mirror-desktop` left by
+  the fallback stays until the Navigator's word.
+- **Next:** the framework's marker commit, the family push and the CR, by the Navigator's word.
 
 ## Done Condition
 

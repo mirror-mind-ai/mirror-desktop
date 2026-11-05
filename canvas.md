@@ -35,7 +35,7 @@
 | **Pós-lançamento · Instalação da Veronica no Nautilus** | ⏸ parked · sem data · mesmo DMG e script de transferência |
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
-| **CV-013 · Nautilus for Mirror** | 🟢 reaberta · DS-007 · passos 1 a 7 feitos · passo 8: o turno rodou na pasta neutra (registro em cache velho) · próximo: recarregar a árvore |
+| **CV-013 · Nautilus for Mirror** | 🟢 reaberta · DS-007 · passos 1 a 7 feitos · passo 8: turno já roda em `nautilus-app` · falta: commit do framework, envio da família, CR do cache |
 | **CV-014 · A Demonstration Video** | 🟡 Candidate · 7 DS · DS-001 é um protótipo de poucos segundos de ponta a ponta |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
