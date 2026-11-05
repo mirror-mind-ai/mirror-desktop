@@ -6,7 +6,7 @@
 | --- | --- |
 | **Fila até o lançamento** | RS027 |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🔵 |
-| ↳　CR194 · The Message Takes Tens of Seconds to Reach Pi | 🔵 in_progress · medido em produção: 26 a 38 s dentro do Pi · próximo: reproduzir a chamada exata do app |
+| ↳　CR194 · The Message Takes Tens of Seconds to Reach Pi | 🔵 in_progress · causa: extensão `pi-agent-browser-native` 0.9.6 relê a sessão (41 s → 5 a 8 s na 0.9.16) · próximo: atualizar a extensão |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress |
 | ↳　CR163 · A Hung Mirror Append Freezes Every Exit | 🔵 in_progress |

@@ -124,9 +124,39 @@ about 1 s together, and the Mirror context 3 to 6 s. Pi on a clone of the same s
 model, reached its answer in 2.5 to 3.7 s, so the in-app difference is in how the app runs Pi
 (arguments, extensions, environment, working directory), not in the session's size alone.
 
+### Cause: a global extension rereads the whole session on start (2026-11-05)
+
+A harness outside the app (`/private/tmp/cr194/bin/run.mjs`) starts Pi exactly as
+`run_pi_process_unguarded` does (bundled Node and Pi 1.4.0, `--mode rpc --session <clone>
+--no-approve --no-extensions`, the Anthropic fork, the three `npm:` packages of
+`~/.pi/agent/settings.json`, `mirror-context.mjs`, the same environment and working directory),
+with a provider whose endpoint refuses at once, and writes the same two RPC lines. On a clone of
+the production `mirror-desktop` session (167 MB):
+
+| Run | Prompt to `agent_start` |
+|-----|------------------------:|
+| exactly as the app | 40.9 s |
+| without every extension | 2.3 s |
+| without `pi-claude-bridge`, `pi-gmail` or the Anthropic fork (each alone) | 41 to 43 s |
+| **without `pi-agent-browser-native` 0.9.6** | **3.5 s** |
+| as the app, small session | 2.4 s |
+| as the app, `pi-agent-browser-native` **0.9.16** instead | 5.1 to 8.2 s |
+
+A CPU profile places 30 s in the extension's `session_start` restore (`readBrowserEntries` →
+`scanJournalMetadata` / `journalRanges` / `projectJson`): it rereads the whole session journal
+through a token-by-token JSON projector to restore browser state. Pi waits for `session_start`
+handlers before it takes the prompt, so the wait grows with the session, whatever the provider.
+Upstream 0.9.10 to 0.9.16 (2026-11-02/03, #303, #306, #309) frame records natively and validate
+small ones with native JSON.
+
+This is not Nautilus code: the package is the Navigator's global Pi extension, which Nautilus loads
+because a Desktop turn carries the person's global extensions (CV-010.DS-005 slice 2e).
+
 ## Next
 
-Reproduce the app's exact Pi invocation on a clone and bisect its differences from the fast run.
+1. Update `pi-agent-browser-native` in `~/.pi/agent/npm` to 0.9.16 (Navigator's environment, his
+   word), then read the production `turn_start` records again.
+2. Separately: the Mirror context's 3 to 6 s per turn.
 
 Earlier plan (done): record the start of a turn phase by phase, as `settlement-timings`
 already does for its end (journal running, context requested and answered, child spawned, prompt
