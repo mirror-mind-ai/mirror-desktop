@@ -152,10 +152,17 @@ small ones with native JSON.
 This is not Nautilus code: the package is the Navigator's global Pi extension, which Nautilus loads
 because a Desktop turn carries the person's global extensions (CV-010.DS-005 slice 2e).
 
+### Extension updated (2026-11-05)
+
+By the Navigator's word, `~/.pi/agent/npm` now has `pi-agent-browser-native` 0.9.16 (the previous
+`package.json` and `package-lock.json` are kept in `/private/tmp/cr194/npm-backup-20261105-003540`).
+npm skipped one new dependency's install script (`protobufjs`), as it does by default. The
+harness, with the installed package, on a fresh clone of the same 167 MB session: 5.4 s and 4.9 s
+from the prompt to `agent_start`, down from 40.9 s.
+
 ## Next
 
-1. Update `pi-agent-browser-native` in `~/.pi/agent/npm` to 0.9.16 (the Navigator's environment, by the
-   Navigator's word), then read the production `turn_start` records again.
+1. Read the production `turn_start` records of the next `mirror-desktop` turns.
 2. Separately: the Mirror context's 3 to 6 s per turn.
 
 Earlier plan (done): record the start of a turn phase by phase, as `settlement-timings`
