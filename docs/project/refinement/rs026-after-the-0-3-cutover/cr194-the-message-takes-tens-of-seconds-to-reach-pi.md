@@ -154,8 +154,8 @@ because a Desktop turn carries the person's global extensions (CV-010.DS-005 sli
 
 ## Next
 
-1. Update `pi-agent-browser-native` in `~/.pi/agent/npm` to 0.9.16 (Navigator's environment, his
-   word), then read the production `turn_start` records again.
+1. Update `pi-agent-browser-native` in `~/.pi/agent/npm` to 0.9.16 (the Navigator's environment, by the
+   Navigator's word), then read the production `turn_start` records again.
 2. Separately: the Mirror context's 3 to 6 s per turn.
 
 Earlier plan (done): record the start of a turn phase by phase, as `settlement-timings`
