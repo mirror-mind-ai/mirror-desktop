@@ -115,8 +115,15 @@ database or moves a folder is done by its own word.
   is now `https://github.com/mirror-mind-ai/nautilus-app.git`; fetch is in sync, the old URL still
   answers through GitHub's redirect, and the live preflight reports `ready` for
   `mirror-mind-ai/nautilus-app`.
-- **Next:** step 3, rename the framework repository and move its live links, by the Navigator's
-  word.
+- **Step 3 done locally (2026-11-05, Navigator: "renomeie o repo nautilus para nautilus-framework e
+  troque os links no framework e no site").** `mirror-mind-ai/nautilus` renamed
+  `mirror-mind-ai/nautilus-framework` (public); the framework checkout's `origin` moved and fetches
+  in sync. The framework's transfer record notes the rename (`92be64c`, not pushed). The site's
+  eight method links (EN and PT pages) and its README point at `nautilus-framework` (`c4a1f14`, not
+  pushed, not deployed). The link text still says "method": the wording is the framework Journey's
+  content work. DS-006's mention here is history and stays.
+- **Next:** push the framework and the site, deploy the Nautilus site (each by its word); then
+  step 4, the protocol repository.
 
 ## Done Condition
 
