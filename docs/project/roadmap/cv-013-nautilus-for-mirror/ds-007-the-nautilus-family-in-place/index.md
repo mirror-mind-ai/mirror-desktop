@@ -2,7 +2,7 @@
 
 # CV-013.DS-007 - The Nautilus Family in Place
 
-**Status:** 🟢 In Progress. Asked by the Navigator on 2026-11-05 ("na migração do mirror desktop pro
+**Status:** ✅ Done. Closed by the Navigator on 2026-11-05 ("feche a DS-007"). Earlier: Asked by the Navigator on 2026-11-05 ("na migração do mirror desktop pro
 nautilus ainda faltou: renomear o repo, a minha journey e a pasta do checkout"); inventory started
 the same day ("leitura B ... você já poderia começar o inventário").
 
@@ -212,7 +212,11 @@ database or moves a folder is done by its own word.
   (`rmdir`). Framework marker committed and pushed (`b143384`). Family `.gitignore` pushed
   (`0cb926f`); `nautilus-icon.png` stays untracked there. The silent fallback captured as
   [CR197](../../../refinement/rs026-after-the-0-3-cutover/cr197-a-moved-journey-folder-sends-the-turn-to-the-neutral-folder-without-a-word.md).
-- **Next:** the Navigator's word to close DS-007 and CV-013.
+- **Closed (2026-11-05, Navigator: "feche a DS-007").** The Outcome table holds on this Mac and on
+  GitHub, a turn answers in `nautilus/nautilus-app`, and the preflight reports `ready` for
+  `mirror-mind-ai/nautilus-app`. Left outside this story: changing "method" to "framework" in the
+  framework's documents and the Nautilus site's link text, which the Navigator takes up in the
+  framework's Journey; CR197 in RS026.
 
 ## Done Condition
 

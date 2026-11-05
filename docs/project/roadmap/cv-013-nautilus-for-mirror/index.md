@@ -2,7 +2,7 @@
 
 # CV-013 - Nautilus for Mirror
 
-**Status:** 🟢 In Progress. Reopened by the Navigator on 2026-11-05 for DS-007 (the repository, the Journey and the folders); earlier: ✅ Done — started by the Navigator on 2026-11-04 ("comece a CV-013") and closed the same day ("feche a CV-013 e leve a Veronica para o pós-lançamento")
+**Status:** ✅ Done. Closed again on 2026-11-05 with DS-007 (the repository, the Journey and the folders), reopened for it the same day; earlier: ✅ Done — started by the Navigator on 2026-11-04 ("comece a CV-013") and closed the same day ("feche a CV-013 e leve a Veronica para o pós-lançamento")
 
 ## Outcome
 
@@ -52,4 +52,4 @@ gives it a date; it is not a Delivery Story of this CV.
 | [CV-013.DS-004](ds-004-the-navigators-cutover/index.md) | The Navigator's Cutover | Nautilus installed from the DMG, state carried and checked, Mirror Desktop TS kept as the way back | ✅ Done |
 | [CV-013.DS-005](ds-005-the-mirror-site-points-to-nautilus/index.md) | The Mirror Site Points to Nautilus | The Mirror site names Nautilus as its desktop front end and links its download | ✅ Done |
 | [CV-013.DS-006](ds-006-nautilus-gets-its-own-site/index.md) | Nautilus Gets Its Own Site | Nautilus gets a site of its own at `nautilus.mirrormind.sh` | ✅ Done |
-| [CV-013.DS-007](ds-007-the-nautilus-family-in-place/index.md) | The Nautilus Family in Place | Folders, Journeys and GitHub say Nautilus is a family of a framework, an app and a protocol | 🟢 In Progress |
+| [CV-013.DS-007](ds-007-the-nautilus-family-in-place/index.md) | The Nautilus Family in Place | Folders, Journeys and GitHub say Nautilus is a family of a framework, an app and a protocol | ✅ Done |
