@@ -5,8 +5,9 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | RS027 |
-| **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🟡 |
+| **RS026 · After the 0.3 Cutover** | 🔄 ativa · 2 🟡 |
 | ↳　CR196 · Render a Table Whose First Header Cell Is Empty | 🟡 captured · causa achada: célula vazia no cabeçalho |
+| ↳　CR197 · A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word | 🟡 captured · causa achada: registro em cache velho |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress |
 | ↳　CR163 · A Hung Mirror Append Freezes Every Exit | 🔵 in_progress |
@@ -35,7 +36,7 @@
 | **Pós-lançamento · Instalação da Veronica no Nautilus** | ⏸ parked · sem data · mesmo DMG e script de transferência |
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
-| **CV-013 · Nautilus for Mirror** | 🟢 reaberta · DS-007 · passos 1 a 7 feitos · passo 8: turno já roda em `nautilus-app` · falta: commit do framework, envio da família, CR do cache |
+| **CV-013 · Nautilus for Mirror** | 🟢 reaberta · DS-007 · passos 1 a 7 feitos · passos 1 a 8 feitos · pronta para fechar |
 | **CV-014 · A Demonstration Video** | 🟡 Candidate · 7 DS · DS-001 é um protótipo de poucos segundos de ponta a ponta |
 | **CV-008 · Conversation Spaces** | 🟡 Planned |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |

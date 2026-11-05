@@ -207,7 +207,12 @@ database or moves a folder is done by its own word.
   (14:09) holds `.../nautilus/nautilus-app` for `mirror-desktop`; the next turn ran there and the
   Pi session's header was re-anchored to it. The empty `~/Mirror Journeys/mirror-desktop` left by
   the fallback stays until the Navigator's word.
-- **Next:** the framework's marker commit, the family push and the CR, by the Navigator's word.
+- **Closing acts (2026-11-05, Navigator: "pode apagar a pasta vazia / faça o commit do framework,
+  envie a família e registre a CR").** The empty `~/Mirror Journeys/mirror-desktop` removed
+  (`rmdir`). Framework marker committed and pushed (`b143384`). Family `.gitignore` pushed
+  (`0cb926f`); `nautilus-icon.png` stays untracked there. The silent fallback captured as
+  [CR197](../../../refinement/rs026-after-the-0-3-cutover/cr197-a-moved-journey-folder-sends-the-turn-to-the-neutral-folder-without-a-word.md).
+- **Next:** the Navigator's word to close DS-007 and CV-013.
 
 ## Done Condition
 
