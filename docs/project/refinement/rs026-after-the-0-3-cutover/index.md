@@ -54,6 +54,7 @@ delivering anything.
 - [CR192: The 0.2 Carry Left Segment Receipts Stale](cr192-the-0-2-carry-left-segment-receipts-stale.md) — **done** · Desktop state · repaired by the 0.3 carry, on proof · found building CV-013.DS-003, 2026-11-04; 893 segments carried from 0.2 fail their recorded hash, provably only because their session paths moved
 - [CR193: A Cancel Before Pi Takes the Message Still Loses It](cr193-a-cancel-before-pi-takes-the-message-still-loses-it.md) — **done** · Desktop · Navigator, 2026-11-04, in Nautilus; cause: CR188's persona marker read as an answer; CR183's return does not happen for a cancel before Pi takes the message, which now takes 20 to 40 s
 - [CR194: The Message Takes Tens of Seconds to Reach Pi](cr194-the-message-takes-tens-of-seconds-to-reach-pi.md) — **done** · Desktop · Navigator, 2026-11-04; turn starts timed by phase (v0.4.0-alpha.3); 30 s of 40 inside Pi, from the global extension `pi-agent-browser-native` 0.9.6 rereading the session; updated to 0.9.16, starts fell to 8 to 13 s in production; the Mirror context's 3 to 7 s went to RS022 as CR195
+- [CR196: Render a Table Whose First Header Cell Is Empty](cr196-render-a-table-whose-first-header-cell-is-empty.md) — captured · Desktop · Navigator, 2026-11-05; a comparison table starting with `| |` is shown as a paragraph, because `createTableBlock` refuses any empty header cell
 
 ## Queue After the Cutover
 
