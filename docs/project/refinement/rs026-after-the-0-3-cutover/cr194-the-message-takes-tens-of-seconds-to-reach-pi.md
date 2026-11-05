@@ -86,6 +86,24 @@ worker's marks in order); 6 mutations, all caught. `cargo test` 481, `vitest` 2,
 Cost: the ledger keeps 256 records, so with a start record per turn it now holds about half as many
 settlements per Journey.
 
+### Checked in development (2026-11-04)
+
+The development home (`ensaio-5c-2`) has no large session: its only started Journeys are
+`vida-interior` and `vida-tecnica`. Two turns in `vida-tecnica` each wrote a complete record:
+
+| Phase | Turn 1 (ms) | Turn 2 (ms) |
+|-------|------------:|------------:|
+| `admission` | 51 | 53 |
+| `session_baseline` | 7 | 9 |
+| `journal_running` | 47 | 55 |
+| `mirror_context` | 6,008 | 5,561 |
+| `first_output` | 1,771 | 2,110 |
+| everything else | < 10 | < 15 |
+| **total** | **7,904** | **7,813** |
+
+The instrumentation works. On a small session the Mirror context already takes 6 s, and Pi about
+2 s more. The large-session gap is only visible in production, which needs a release.
+
 ## Next
 
 Measure instead of guess: record the start of a turn phase by phase, as `settlement-timings`
