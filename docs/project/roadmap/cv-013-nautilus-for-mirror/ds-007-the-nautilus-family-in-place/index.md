@@ -187,7 +187,23 @@ database or moves a folder is done by its own word.
   - **Left for step 8:** the two `.mirror-journey.json` changes are uncommitted in the app and the
     framework; the family's `.gitignore` commit is local. The terminal Pi history under
     `~/.pi/agent/sessions/` keeps the old folder name; `src-tauri/target` rebuilds from scratch.
-- **Next:** the Navigator closes the app and runs the script in Terminal, dry run first.
+- **Step 7 run by the Navigator (2026-11-05).** Backup `memory_20261105_140611.zip`. Folders,
+  origins, markers and the Core's project paths and sync files read back as designed; the protocol
+  original kept; the Nautilus site still links `nautilus-framework` (4 + 4).
+- **Step 8 check (2026-11-05, Navigator: "confira o passo 8"):**
+  - This checkout's marker committed here. Uncommitted: the framework's `.mirror-journey.json`
+    (now `nautilus-agentic-method`); unpushed: the family's `.gitignore` commit (`0cb926f`). Both
+    wait for the Navigator's word.
+  - **Finding: the first turn ran in `~/Mirror Journeys/mirror-desktop`, not in
+    `nautilus/nautilus-app`.** `turn_workspace` (`main.rs`) reads the project path from the app's
+    cached `journey-registry.json`, last refreshed at 12:17 (step 6), which still holds
+    `.../mirror-mind-ai/mirror-desktop`. That folder is gone, so `resolve_journey_workspace` fell back
+    to the neutral folder (CR176) and `anchor_session_cwd` moved the Pi session's header there. The
+    cache is refreshed only by "Reload Journey tree" and the Journey editor, not at launch and not
+    when the registered folder is missing. Repair: the Navigator reloads the Journey tree; the next
+    turn re-anchors. A CR candidate: a registered folder that is missing should refresh the
+    registry before falling back, and the fallback should be visible.
+- **Next:** the reload and one turn, then the commit and pushes by the Navigator's word.
 
 ## Done Condition
 
