@@ -2,8 +2,8 @@
 
 # CR194: The Message Takes Tens of Seconds to Reach Pi
 
-**Status:** in_progress
-**Line:** 0.4 · Desktop (cause not yet placed)
+**Status:** done
+**Line:** 0.4 · Desktop (cause: a global Pi extension, outside Nautilus)
 
 ## Friction
 
@@ -175,10 +175,20 @@ Five turns after the update, every phase under 200 ms omitted:
 Pi's part fell from 26 to 38 s to 4.4 to 5.8 s; the whole start from 30 to 43 s to 8 to 13 s. The
 largest remaining step is now the Mirror context.
 
-## Next
+## Closed (2026-11-05)
 
-1. Close this CR on the Navigator's word.
-2. Separately: the Mirror context's 3 to 6 s per turn.
+Closed by the Navigator ("feche a CR194"). The wait of tens of seconds is gone in production; the
+cause was `pi-agent-browser-native` 0.9.6, fixed by updating it to 0.9.16 in the Navigator's
+`~/.pi/agent`. Nautilus keeps the `turn_start` instrumentation (shipped in v0.4.0-alpha.3) as a
+standing diagnostic.
+
+Not done here, and why:
+
+- **The Mirror context's 3 to 7 s** is Core work. It is captured in the Core's refinement as
+  CR198 (`mirror-ts`, RS010, "`deliverMirrorContext` takes three to seven seconds before every
+  Desktop turn"), on branch `cr198-capture-mirror-context-latency`.
+- **A future slow extension** would wait in the same place. Nautilus carries the person's global
+  extensions on purpose; the `first_output` phase now shows such a wait at once.
 
 Earlier plan (done): record the start of a turn phase by phase, as `settlement-timings`
 already does for its end (journal running, context requested and answered, child spawned, prompt
