@@ -1,6 +1,8 @@
-# Mirror Desktop
+# Nautilus for Mirror
 
-Mirror Desktop is the first-party Tauri desktop application for operating Journey-bound Pi and Mirror conversations across Operational, Tactical and Strategic projections.
+Nautilus for Mirror is a macOS app for working in your Journeys with an agent that knows your [Mirror](https://github.com/mirror-mind-ai/mirror). It is the app of the [Nautilus family](https://github.com/mirror-mind-ai/nautilus), beside the [framework](https://github.com/mirror-mind-ai/nautilus-framework) and the [protocol](https://github.com/mirror-mind-ai/nautilus-protocol). Site: [nautilus.mirrormind.sh](https://nautilus.mirrormind.sh).
+
+It is a Tauri application for operating Journey-bound Pi and Mirror conversations across Operational, Tactical and Strategic projections. Until 2026-11 it was called Mirror Desktop, and this repository was `mirror-mind-ai/mirror-desktop`; many records below keep that name as history.
 
 The project continues the application body incubated as Nautilus Harness. The transfer record lives in [docs/project/history/nautilus-harness-transfer.md](docs/project/history/nautilus-harness-transfer.md), and the founding exploration lives in [docs/project/explorations/mirror-desktop-core-installer-and-tauri-app-migration](docs/project/explorations/mirror-desktop-core-installer-and-tauri-app-migration).
 
