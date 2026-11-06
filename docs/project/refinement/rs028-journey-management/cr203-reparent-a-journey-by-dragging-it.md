@@ -4,7 +4,7 @@
 
 **Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** `main` (`61a434cc`, `77b55a8a`, `710e3bab`), RS028 group C
+**Delivery:** `main` (`61a434cc`, `77b55a8a`, `710e3bab`, `ffd7dc4d`), RS028 group C
 **Group:** C, reshaping the tree
 
 ## Friction
@@ -100,3 +100,28 @@ the secondary button.
 **Still owed to the Navigator's hands:** that the pointer gesture starts at all. The rows are
 measured once at the start, because a captured pointer cannot scroll the list; auto-scrolling a long
 tree during a drag is not delivered and is the next thing to feel missing.
+
+## Third field report: the gesture starts but has no hand (2026-11-06)
+
+The pointer rebuild made the gesture start: the Navigator saw the dashed zone and the plan
+sentence. Three defects remained, and one of them cost a Journey its visibility.
+
+1. **The window kept selecting text.** `user-select: none` on the row was not enough: the press
+   travels over conversation titles and panels that are still selectable, and WebKit keeps
+   extending a selection into them. Now, when a press becomes a drag, the selection it may have
+   begun is cleared and `body.is-dragging-journey` refuses selection everywhere and shows a
+   grabbing cursor, the same device `is-resizing-sidebar` already uses.
+2. **Nothing travelled with the hand.** A ghost with the Journey's name now follows the pointer,
+   positioned through a ref so the tree does not re-render on every move.
+3. **An unintended drop read as a deletion.** Vida Acadêmica2 was dropped into `alissonvale-com`
+   and vanished into that collapsed subtree. The database was right and silent: the move was real,
+   registered at `2026-11-06T05:20:02Z` in the `ensaio-5c-2` home, and nothing was lost. Now a drop
+   that lands says where the Journey went, the sentence stays until the next gesture, and a
+   collapsed parent that just received a Journey is opened.
+
+**Strategy judgment, asked by the Navigator:** the pointer-capture base is right; the evidence is
+that the gesture now starts where HTML5 never did. What was wrong was treating the gesture as done
+when only its decisions were delivered: a drag is also a feel (cursor, ghost, refusal of
+selection) and an ending that speaks. Falsifier for this round: pressing and moving must never
+paint a selection anywhere in the window, and every landed drop must leave a green sentence naming
+the destination.
