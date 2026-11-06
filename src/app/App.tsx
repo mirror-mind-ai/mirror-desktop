@@ -8296,9 +8296,9 @@ export function App({ model }: AppProps) {
                     status={openRouterKey}
                     message={openRouterMessage}
                     busy={openRouterBusy}
-                    onSave={(key) => void changeOpenRouterKey(() => saveOpenRouterKey(key), () => "OpenRouter accepted the key; it is kept on this Mac.")}
+                    onSave={(key) => void changeOpenRouterKey(() => saveOpenRouterKey(key), () => "OpenRouter accepted the key; it is kept on this computer.")}
                     onTest={() => void changeOpenRouterKey(testOpenRouterKey, () => undefined)}
-                    onRemove={() => void changeOpenRouterKey(removeOpenRouterKey, () => "The key was removed from this Mac.")}
+                    onRemove={() => void changeOpenRouterKey(removeOpenRouterKey, () => "The key was removed from this computer.")}
                     onDecline={() => undefined}
                     onReload={() => { setOpenRouterMessage(undefined); setOpenRouterState("idle"); }}
                   />

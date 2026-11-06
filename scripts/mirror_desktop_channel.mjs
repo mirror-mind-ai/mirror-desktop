@@ -7,7 +7,11 @@ import process from "node:process";
 import { prepareBundledBuild } from "./mirror_host_pin.mjs";
 
 const mode = process.argv[2];
-const tauri = resolve("node_modules", ".bin", process.platform === "win32" ? "tauri.cmd" : "tauri");
+// The CLI's own entry, run by this Node, on every platform: on Windows npm writes `tauri.cmd`
+// beside `tauri`, and Node refuses to spawn a `.cmd` without a shell (CVE-2024-27980), so the
+// shim is not a program to call.
+const tauriCli = resolve("node_modules", "@tauri-apps", "cli", "tauri.js");
+const tauri = process.execPath;
 const inheritedMirrorEnvironment = ["MIRROR_HOME", "MIRROR_USER", "DB_PATH"];
 const inheritedSigningEnvironment = ["TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"];
 const defaultUserSigningKey = resolve(process.env.HOME ?? "", ".mirror-desktop-updater", "alpha", "updater.key");
@@ -157,7 +161,7 @@ if (selected.args[0] === "build") {
     process.exit(1);
   }
 }
-const result = spawnSync(tauri, [...selected.args, ...bundledRuntime, ...process.argv.slice(3)], {
+const result = spawnSync(tauri, [tauriCli, ...selected.args, ...bundledRuntime, ...process.argv.slice(3)], {
   cwd: process.cwd(),
   env: launchEnvironment,
   stdio: "inherit",

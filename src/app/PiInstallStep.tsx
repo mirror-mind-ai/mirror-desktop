@@ -33,7 +33,7 @@ export function PiInstallStep({ view, onInstall }: PiInstallStepProps) {
       <p className="eyebrow">Nautilus for Mirror</p>
       <h1>Install Pi</h1>
       <p>Nautilus talks to models through Pi, an open-source agent. It installs the version it was made with into its own folder: about 24 MB to download, each package checked before it is used.</p>
-      <p>A Pi you already have is left alone. The sign-ins Pi keeps on this Mac are used as they are.</p>
+      <p>A Pi you already have is left alone. The sign-ins Pi keeps on this computer are used as they are.</p>
       {view.kind === "installing" ? (
         <div className="pi-install-progress" role="status">
           <progress max={view.total || 1} value={view.phase === "check" ? view.total : view.done} />

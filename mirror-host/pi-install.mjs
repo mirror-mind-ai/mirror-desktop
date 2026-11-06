@@ -150,9 +150,23 @@ function refuseLinks(root) {
   }
 }
 
+/**
+ * The system's own `tar`, named by its absolute path so nothing on the PATH can stand in for it:
+ * `/usr/bin/tar` on macOS and Linux, `System32\\tar.exe` (bsdtar, Windows 10 1803+) on Windows.
+ */
+function systemTar() {
+  if (process.platform !== "win32") return "/usr/bin/tar";
+  return join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+}
+
+/** `chmod +x` where the platform has an execute bit; Windows decides by extension. */
+function markExecutable(path) {
+  if (process.platform !== "win32") chmodSync(path, 0o755);
+}
+
 /** Unpack a verified npm tarball into `target`, which must not exist yet. */
 function unpack(tarball, target, scratch) {
-  const listing = execFileSync("/usr/bin/tar", ["-tzf", tarball], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
+  const listing = execFileSync(systemTar(), ["-tzf", tarball], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
     .split("\n").filter(Boolean);
   const tops = new Set(listing.map((name) => name.replace(/^\.\//, "").split("/")[0]));
   if (tops.size !== 1 || listing.some((name) => name.startsWith("/") || name.split("/").includes(".."))) {
@@ -160,7 +174,7 @@ function unpack(tarball, target, scratch) {
   }
   rmSync(scratch, { recursive: true, force: true });
   mkdirSync(scratch, { recursive: true });
-  execFileSync("/usr/bin/tar", ["-xzf", tarball, "-C", scratch]);
+  execFileSync(systemTar(), ["-xzf", tarball, "-C", scratch]);
   refuseLinks(scratch);
   mkdirSync(dirname(target), { recursive: true });
   if (existsSync(target)) throw new PiInstallError("unsafe_package", `${target} was laid out twice`);
@@ -339,7 +353,7 @@ export async function installPi({
     finish: (staging) => {
       const bin = join(staging, "node_modules", ...PI_PACKAGE.split("/"), ...pi.bin.pi.split("/"));
       if (!resolve(bin).startsWith(staging + sep) || !existsSync(bin)) throw new PiInstallError("unsafe_package", "Pi's command is not inside its package");
-      chmodSync(bin, 0o755);
+      markExecutable(bin);
       const reported = checkWithThrowawayHome(staging, "Pi", (home) => checkVersion(bin, home));
       if (reported !== pi.version) throw new PiInstallError("check_failed", `the installed Pi reports ${reported}, not ${pi.version}`);
       return { package: PI_PACKAGE, version: pi.version, lockfileSha256: lockSha256, bin: pi.bin.pi };
@@ -398,9 +412,10 @@ export async function installAnthropic({
       const provider = join(staging, "provider");
       cpSync(source, provider, { recursive: true });
       if (treeSha256(provider) !== sourceSha256) throw new PiInstallError("source_mismatch", "the provider's source changed while it was copied");
-      const bin = join(staging, "node_modules", ...binaryPackage.split("/"), "claude");
+      // The SDK ships `claude` as a native binary: `claude.exe` in its win32 packages.
+      const bin = join(staging, "node_modules", ...binaryPackage.split("/"), process.platform === "win32" ? "claude.exe" : "claude");
       if (!existsSync(bin)) throw new PiInstallError("unsafe_package", `${binaryPackage} holds no claude command`);
-      chmodSync(bin, 0o755);
+      markExecutable(bin);
       const reported = checkWithThrowawayHome(staging, "Claude Code", (home) => checkVersion(bin, home));
       if (reported !== `${claudeCode} (Claude Code)`) {
         throw new PiInstallError("check_failed", `the installed Claude Code reports ${reported}, not ${claudeCode}`);

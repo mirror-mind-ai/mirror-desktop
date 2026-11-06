@@ -14,12 +14,12 @@ export type OpenRouterKeyStatus = {
 
 export function describeLastCheck(status: OpenRouterKeyStatus, locale?: string): string {
   if (!status.configured) return "No key is kept.";
-  if (!status.lastCheck) return "A key is kept on this Mac, readable only by you; it has not been checked yet.";
+  if (!status.lastCheck) return "A key is kept on this computer, readable only by you; it has not been checked yet.";
   const when = new Date(status.lastCheck.atMs).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
   switch (status.lastCheck.outcome) {
-    case "worked": return `A key is kept on this Mac. It worked on ${when}.`;
-    case "refused": return `A key is kept on this Mac, but OpenRouter refused it on ${when}. Replace it.`;
-    default: return `A key is kept on this Mac. OpenRouter could not be reached on ${when}.`;
+    case "worked": return `A key is kept on this computer. It worked on ${when}.`;
+    case "refused": return `A key is kept on this computer, but OpenRouter refused it on ${when}. Replace it.`;
+    default: return `A key is kept on this computer. OpenRouter could not be reached on ${when}.`;
   }
 }
 

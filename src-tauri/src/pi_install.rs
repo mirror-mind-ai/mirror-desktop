@@ -9,7 +9,7 @@
 //!
 //! CR173: `install_anthropic_provider` runs the same installer for the Desktop's own Anthropic
 //! provider (`--kind anthropic`), on demand: the provider's source and lockfile from the runtime,
-//! this Mac's Claude Code from the registry. Its events are `anthropic-install-progress`.
+//! this computer's Claude Code from the registry. Its events are `anthropic-install-progress`.
 
 use crate::pi_toolchain::{install_dir, pinned_pi, resolve_app_pi, PI_DIRECTORY};
 use serde::Serialize;
@@ -92,7 +92,7 @@ pub(crate) fn describe_anthropic_install_failure(reason: &str, log: &Path) -> St
         "check_failed" => {
             "Claude Code was downloaded but did not start, so it was not installed. Try again; if it fails again, reinstall Nautilus.".to_string()
         }
-        "platform_unsupported" => "Claude models are not available for this Mac in this version of Nautilus.".to_string(),
+        "platform_unsupported" => "Claude models are not available for this computer in this version of Nautilus.".to_string(),
         "lockfile_mismatch" | "lockfile_invalid" | "invalid_target" | "usage" | "source_mismatch" => {
             "This copy of Nautilus cannot install Claude Code. Reinstall the app.".to_string()
         }
@@ -470,7 +470,7 @@ mod tests {
     fn a_stopped_anthropic_install_says_what_to_do_in_its_own_words() {
         let (base, runtime, app_data) = anthropic_runtime_playing("anthropic-stopped", r#"{"event":"failed","reason":"platform_unsupported"}"#, 1);
         let error = run_anthropic_install(&app_data, &runtime, |_| {}).unwrap_err();
-        assert!(error.contains("Claude models") && error.contains("this Mac"), "{error}");
+        assert!(error.contains("Claude models") && error.contains("this computer"), "{error}");
         let _ = fs::remove_dir_all(&base);
     }
 

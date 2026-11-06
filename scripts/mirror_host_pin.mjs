@@ -81,6 +81,24 @@ export function bundleEntries(platform) {
 }
 
 /**
+ * `renameSync` that waits out Windows' handle lag. A directory whose file a child
+ * process just ran (`node --version`) can refuse a rename with EPERM/EBUSY for a
+ * moment after the child exits, while the OS releases the handle. A bounded retry
+ * is the usual answer; on POSIX the first attempt succeeds and nothing changes.
+ */
+function renameWithRetry(from, to, attempts = 20) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      renameSync(from, to);
+      return;
+    } catch (error) {
+      if (!["EPERM", "EBUSY", "EACCES"].includes(error.code) || attempt >= attempts) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    }
+  }
+}
+
+/**
  * The `tar` that opens an archive: GNU tar on Git Bash cannot open a zip, so on
  * Windows the system's bsdtar (`System32\\tar.exe`, Windows 10 1803+) is named
  * explicitly, and it opens both.
@@ -306,8 +324,8 @@ export async function materializeHost({
     // The host and its core are laid out inside the staging directory, and the Node joins them.
     const laidOut = join(staging, "layout");
     layoutHost({ root, pin, outDir: laidOut, node: { platform, node: { version, sha256: actual } } });
-    renameSync(join(staging, "node"), join(laidOut, "node"));
-    renameSync(laidOut, outDir);
+    renameWithRetry(join(staging, "node"), join(laidOut, "node"));
+    renameWithRetry(laidOut, outDir);
     rmSync(staging, { recursive: true, force: true });
     placed = true;
     return { outDir, nodeBin: join(outDir, nodeBinaryEntry(platform)), coreDir: join(outDir, "node_modules", pin.core.package) };

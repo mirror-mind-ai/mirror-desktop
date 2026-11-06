@@ -10,7 +10,7 @@ import mainSource from "../../src-tauri/src/main.rs?raw";
 import providersPanelSource from "../app/ModelProvidersPanel.tsx?raw";
 
 // CV-010.DS-005 slice 3c-2: Settings' Connections (model providers, with Disconnect) and the
-// OpenRouter key for Mirror's context, asked for in setup after the provider and kept on this Mac (CR180).
+// OpenRouter key for Mirror's context, asked for in setup after the provider and kept on this computer (CR180).
 
 const providers: PiProviderStatus[] = [
   { id: "anthropic", name: "Anthropic", apiKey: true, oauth: true, oauthName: "Claude Pro/Max", stored: true, ready: { type: "oauth" } },
