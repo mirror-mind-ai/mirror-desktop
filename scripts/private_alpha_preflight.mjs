@@ -106,13 +106,25 @@ export function checkMirrorHost({ root = repositoryRoot, platform = hostPlatform
 }
 
 /**
- * RS028 / CR204: development may pin a Core branch whose change is not released yet (the app's
- * Journey deletion needs Core CR200). A release never ships one: the Core must be published first
- * and the pin moved to that version.
+ * RS028 / CR204: development may pin a Core branch whose change is not published yet (the app's
+ * Journey deletion needs Core CR200). A release never ships one. It ships a published Core: a
+ * stable `X.Y.Z`, or a preview `X.Y.Z-next.N` from the Core's release train
+ * (`docs/process/versioning.md` in the Core), which npm serves under `next` and no Mirror updater
+ * reads. A preview that migrates the home must not reach a real home before Core's `stable` does;
+ * that rule is the release preparation's to check, not this function's.
  */
+const PUBLISHED_CORE_VERSION = /^\d+\.\d+\.\d+(-next\.[1-9]\d*)?$/;
+
 export function requireReleasedCore(pin) {
-  if (!pin.core.release || pin.core.branch !== undefined) {
-    throw new Error(`The pinned core is ${pin.core.package} ${pin.core.version} from branch ${pin.core.branch ?? "unknown"} (${pin.core.commit.slice(0, 8)}), which is not released. Publish the Core and pin its release before releasing Nautilus.`);
+  const { core } = pin;
+  if (!core.release || core.branch !== undefined) {
+    throw new Error(`The pinned core is ${core.package} ${core.version} from branch ${core.branch ?? "unknown"} (${core.commit.slice(0, 8)}), which is not released. Publish the Core and pin its release before releasing Nautilus.`);
+  }
+  if (!PUBLISHED_CORE_VERSION.test(core.version)) {
+    throw new Error(`The pinned core version ${core.version} is neither a stable version nor a release-train preview (X.Y.Z-next.N).`);
+  }
+  if (core.release !== `v${core.version}`) {
+    throw new Error(`The pinned core's release ${core.release} does not name version ${core.version}.`);
   }
 }
 

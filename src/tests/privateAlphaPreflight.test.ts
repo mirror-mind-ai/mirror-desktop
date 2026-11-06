@@ -91,11 +91,18 @@ describe("private alpha preflight", () => {
     expect(() => checkMirrorHost({ root, platform, probe: with_((a) => { a.refusal.error.reason = "invalid_home"; }) })).toThrow(/marker/);
   });
 
-  it("refuses to release with a Core pinned from an unreleased branch", () => {
+  it("releases with a stable Core or a release-train preview, never a branch or another prerelease", () => {
     const core = { package: "mirror-mind", version: "0.39.5", commit: "a".repeat(40) };
     expect(() => requireReleasedCore({ core: { ...core, release: "v0.39.5" } })).not.toThrow();
+    // The Core's release train: a preview staged under `next`, pinned by the registry's hashes.
+    expect(() => requireReleasedCore({ core: { ...core, version: "0.40.0-next.1", release: "v0.40.0-next.1" } })).not.toThrow();
+    expect(() => requireReleasedCore({ core: { ...core, version: "0.40.0-next.12", release: "v0.40.0-next.12" } })).not.toThrow();
     expect(() => requireReleasedCore({ core: { ...core, branch: "nautilus-core-requests" } })).toThrow(/branch nautilus-core-requests \(aaaaaaaa\), which is not released/);
     expect(() => requireReleasedCore({ core: { ...core, release: "v0.39.5", branch: "x" } })).toThrow(/not released/);
+    for (const version of ["0.40.0-rc.1", "0.40.0-next", "0.40.0-next.0", "0.40.0-next.1a", "v0.40.0"]) {
+      expect(() => requireReleasedCore({ core: { ...core, version, release: `v${version}` } }), version).toThrow(/neither a stable version nor a release-train preview/);
+    }
+    expect(() => requireReleasedCore({ core: { ...core, version: "0.40.0-next.1", release: "v0.40.0-next.2" } })).toThrow(/release v0.40.0-next.2 does not name version 0.40.0-next.1/);
     expect(preflightSource).toContain("requireReleasedCore(readPin(repositoryRoot));");
   });
 
