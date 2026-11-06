@@ -439,7 +439,7 @@ mod tests {
         ));
         let _ = fs::remove_dir_all(&directory);
         fs::create_dir_all(&directory).unwrap();
-        directory.canonicalize().unwrap()
+        crate::platform::canonicalize(&directory).unwrap()
     }
 
     const READY: &str = r#"{"type":"ready","hostProtocol":1,"desktopApiVersion":1,"coreVersion":"0.37.0","node":"vtest","methods":[]}"#;

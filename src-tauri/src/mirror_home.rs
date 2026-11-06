@@ -51,8 +51,7 @@ impl MarkedHome {
         if metadata.file_type().is_symlink() || !metadata.is_dir() {
             return Err(format!("{} is not a marked 0.3 home: it is a symlink or not a directory.", path.display()));
         }
-        let canonical = path
-            .canonicalize()
+        let canonical = crate::platform::canonicalize(path)
             .map_err(|error| format!("Could not resolve {}: {error}", path.display()))?;
         if canonical != path {
             return Err(format!("{} passes through a symlink; name the home by its real path.", path.display()));
@@ -149,7 +148,7 @@ mod tests {
         ));
         let _ = fs::remove_dir_all(&directory);
         fs::create_dir_all(&directory).unwrap();
-        directory.canonicalize().unwrap()
+        crate::platform::canonicalize(&directory).unwrap()
     }
 
     fn marked(parent: &Path, name: &str, marker: &str) -> PathBuf {
