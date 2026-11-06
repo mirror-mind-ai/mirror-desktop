@@ -143,9 +143,37 @@ describe("CR203: the surface drives the gesture with pointer events", () => {
   });
 
   it("gives the drag its own place to report a refusal from Mirror, not the dialog's", () => {
-    expect(appSource).toContain("{ journeyId: drag.journeyId, parentId: plan.parentId, position: plan.position }, false, setJourneyDropMessage)");
+    expect(appSource).toContain('(message) => setJourneyDropMessage({ kind: "refused", text: message })');
     expect(appSource).toContain("onFailure?: (message: string) => void");
     expect(appSource).toContain("onFailure?.(message)");
+  });
+
+  it("says where the Journey went after the drop, so leaving the visible tree does not read as deletion", () => {
+    // The Navigator lost Vida Acadêmica2 this way on 2026-11-06: an unintended drop moved it into
+    // a collapsed subtree, and the tree showed nothing about it.
+    expect(appSource).toContain('setJourneyDropMessage({ kind: "move", text: plan.completion })');
+  });
+
+  it("opens a collapsed parent that just received a Journey", () => {
+    expect(appSource).toContain("opened.delete(parentId);");
+  });
+
+  it("suppresses text selection everywhere while the drag lasts, not only on the row", () => {
+    // The press travels over conversation titles and panels that are still selectable; WebKit
+    // keeps extending a selection into them unless the whole window refuses it for the gesture.
+    expect(appSource).toContain('document.body.classList.add("is-dragging-journey")');
+    expect(appSource).toContain("window.getSelection()?.removeAllRanges()");
+    expect(appSource).toContain('document.body.classList.remove("is-dragging-journey")');
+    const body = styleSource.slice(styleSource.indexOf("body.is-dragging-journey,"), styleSource.indexOf(".journey-drag-ghost"));
+    expect(body).toContain("user-select: none !important");
+    expect(body).toContain("cursor: grabbing !important");
+  });
+
+  it("shows the dragged Journey's name travelling with the pointer", () => {
+    expect(appSource).toContain('className="journey-drag-ghost"');
+    const ghost = styleSource.slice(styleSource.indexOf(".journey-drag-ghost"), styleSource.indexOf(".journey-drop-hint.completed"));
+    expect(ghost).toContain("position: fixed");
+    expect(ghost).toContain("pointer-events: none");
   });
 
   it("does not select the Journey on the click that ends a drag", () => {

@@ -15,7 +15,7 @@ import { findJourneyById, type JourneyRegistry, type JourneyRegistryItem } from 
 export type JourneyDropZone = "before" | "into" | "after" | "root";
 
 export type JourneyDropPlan =
-  | { outcome: "move"; parentId: string | null; position: number; description: string }
+  | { outcome: "move"; parentId: string | null; position: number; description: string; completion: string }
   | { outcome: "unchanged" }
   | { outcome: "refused"; reason: string };
 
@@ -95,7 +95,15 @@ function plannedMove(
     const settled = Math.min(currentIndex, siblings.length);
     if (settled === position) return { outcome: "unchanged" };
   }
-  return { outcome: "move", parentId, position, description: `Move ${dragged.name} ${where}.` };
+  return {
+    outcome: "move",
+    parentId,
+    position,
+    description: `Move ${dragged.name} ${where}.`,
+    // Said after the drop lands, so a Journey that left the visible part of the tree is not read
+    // as deleted: the Navigator lost one this way on 2026-11-06.
+    completion: `Moved ${dragged.name} ${where}.`,
+  };
 }
 
 /** A new parent may not be the dragged Journey, nor anything inside it. */

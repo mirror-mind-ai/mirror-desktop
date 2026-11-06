@@ -767,9 +767,12 @@ export function App({ model }: AppProps) {
   } | null>(null);
   const journeyDragClickRef = useRef(false);
   const journeyRootDropZoneRef = useRef<HTMLDivElement | null>(null);
+  const journeyDragGhostRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => () => document.body.classList.remove("is-dragging-journey"), []);
   /** CR203: the row under the pointer and what dropping there would do, read by the row and the line. */
   const [journeyDropTarget, setJourneyDropTarget] = useState<{ journeyId: string | null; zone: JourneyDropZone; plan: JourneyDropPlan }>();
-  const [journeyDropMessage, setJourneyDropMessage] = useState<string>();
+  const [journeyDropMessage, setJourneyDropMessage] = useState<{ kind: "move" | "refused"; text: string }>();
   // CR113: the visible text is owned by the Composer input, not by this root component. What the
   // root keeps is the current value, for the send and steering boundaries that read it, and
   // whether it is blank, for the controls whose enablement depends on that.
@@ -5385,17 +5388,30 @@ export function App({ model }: AppProps) {
       drag.started = true;
       drag.moved = true;
       drag.rows = measureJourneyRows();
+      // The press is a drag now: the text selection it may have begun is taken back, and nothing
+      // in the window may select or show a text cursor until the pointer is released.
+      window.getSelection()?.removeAllRanges();
+      document.body.classList.add("is-dragging-journey");
       setDraggedJourneyId(drag.journeyId);
       setJourneyDropMessage(undefined);
       return;
+    }
+    event.preventDefault();
+    const ghost = journeyDragGhostRef.current;
+    if (ghost) {
+      ghost.style.left = `${point.x + 14}px`;
+      ghost.style.top = `${point.y + 10}px`;
     }
     const aimed = dropTargetUnderPointer({ point, rows: drag.rows, rootZone: journeyRootDropZone() });
     if (!aimed) {
       setJourneyDropTarget(undefined);
       return;
     }
-    const plan = planJourneyDrop({ draggedJourneyId: drag.journeyId, targetJourneyId: aimed.journeyId, zone: aimed.zone, registry: journeyRegistry });
-    setJourneyDropTarget({ journeyId: aimed.journeyId, zone: aimed.zone, plan });
+    setJourneyDropTarget((current) => {
+      if (current && current.journeyId === aimed.journeyId && current.zone === aimed.zone) return current;
+      const plan = planJourneyDrop({ draggedJourneyId: drag.journeyId, targetJourneyId: aimed.journeyId, zone: aimed.zone, registry: journeyRegistry });
+      return { journeyId: aimed.journeyId, zone: aimed.zone, plan };
+    });
   }
 
   function finishJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
@@ -5410,12 +5426,28 @@ export function App({ model }: AppProps) {
     if (!aimed) return;
     const plan = planJourneyDrop({ draggedJourneyId: drag.journeyId, targetJourneyId: aimed.journeyId, zone: aimed.zone, registry: journeyRegistry });
     if (plan.outcome === "refused") {
-      setJourneyDropMessage(plan.reason);
+      setJourneyDropMessage({ kind: "refused", text: plan.reason });
       return;
     }
     if (plan.outcome === "unchanged") return;
-    setJourneyDropMessage(undefined);
-    void executeJourneyMutation("move_journey", { journeyId: drag.journeyId, parentId: plan.parentId, position: plan.position }, false, setJourneyDropMessage);
+    // The sentence stays until the next gesture, and the new parent is opened, so a Journey
+    // dropped into a collapsed subtree does not look deleted.
+    setJourneyDropMessage({ kind: "move", text: plan.completion });
+    if (plan.parentId !== null) {
+      const parentId = plan.parentId;
+      setCollapsedJourneyIds((current) => {
+        if (!current.has(parentId)) return current;
+        const opened = new Set(current);
+        opened.delete(parentId);
+        return opened;
+      });
+    }
+    void executeJourneyMutation(
+      "move_journey",
+      { journeyId: drag.journeyId, parentId: plan.parentId, position: plan.position },
+      false,
+      (message) => setJourneyDropMessage({ kind: "refused", text: message }),
+    );
   }
 
   function cancelJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
@@ -5427,6 +5459,7 @@ export function App({ model }: AppProps) {
     const drag = journeyDragRef.current;
     journeyDragRef.current = null;
     journeyDragClickRef.current = clickEndsADrag(drag);
+    document.body.classList.remove("is-dragging-journey");
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -6591,7 +6624,17 @@ export function App({ model }: AppProps) {
           </p>
         ) : null}
         {!draggedJourneyId && journeyDropMessage ? (
-          <p className="journey-drop-hint refused" role="alert">{journeyDropMessage}</p>
+          <p
+            className={`journey-drop-hint ${journeyDropMessage.kind === "refused" ? "refused" : "completed"}`}
+            role={journeyDropMessage.kind === "refused" ? "alert" : "status"}
+          >
+            {journeyDropMessage.text}
+          </p>
+        ) : null}
+        {draggedJourneyId ? (
+          <div ref={journeyDragGhostRef} className="journey-drag-ghost" aria-hidden="true">
+            {findJourneyById(journeyRegistry, draggedJourneyId)?.name ?? draggedJourneyId}
+          </div>
         ) : null}
 
         <div ref={journeyListRef} className={`journey-list ${journeyListOrder === "tree" ? "tree-mode" : "card-mode"}`}>
