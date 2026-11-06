@@ -4,7 +4,7 @@
 
 **Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** `main` (`61a434cc`), RS028 group C
+**Delivery:** `main` (`61a434cc`, `77b55a8a`, `710e3bab`), RS028 group C
 **Group:** C, reshaping the tree
 
 ## Friction
@@ -72,3 +72,31 @@ On `main` in `61a434cc`; the Group C Check, part two, is owed.
   drop should land where it was aimed.
 - **Dropping into the parent a Journey already has** sends it to the end of that parent. It is a
   reordering, not a no-op, and the sentence says so.
+
+## The gesture had to be rebuilt (2026-11-06)
+
+The CR's own investigation asked to "confirm that WKWebView delivers HTML5 drag events". It does
+not, for this row, and the question was answered by the Navigator's hands rather than by my reading.
+
+1. First report: "não está arrastando, ao invés de arrastar o cursor seleciona o texto". Diagnosis:
+   WebKit gives a press on selectable text to the text selection unless the element is named as a
+   drag source. Fix attempted in `77b55a8a`: `-webkit-user-drag: element` plus `user-select: none`.
+2. Second report: "ainda não deu certo".
+
+At that point the honest move was to stop guessing at the engine. `710e3bab` rebuilds the gesture on
+pointer capture, which this application already uses for `FocusedSidebarResizeHandle`, so it is a
+mechanism with evidence in this codebase rather than a hope about WKWebView.
+
+**What the rebuild bought beyond a working drag.** Every decision now lives in
+`src/domain/journeyPointerDrag.ts`, where a test can reach it: `shouldBeginJourneyDrag` (primary
+button, Tree view, CR099's per-Journey permission, and not a press on a control inside the row),
+`exceedsDragThreshold` (a press that never travels stays a click that selects the Journey),
+`dropTargetUnderPointer` (which row and which band) and `clickEndsADrag` (the click that ends a drag
+must not also select the Journey it moved). Under HTML5 these were handler lines that no test in
+this repository could exercise. Eight mutations are caught, including three that survived the first
+round and drove this extraction: swallowing every click, dragging from a control, and dragging with
+the secondary button.
+
+**Still owed to the Navigator's hands:** that the pointer gesture starts at all. The rows are
+measured once at the start, because a captured pointer cannot scroll the list; auto-scrolling a long
+tree during a drag is not delivered and is the next thing to feel missing.

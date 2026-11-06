@@ -98,6 +98,9 @@ In the development app bound to `ensaio-5c-2`, with a long turn running in one J
 
 In the development app bound to `ensaio-5c-2`, in Tree view:
 
+0. Press a Journey row and move the pointer a few pixels. The dashed zone appears above the tree
+   and the row dims. That is the gesture starting; it is driven by pointer capture, not by the
+   browser's drag, after two HTML5 attempts never started in WKWebView.
 1. Drag a Journey onto the middle of another. The row highlights, the line reads "Move X into Y,
    after its N Journeys", and the drop makes it the last child.
 2. Drag onto the top quarter of a row. A line appears at the top of that row, the sentence says
