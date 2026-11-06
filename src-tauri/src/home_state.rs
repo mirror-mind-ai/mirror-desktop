@@ -16,7 +16,6 @@
 use crate::mirror_home::{load_home_binding, MarkedHome};
 use crate::runtime_channel::UNBOUND_0_3;
 use std::fs;
-use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
@@ -64,9 +63,7 @@ pub(crate) fn ensure_home_state_dir(app_data_root: &Path, home: &MarkedHome) -> 
         match fs::symlink_metadata(&path) {
             Ok(metadata) if metadata.is_dir() => {}
             Ok(_) => return Err(format!("{} is not a folder Nautilus made.", path.display())),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => fs::DirBuilder::new()
-                .mode(0o700)
-                .create(&path)
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => crate::platform::create_private_dir(&path)
                 .map_err(|error| format!("Could not create {}: {error}", path.display()))?,
             Err(error) => return Err(format!("Could not inspect {}: {error}", path.display())),
         }
@@ -77,6 +74,7 @@ pub(crate) fn ensure_home_state_dir(app_data_root: &Path, home: &MarkedHome) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
     fn scratch(label: &str) -> PathBuf {
@@ -97,6 +95,7 @@ mod tests {
         MarkedHome::open(&home).unwrap()
     }
 
+    #[cfg(unix)]
     #[test]
     fn each_home_has_its_own_owner_only_state_folder() {
         let parent = scratch("own");
@@ -116,6 +115,7 @@ mod tests {
         let _ = fs::remove_dir_all(&parent);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_linked_or_foreign_state_folder_is_refused() {
         let parent = scratch("refused");

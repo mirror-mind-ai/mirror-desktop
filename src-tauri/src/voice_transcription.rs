@@ -503,15 +503,8 @@ fn install_verified_files(
     result
 }
 
-#[cfg(unix)]
 fn mark_executable(path: &Path) -> Result<(), String> {
-    use std::os::unix::fs::PermissionsExt;
-    fs::set_permissions(path, fs::Permissions::from_mode(0o755)).map_err(|_| "voice_component_unavailable".to_string())
-}
-
-#[cfg(not(unix))]
-fn mark_executable(_path: &Path) -> Result<(), String> {
-    Ok(())
+    crate::platform::mark_executable(path).map_err(|_| "voice_component_unavailable".to_string())
 }
 
 fn now_iso() -> String {

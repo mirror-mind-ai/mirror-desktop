@@ -17,7 +17,6 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
-use std::os::unix::fs::DirBuilderExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -123,9 +122,7 @@ fn private_root(root: &Path) -> Result<(), String> {
     match std::fs::symlink_metadata(root) {
         Ok(metadata) if metadata.is_dir() => Ok(()),
         Ok(_) => Err(format!("{} is not a folder Nautilus made.", root.display())),
-        Err(_) => std::fs::DirBuilder::new()
-            .mode(0o700)
-            .create(root)
+        Err(_) => crate::platform::create_private_dir(root)
             .map_err(|error| format!("Could not create {}: {error}", root.display())),
     }
 }
@@ -276,8 +273,11 @@ pub(crate) async fn install_anthropic_provider(app: AppHandle) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pi_toolchain::tests::{installed, LOCK};
+    use crate::pi_toolchain::tests::LOCK;
+    #[cfg(unix)]
+    use crate::pi_toolchain::tests::installed;
     use std::fs;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
 
@@ -285,6 +285,7 @@ mod tests {
 
     /// A runtime whose `node` is a shell script playing the installer: it prints `lines`, and on
     /// success lays out the install the toolchain test builds.
+    #[cfg(unix)]
     fn runtime_playing(label: &str, lines: &str, exit: i32) -> (PathBuf, PathBuf, PathBuf) {
         let (base, runtime, app_data) = installed(label);
         let done = app_data.join("pi");
@@ -311,6 +312,7 @@ mod tests {
         (base, runtime, app_data)
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_finished_install_reports_its_progress_and_resolves() {
         let lines = [
@@ -339,6 +341,7 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_stopped_install_says_what_to_do() {
         let (base, runtime, app_data) = runtime_playing("stopped", r#"{"event":"failed","reason":"download_failed","message":"HTTP 503"}"#, 1);
@@ -361,6 +364,7 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn an_installer_or_lockfile_the_receipt_does_not_name_is_not_run() {
         for file in ["pi-install.mjs", "pi/package-lock.json"] {
@@ -397,6 +401,7 @@ mod tests {
 
     /// CR173: a runtime pinning the Anthropic provider, whose `node` plays the installer: it
     /// records its arguments, prints `lines`, and on success lays out a finished install.
+    #[cfg(unix)]
     fn anthropic_runtime_playing(label: &str, lines: &str, exit: i32) -> (PathBuf, PathBuf, PathBuf) {
         let (base, runtime, app_data) = crate::anthropic_provider::tests::installed(label);
         fs::rename(app_data.join("anthropic"), base.join("finished-install")).unwrap();
@@ -424,6 +429,7 @@ mod tests {
         (base, runtime, app_data)
     }
 
+    #[cfg(unix)]
     #[test]
     fn the_anthropic_provider_is_installed_from_the_runtimes_pin() {
         let lines = [
@@ -457,6 +463,7 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_stopped_anthropic_install_says_what_to_do_in_its_own_words() {
         let (base, runtime, app_data) = anthropic_runtime_playing("anthropic-stopped", r#"{"event":"failed","reason":"platform_unsupported"}"#, 1);
@@ -465,6 +472,7 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn an_anthropic_installer_lockfile_or_source_the_runtime_does_not_hold_is_not_run() {
         for (file, change) in [("pi-install.mjs", Some("changed")), ("anthropic/package-lock.json", Some("changed")), ("anthropic/provider/src/index.ts", None)] {

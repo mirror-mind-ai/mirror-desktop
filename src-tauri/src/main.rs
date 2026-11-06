@@ -14,6 +14,7 @@ mod pi_global_extensions;
 mod mirror_context;
 mod mirror_learning;
 mod openrouter_key;
+mod platform;
 mod pi_auth;
 mod pi_install;
 mod pi_process_registry;
@@ -6433,14 +6434,10 @@ fn write_mirror_append_outbox(path: &Path, mut value: Value) -> Result<(), Strin
     }
     let staged = path.with_extension("json.tmp");
     fs::write(&staged, payload).map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
-    fs::File::open(&staged)
-        .and_then(|file| file.sync_all())
-        .map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
+    crate::platform::sync_file(&staged).map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
     fs::rename(&staged, path).map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
     if let Some(parent) = path.parent() {
-        fs::File::open(parent)
-            .and_then(|directory| directory.sync_all())
-            .map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
+        crate::platform::sync_directory(parent).map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
     }
     Ok(())
 }
@@ -9750,7 +9747,7 @@ fn write_durable_projection_at(path: &Path, payload: &[u8], staged_nonce: u64) -
         file.write_all(payload).map_err(|_| "dedicated_projection_unavailable".to_string())?;
         file.sync_all().map_err(|_| "dedicated_projection_unavailable".to_string())?;
         fs::rename(&staged, path).map_err(|_| "dedicated_projection_unavailable".to_string())?;
-        fs::File::open(parent).and_then(|directory| directory.sync_all())
+        crate::platform::sync_directory(parent)
             .map_err(|_| "dedicated_projection_unavailable".to_string())
     })();
     if result.is_err() && staged.is_file() { let _ = fs::remove_file(staged); }

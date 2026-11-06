@@ -485,10 +485,12 @@ done"#
         }
     }
 
+    #[cfg(unix)]
     fn alive(pid: i32) -> bool {
         unsafe { libc::kill(pid, 0) == 0 }
     }
 
+    #[cfg(unix)]
     fn gone_within(pid: i32, within: Duration) -> bool {
         let started = Instant::now();
         while started.elapsed() < within {
@@ -539,6 +541,7 @@ done"#
         assert_eq!(host.starts(), 1);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_hung_request_kills_the_host_group_at_its_deadline_and_the_next_request_restarts() {
         let directory = scratch("hang");
@@ -643,6 +646,7 @@ done"#
         MirrorHost::new(settings).request("ping", serde_json::json!({})).unwrap_err()
     }
 
+    #[cfg(unix)]
     #[test]
     fn dropping_the_supervisor_kills_its_host() {
         let directory = scratch("drop");

@@ -93,8 +93,7 @@ pub(crate) fn context_file_in(dir: &Path) -> PathBuf {
 }
 
 fn write_owner_only(path: &Path, text: &str) -> std::io::Result<()> {
-    use std::os::unix::fs::OpenOptionsExt;
-    let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?;
+    let mut file = crate::platform::create_private_file(path)?;
     file.write_all(text.as_bytes())?;
     file.sync_all()
 }
@@ -150,12 +149,11 @@ pub(crate) fn prepare_in(
 }
 
 fn set_owner_only_dir(dir: &Path) -> Result<(), String> {
-    use std::os::unix::fs::PermissionsExt;
     let metadata = std::fs::symlink_metadata(dir).map_err(|error| error.to_string())?;
     if !metadata.is_dir() {
         return Err("it is not a folder".to_string());
     }
-    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700)).map_err(|error| error.to_string())
+    crate::platform::set_private_dir(dir).map_err(|error| error.to_string())
 }
 
 /// The compaction marker the extension leaves beside a turn's file.
@@ -235,6 +233,7 @@ pub(crate) fn forget(app: &AppHandle, session_id: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
     fn scratch(label: &str) -> PathBuf {
@@ -244,6 +243,7 @@ mod tests {
         path
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_block_is_written_owner_only_in_an_owner_only_folder_and_the_key_goes_to_the_host() {
         let dir = scratch("block").join(CONTEXT_DIR);
@@ -327,6 +327,7 @@ mod tests {
         assert!(!huge.file.unwrap().exists());
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_folder_that_is_a_link_or_a_file_is_refused() {
         let base = scratch("folder");

@@ -136,6 +136,7 @@ pub(crate) mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn anything_but_the_pinned_install_is_not_installed() {
         let (base, runtime, app_data) = installed("refused");

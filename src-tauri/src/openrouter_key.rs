@@ -261,14 +261,13 @@ impl KeyStore for KeyFile {
 
     fn write(&self, key: &str) -> Result<(), String> {
         use std::io::Write;
-        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
         let temporary = self.path.with_extension("secret.tmp");
         let _ = std::fs::remove_file(&temporary);
         let written = (|| {
-            let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&temporary)?;
+            let mut file = crate::platform::create_private_file(&temporary)?;
             file.write_all(key.as_bytes())?;
             file.sync_all()?;
-            std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o600))?;
+            crate::platform::set_private_file(&temporary)?;
             std::fs::rename(&temporary, &self.path)
         })();
         written.map_err(|error| {
@@ -530,8 +529,10 @@ mod tests {
         root
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_key_is_kept_in_a_file_only_its_owner_can_read() {
+        #[cfg(unix)]
         use std::os::unix::fs::PermissionsExt;
         let root = key_root("owner");
         let file = KeyFile::in_folder(&root);
