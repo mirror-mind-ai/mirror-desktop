@@ -124,6 +124,24 @@ pub(crate) fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
     path
 }
 
+/// A command that runs Pi's `cli.js`. On POSIX the file runs itself through its `#!/usr/bin/env
+/// node` line, and PATH, which the caller sets, names the carried Node. Windows has no shebang:
+/// `CreateProcess` refuses a `.js` file (EFTYPE), so the carried Node runs it, and the file is the
+/// first argument. Callers add their own arguments after.
+pub(crate) fn pi_command(pi_bin: &Path, node_bin: &Path) -> std::process::Command {
+    #[cfg(windows)]
+    {
+        let mut command = std::process::Command::new(node_bin);
+        command.arg(pi_bin);
+        command
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = node_bin;
+        std::process::Command::new(pi_bin)
+    }
+}
+
 /// Name `home` as the child's home directory. `HOME` is what Node reads on POSIX; on Windows it
 /// reads `USERPROFILE` and, finding neither, asks the OS for the account's real profile, so a
 /// scratch home named only through `HOME` would silently be the person's own `~/.pi`.

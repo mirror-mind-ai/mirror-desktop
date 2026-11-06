@@ -7847,7 +7847,7 @@ fn acknowledge_mirror_append_item(
 ///
 /// CR176: it runs in `workspace`, the Journey's folder, never in the home: Pi's tools act there.
 fn pi_turn_command(program: &str, args: Vec<String>, profile: &RuntimeChannelProfile, workspace: &Path) -> Command {
-    let mut command = if program == "pi" { Command::new(&profile.pi_bin) } else { Command::new(program) };
+    let mut command = if program == "pi" { crate::platform::pi_command(&profile.pi_bin, &profile.node_bin) } else { Command::new(program) };
     command.args(args);
     let mut command = isolate_pi_command(command, profile);
     command.current_dir(workspace);
@@ -15835,7 +15835,15 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         // Slice 3b: `pi` is the profile's Pi, the app's own; safe test mode's `cat` stays itself.
         let workspace = directory.join("projects/book");
         fs::create_dir_all(&workspace).unwrap();
-        assert_eq!(pi_turn_command("pi", Vec::new(), &profile, &workspace).get_program(), profile.pi_bin.as_os_str());
+        let pi = pi_turn_command("pi", Vec::new(), &profile, &workspace);
+        #[cfg(not(windows))]
+        assert_eq!(pi.get_program(), profile.pi_bin.as_os_str());
+        // On Windows the carried Node runs cli.js (`platform::pi_command`).
+        #[cfg(windows)]
+        {
+            assert_eq!(pi.get_program(), profile.node_bin.as_os_str());
+            assert_eq!(pi.get_args().next(), Some(profile.pi_bin.as_os_str()));
+        }
         assert_eq!(pi_turn_command("cat", Vec::new(), &profile, &workspace).get_program(), "cat");
         fs::create_dir_all(&profile.mirror_home).unwrap();
         // CR176: the process runs in the Journey's folder, never in the home.

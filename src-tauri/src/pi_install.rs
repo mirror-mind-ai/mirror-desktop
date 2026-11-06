@@ -505,7 +505,7 @@ mod tests {
         run_install(&app_data, &runtime, |step| last = Some(step)).unwrap();
         assert_eq!(last, Some(PiInstallProgress { phase: "check", done: 1, total: 1 }));
         let pi = resolve_app_pi(&app_data, &runtime).unwrap();
-        let mut version = Command::new(&pi.pi_bin);
+        let mut version = crate::platform::pi_command(&pi.pi_bin, &pi.node_bin);
         version.arg("--version").env_clear().env("PATH", pi.node_bin.parent().unwrap());
         crate::platform::home_environment(&mut version, &app_data);
         crate::platform::system_environment(&mut version);

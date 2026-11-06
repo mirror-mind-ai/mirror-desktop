@@ -22,7 +22,7 @@ pub struct RuntimeChannelProfile {
     pub mirror_user: String,
     pub db_path: PathBuf,
     pub(crate) pi_bin: PathBuf,
-    node_bin: PathBuf,
+    pub(crate) node_bin: PathBuf,
     pi_runtime_directory: PathBuf,
     home: PathBuf,
     /// CR173: the app's own Anthropic provider's Pi extension, when it is installed.
@@ -410,7 +410,7 @@ impl RuntimeChannelProfile {
                 "Runtime channel rejects unsupported program {program}."
             ));
         }
-        let mut command = Command::new(&self.pi_bin);
+        let mut command = crate::platform::pi_command(&self.pi_bin, &self.node_bin);
         self.apply_to_command(&mut command);
         Ok(command)
     }
