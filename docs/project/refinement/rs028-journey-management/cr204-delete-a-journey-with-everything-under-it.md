@@ -115,3 +115,10 @@ Core CR200 was published as the release train's first preview, `mirror-mind@0.40
 (Core PR #57, `cc75c60f`, under npm's `next`; `latest` and `stable` stay `0.39.5`), and the app pins
 it by release in `3a027684`. The runtime was rematerialized; the suites and the real-host tests,
 Journey administration included, pass against it. The CR ships with the next Nautilus release.
+
+## In Production (2026-11-06)
+
+Shipped in v0.4.0-alpha.4. Production runs it, and the first real deletion, of the Journey `nova`,
+completed at 17:25Z: Mirror kept `backups/pre-journey-deletion-journey-nova-20261106T172532Z-…db`, and
+Nautilus moved its six kinds of files aside into `deleted-journeys/20261106T172533Z-journey-nova/`.
+The dialog's list was pale on a light theme and the Journey's name easy to miss; captured as CR205.

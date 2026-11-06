@@ -5,7 +5,7 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | RS028, depois RS027 |
-| **RS028 · Journey Management** | ✅ grupos A a D na alpha.4 · 1 🟡 (CR205) |
+| **RS028 · Journey Management** | ✅ grupos A a D em produção (alpha.4) · 1 🟡 (CR205) |
 | ↳　D · CR204 · Delete a Journey With Everything Under It | ✅ done · Core `0.40.0-next.1` fixado |
 | ↳　D · CR205 · Make the Deletion List Legible and Name the Journey in the Title | 🟡 captured · cor fixa `#b9cbd0` nos temas claros |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🟡 |
