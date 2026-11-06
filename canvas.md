@@ -5,8 +5,9 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | RS028, depois RS027 |
-| **RS028 · Journey Management** | ✅ grupos A a D validados · Core `0.40.0-next.1` publicado e fixado no app |
+| **RS028 · Journey Management** | ✅ grupos A a D na alpha.4 · 1 🟡 (CR205) |
 | ↳　D · CR204 · Delete a Journey With Everything Under It | ✅ done · Core `0.40.0-next.1` fixado |
+| ↳　D · CR205 · Make the Deletion List Legible and Name the Journey in the Title | 🟡 captured · cor fixa `#b9cbd0` nos temas claros |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🟡 |
 | ↳　CR196 · Render a Table Whose First Header Cell Is Empty | 🟡 captured · causa achada: célula vazia no cabeçalho |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
