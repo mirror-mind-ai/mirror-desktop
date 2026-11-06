@@ -4,7 +4,7 @@
 
 **Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** `main` (`5b9151ec`), RS028 group B
+**Delivery:** `main` (`5b9151ec`, `cd1a17c6`), RS028 group B
 **Group:** B, where the agent works
 
 ## Friction
@@ -56,3 +56,19 @@ On `main` in `5b9151ec`; the Group B Check is owed.
   tree) and when a turn ends, never while a turn streams.
 - **Decision:** the line says nothing at all until the folder is known, rather than showing a guess.
   CR197 exists because a folder nobody had shown the Navigator was trusted.
+
+## Widened by the Navigator (2026-11-06): the folder opens in Finder
+
+The path in the line is a button that opens the folder in the system file manager.
+
+- Only the path is the target; "Working in" is not clickable.
+- The click sends the Journey id, never a path, so `open_journey_workspace` resolves the folder
+  through `resolved_journey_workspace` exactly as the turn and the line do. A renderer cannot ask it
+  to open any other folder.
+- The folder is **opened**, not revealed in its parent: the Navigator asked for the folder.
+- `~/Mirror Journeys/<id>` is created by the turn that uses it, and a preview creates nothing, so the
+  line can name a folder that does not exist. A click there answers "… does not exist yet. It is
+  made when a turn runs there." rather than spawning Finder at nothing.
+- It is offered on a fallback too, because that folder is the one the turn is using.
+- Four mutations caught: opening a file as a folder, spawning at a missing folder, creating the
+  folder on a click, and revealing instead of opening.

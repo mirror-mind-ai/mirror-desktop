@@ -76,6 +76,8 @@ CR202 and CR197, in the development app bound to `ensaio-5c-2`:
    Journey tree. Send a turn. It runs in the new folder, and the line shows it: the app asked Mirror
    rather than trusting its cache. (CR197)
 5. Ask the agent `pwd` in that Journey. The answer is the folder the line shows. (CR202)
+6. Click the path. The folder opens in Finder. In a Journey that has never had a turn and has no
+   project path, the click says the folder does not exist yet instead of doing nothing. (CR202)
 
 ## Order
 
