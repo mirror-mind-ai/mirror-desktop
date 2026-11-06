@@ -20,8 +20,14 @@
   },
   "bundle": {
     "icon": [
-      "icons/dev/icon.png"
+      "icons/dev/icon.png",
+      "icons/dev/icon.ico"
     ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/dev/icon.ico"
+      }
+    },
     "macOS": {
       "bundleName": "Nautilus Dev"
     }
