@@ -233,6 +233,92 @@ export function filterCollapsedJourneyTree<T extends FlattenedJourney>(
   return visible;
 }
 
+/**
+ * CR199: the statuses that leave the tree by default. Anything else counts as active, including a
+ * missing status and one Mirror does not know (written by hand), so no Journey disappears by accident.
+ */
+export const INACTIVE_JOURNEY_STATUSES = ["completed", "paused", "planned"] as const;
+
+export function isInactiveJourney(journey: { status?: string }): boolean {
+  const status = (journey.status ?? "").trim().toLowerCase();
+  return (INACTIVE_JOURNEY_STATUSES as readonly string[]).includes(status);
+}
+
+export type InactiveFilteredJourney<T> = T & {
+  /** Shown only to hold a visible descendant, or kept because it is selected, while inactive. */
+  dimmed: boolean;
+  /** Whether a child of this Journey is also shown, so the disclosure toggle follows the filter. */
+  hasVisibleChildren: boolean;
+};
+
+/**
+ * CR199: the tree without inactive Journeys. An inactive Journey stays when it is kept (the
+ * selection) or when a shown Journey sits below it, so a child is never orphaned on screen; it then
+ * reads as dimmed. `children` is left as the registry has it, because a drop appends after the real
+ * last child. Expects the depth-first order `flattenJourneyRegistry` produces.
+ */
+export function filterInactiveJourneyTree<T extends FlattenedJourney>(
+  journeys: T[],
+  keepVisibleIds: ReadonlySet<string>,
+): Array<InactiveFilteredJourney<T>> & { hiddenCount: number } {
+  const shown = new Array<boolean>(journeys.length).fill(false);
+  const visibleChild = new Array<boolean>(journeys.length).fill(false);
+  // Walking backwards, everything met since the last Journey at depth <= d belongs below it.
+  // `shownAtOrBelow[k]` says whether a shown Journey at depth >= k has been met in that stretch.
+  const shownAtOrBelow: boolean[] = [];
+  for (let index = journeys.length - 1; index >= 0; index -= 1) {
+    const journey = journeys[index];
+    const depth = journey.depth;
+    const descendantShown = shownAtOrBelow[depth + 1] ?? false;
+    shownAtOrBelow.length = depth + 1;
+    shown[index] = descendantShown || keepVisibleIds.has(journey.id) || !isInactiveJourney(journey);
+    visibleChild[index] = descendantShown;
+    if (shown[index]) {
+      for (let level = 0; level <= depth; level += 1) shownAtOrBelow[level] = true;
+    }
+  }
+  const visible = journeys.flatMap((journey, index) => (shown[index]
+    ? [{ ...journey, dimmed: isInactiveJourney(journey), hasVisibleChildren: visibleChild[index] }]
+    : []));
+  return Object.assign(visible, { hiddenCount: journeys.length - visible.length });
+}
+
+/**
+ * CR200: every branch closed at once, except the ancestors of `keepOpenFor`, so the selected
+ * Journey stays on screen. The selected Journey's own children close like any other.
+ */
+export function collapseAllJourneyIds(journeys: FlattenedJourney[], keepOpenFor?: string): Set<string> {
+  const ancestors = new Set<string>();
+  const path: string[] = [];
+  for (const journey of journeys) {
+    path.length = journey.depth;
+    if (journey.id === keepOpenFor) path.forEach((id) => ancestors.add(id));
+    path.push(journey.id);
+  }
+  return new Set(journeys.filter((journey) => (journey.children?.length ?? 0) > 0 && !ancestors.has(journey.id)).map((journey) => journey.id));
+}
+
+/**
+ * CR201: a tree item's tooltip. The first line is the name and agent state as before; the second is
+ * always the Journey's folder, abbreviated to the home, or a sentence saying there is none.
+ */
+export function journeyItemTitle(
+  journey: { name: string; projectPath?: string },
+  stateDescription: string,
+  homeDirectory: string | undefined,
+): string {
+  const first = `${journey.name}${stateDescription ? ` — ${stateDescription}` : ""}`;
+  const folder = journey.projectPath?.trim();
+  return `${first}\n${folder ? abbreviateHomePath(folder, homeDirectory) : "No folder set"}`;
+}
+
+export function abbreviateHomePath(path: string, homeDirectory: string | undefined): string {
+  const home = homeDirectory?.replace(/\/+$/, "");
+  if (!home) return path;
+  if (path === home) return "~";
+  return path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
+}
+
 export function orderSearchResults(
   journeys: FlattenedJourney[],
   preferences: JourneyPreferences,

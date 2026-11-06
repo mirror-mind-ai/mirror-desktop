@@ -153,6 +153,9 @@ describe("Journey preference persistence", () => {
       turnCompletionToneId: "chime",
       // CV-012.DS-001: absent in the input, so both extensions stay off.
       extensions: { agentField: false, agentCanvas: false },
+      // CR199 and CR200: absent in the input, so the tree hides inactive Journeys and nothing is closed.
+      collapsedJourneyIds: [],
+      hideInactiveJourneys: true,
       lastWorkedAtByJourneyId: { amplia: "2026-08-23T09:00:00.000Z" },
       applicationTheme: "ember",
       journeyAppearanceById: { amplia: { kind: "system", icon: "book" } },

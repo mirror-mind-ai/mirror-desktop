@@ -81,7 +81,9 @@ describe("collapsed sidebar polish", () => {
   it("preserves labels and discoverability while visible copy is absent", () => {
     expect(appSource).toContain("const journeyStateDescription = [");
     expect(appSource).toContain("journey.pinned ? \"Pinned\" : undefined");
-    expect(appSource).toContain('title={`${journey.name}${journeyStateDescription ? ` — ${journeyStateDescription}` : ""}`}');
+    // CR201: the tooltip's first line is still the name and state; the folder follows it
+    // (rs028GroupATreeReading.test.ts proves the text).
+    expect(appSource).toContain("title={journeyItemTitle(journey, journeyStateDescription, homeDirectory)}");
     expect(appSource).toContain('aria-label={`${journey.name}${journeyStateDescription ? `, ${journeyStateDescription}` : ""}`}');
   });
 

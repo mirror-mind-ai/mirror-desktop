@@ -5,6 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import { homeDir } from "@tauri-apps/api/path";
 import { describeComposerModelSelection, visibleThinkingLabel } from "../agent/providerConfig";
 import { ambiguousBareModelNames, modelDisplayName } from "../domain/modelIdentity";
 import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamEvent, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
@@ -449,13 +450,17 @@ import {
   type MirrorAppendOutboxSummary,
 } from "./mirrorAppendOutboxStorage";
 import {
+  collapseAllJourneyIds,
   deriveOrderedSidebarJourneys,
   filterCollapsedJourneyTree,
+  filterInactiveJourneyTree,
   findJourneyById,
+  isInactiveJourney,
   flattenJourneyRegistry,
   markJourneyRecent,
   orderPinnedJourneys,
   orderSearchResults,
+  journeyItemTitle,
   reconcileReloadedJourneyState,
   searchJourneyRegistry,
   type JourneyListOrder,
@@ -705,6 +710,11 @@ export function App({ model }: AppProps) {
   const [userAvatarMessage, setUserAvatarMessage] = useState<string>();
   const [relativeTimeNow, setRelativeTimeNow] = useState(() => Date.now());
   const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<Set<string>>(() => new Set());
+  // CR199: the tree leaves out completed, paused and planned Journeys unless the Navigator asks.
+  const [hideInactiveJourneys, setHideInactiveJourneys] = useState(defaultJourneyPreferenceState.hideInactiveJourneys ?? true);
+  // CR201: the home, to abbreviate a Journey's folder in its tooltip. Unknown until read; the
+  // tooltip shows the full path meanwhile.
+  const [homeDirectory, setHomeDirectory] = useState<string | undefined>(undefined);
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [journeyTreeMenuOpen, setJourneyTreeMenuOpen] = useState(false);
   const [journeyRegistryRefreshState, setJourneyRegistryRefreshState] = useState<"idle" | "refreshing" | "succeeded" | "failed">("idle");
@@ -1106,14 +1116,23 @@ export function App({ model }: AppProps) {
       })),
     [journeyPreferences, journeyListOrder, journeySearch, selectedJourney, journeyRegistry],
   );
+  // CR199: the tree as it reads without inactive Journeys. Computed even when they are shown, so
+  // the control can say how many it would hide. The selection is always kept on screen.
+  const activeJourneyTree = useMemo(
+    () => (journeyListOrder === "tree"
+      ? filterInactiveJourneyTree(sidebarJourneys, new Set(selectedJourney ? [selectedJourney] : []))
+      : undefined),
+    [journeyListOrder, selectedJourney, sidebarJourneys],
+  );
+  const treeToolsVisible = journeyListOrder === "tree" && !pinnedOnly && !journeySearch.trim();
   const visibleSidebarJourneys = useMemo(() => {
     const orderedJourneys = journeySearch.trim()
       ? searchResults
       : journeyListOrder === "tree"
-        ? filterCollapsedJourneyTree(sidebarJourneys, collapsedJourneyIds)
+        ? filterCollapsedJourneyTree(hideInactiveJourneys && activeJourneyTree ? activeJourneyTree : sidebarJourneys, collapsedJourneyIds)
         : sidebarJourneys;
     return pinnedOnly ? orderPinnedJourneys(orderedJourneys, journeyPreferences.pinnedJourneyIds) : orderedJourneys;
-  }, [collapsedJourneyIds, journeyListOrder, journeyPreferences.pinnedJourneyIds, journeySearch, pinnedOnly, searchResults, sidebarJourneys]);
+  }, [activeJourneyTree, collapsedJourneyIds, hideInactiveJourneys, journeyListOrder, journeyPreferences.pinnedJourneyIds, journeySearch, pinnedOnly, searchResults, sidebarJourneys]);
   /**
    * CR102: interruption and failure for the Journeys the sidebar is actually showing. The journal
    * is read rather than mirrored into new state, so the signal cannot drift from the authority that
@@ -2031,6 +2050,8 @@ export function App({ model }: AppProps) {
       setUserDisplayName(sanitizedPreferences.userDisplayName ?? "");
       setExtensions(sanitizedPreferences.extensions ?? { ...DEFAULT_APP_EXTENSIONS });
       dispatchConversationExpansion({ type: "restore", journeyIds: sanitizedPreferences.expandedConversationJourneyIds });
+      setCollapsedJourneyIds(new Set(sanitizedPreferences.collapsedJourneyIds ?? []));
+      setHideInactiveJourneys(sanitizedPreferences.hideInactiveJourneys ?? true);
       setHiddenConversations(sanitizedPreferences.hiddenConversationIdsByJourneyId);
       setLastConversationSelection(sanitizedPreferences.lastConversationSelectionByJourneyId);
       setLastWorkedAtByJourneyId(sanitizedPreferences.lastWorkedAtByJourneyId);
@@ -2705,8 +2726,18 @@ export function App({ model }: AppProps) {
       turnCompletionToneId,
       ...(normalizeDisplayName(userDisplayName) ? { userDisplayName: normalizeDisplayName(userDisplayName) } : {}),
       extensions,
+      collapsedJourneyIds: [...collapsedJourneyIds],
+      hideInactiveJourneys,
     });
-  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, turnCompletionSound, turnCompletionToneId, userDisplayName, extensions, registryLoaded, preferencesLoaded]);
+  }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, turnCompletionSound, turnCompletionToneId, userDisplayName, extensions, collapsedJourneyIds, hideInactiveJourneys, registryLoaded, preferencesLoaded]);
+
+  useEffect(() => {
+    let cancelled = false;
+    homeDir()
+      .then((directory) => { if (!cancelled && typeof directory === "string" && directory.trim()) setHomeDirectory(directory); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   // CR133: disclosures restored from the preference file load their catalogs one after
   // another. Reopening with many groups expanded must not start many catalog subprocesses
@@ -5210,6 +5241,15 @@ export function App({ model }: AppProps) {
     }
   }
 
+  /** CR200: every branch closed at once, keeping the path to the selected Journey open. */
+  function collapseAllJourneys() {
+    setCollapsedJourneyIds(collapseAllJourneyIds(sidebarJourneys, selectedJourney));
+  }
+
+  function expandAllJourneys() {
+    setCollapsedJourneyIds(new Set());
+  }
+
   function toggleCollapsedJourney(journeyId: string) {
     setCollapsedJourneyIds((current) => {
       const next = new Set(current);
@@ -6302,6 +6342,27 @@ export function App({ model }: AppProps) {
             </div>
           ) : null}
         </div>
+        {treeToolsVisible ? (
+          <div className="journey-tree-tools" role="group" aria-label="Journey tree tools">
+            <button type="button" onClick={collapseAllJourneys} title="Collapse all">
+              <span aria-hidden="true">⊟</span> Collapse all
+            </button>
+            <button type="button" onClick={expandAllJourneys} title="Expand all">
+              <span aria-hidden="true">⊞</span> Expand all
+            </button>
+            {(activeJourneyTree?.hiddenCount ?? 0) > 0 || !hideInactiveJourneys ? (
+              <button
+                type="button"
+                className="journey-tree-inactive-toggle"
+                aria-pressed={!hideInactiveJourneys}
+                onClick={() => setHideInactiveJourneys((current) => !current)}
+                title={hideInactiveJourneys ? "Show completed, paused and planned Journeys" : "Hide completed, paused and planned Journeys"}
+              >
+                {hideInactiveJourneys ? `Show ${activeJourneyTree?.hiddenCount ?? 0} inactive` : "Hide inactive"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {journeyRegistryRefreshMessage ? (
           <p className={`journey-tree-refresh-status ${journeyRegistryRefreshState}`} role="status">
             {journeyRegistryRefreshMessage}
@@ -6332,7 +6393,11 @@ export function App({ model }: AppProps) {
           {visibleSidebarJourneys.map((journey) => {
             const visual = journeyVisual(journey.id);
             const appearance = journeyAppearanceById[journey.id];
-            const hasChildren = (journey.children?.length ?? 0) > 0;
+            // CR199: with inactive Journeys out of the tree, a Journey whose children are all hidden
+            // has nothing to disclose; `dimmed` marks an inactive one shown to hold a child.
+            const treeFilter = "hasVisibleChildren" in journey ? journey as { hasVisibleChildren: boolean } : undefined;
+            const hasChildren = treeFilter ? treeFilter.hasVisibleChildren : (journey.children?.length ?? 0) > 0;
+            const journeyDimmed = journeyListOrder === "tree" && isInactiveJourney(journey);
             const collapsed = collapsedJourneyIds.has(journey.id);
             const journeyRuntimePhase = selectJourneyRuntimeOwnerPhase(journeyRuntimeState, journey.id);
             const journeyWork = deriveJourneyWorkLocus({
@@ -6361,11 +6426,11 @@ export function App({ model }: AppProps) {
             return (
               <Fragment key={journey.id}>
               <div
-                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${appearance?.kind === "custom" ? "has-custom-appearance" : ""} ${journey.id === selectedJourney ? "selected" : ""} ${journey.pinned ? "is-pinned" : ""} ${conversationsExpanded ? "conversations-expanded" : ""}`}
+                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${appearance?.kind === "custom" ? "has-custom-appearance" : ""} ${journey.id === selectedJourney ? "selected" : ""} ${journey.pinned ? "is-pinned" : ""} ${conversationsExpanded ? "conversations-expanded" : ""} ${journeyDimmed ? "is-inactive" : ""}`}
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
                 tabIndex={0}
-                title={`${journey.name}${journeyStateDescription ? ` — ${journeyStateDescription}` : ""}`}
+                title={journeyItemTitle(journey, journeyStateDescription, homeDirectory)}
                 aria-label={`${journey.name}${journeyStateDescription ? `, ${journeyStateDescription}` : ""}`}
                 aria-haspopup="menu"
                 aria-expanded={journeyItemMenu?.journeyId === journey.id}

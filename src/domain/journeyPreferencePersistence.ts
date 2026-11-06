@@ -67,6 +67,11 @@ export type PersistedJourneyPreferences = {
     userDisplayName?: string;
     // CV-012.DS-001: the extensions the person turned on in Settings › Extensions; both off by default.
     extensions?: AppExtensions;
+    // CR200: which tree branches the Navigator closed. Before this they lived only in memory, so a
+    // restart reopened every branch; Collapse all is only worth having if it survives one.
+    collapsedJourneyIds?: string[];
+    // CR199: whether the tree leaves out completed, paused and planned Journeys. On by default.
+    hideInactiveJourneys?: boolean;
   };
   savedAt: string;
 };
@@ -93,6 +98,8 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   turnCompletionSound: true,
   turnCompletionToneId: DEFAULT_TURN_COMPLETION_TONE_ID,
   extensions: { ...DEFAULT_APP_EXTENSIONS },
+  collapsedJourneyIds: [],
+  hideInactiveJourneys: true,
 };
 
 export function createPersistedJourneyPreferences(
@@ -159,6 +166,12 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
     ?? defaultJourneyPreferenceState.turnCompletionToneId;
   // CR190 takes the same departure: a bad name falls back to the home's user and costs nothing else.
   const userDisplayName = normalizeDisplayName(preferences.userDisplayName);
+  // CR199 and CR200 take CR133's departure: tree presentation must never cost the pins or theme, so
+  // a bad value degrades to the default on its own.
+  const collapsedJourneyIds = parseStringArray(preferences.collapsedJourneyIds) ?? [];
+  const hideInactiveJourneys = typeof preferences.hideInactiveJourneys === "boolean"
+    ? preferences.hideInactiveJourneys
+    : defaultJourneyPreferenceState.hideInactiveJourneys;
   const voiceLanguage = preferences.voiceLanguage === undefined
     ? defaultVoiceLanguage
     : parseVoiceLanguage(preferences.voiceLanguage);
@@ -196,6 +209,8 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       ...(userDisplayName ? { userDisplayName } : {}),
       // CV-012.DS-001 takes CR133's departure: a bad value turns the extensions off and costs nothing else.
       extensions: parseAppExtensions(preferences.extensions),
+      collapsedJourneyIds,
+      hideInactiveJourneys,
     },
     savedAt: record.savedAt,
   };
@@ -232,6 +247,8 @@ export function sanitizeJourneyPreferenceState(
     turnCompletionToneId: preferences.turnCompletionToneId,
     ...(preferences.userDisplayName ? { userDisplayName: preferences.userDisplayName } : {}),
     extensions: parseAppExtensions(preferences.extensions),
+    collapsedJourneyIds: uniqueExistingJourneyIds(preferences.collapsedJourneyIds ?? [], registry),
+    hideInactiveJourneys: preferences.hideInactiveJourneys ?? defaultJourneyPreferenceState.hideInactiveJourneys,
   };
 }
 

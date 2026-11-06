@@ -947,6 +947,31 @@ textarea {
   .journey-admin-dialog .settings-grid.two-column { grid-template-columns: 1fr; }
 }
 
+/* RS028 group A: Collapse all, Expand all and the inactive filter, under the view switch. */
+.journey-tree-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: -6px 2px 10px;
+}
+
+.journey-tree-tools button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  color: #849399;
+  cursor: pointer;
+  font-size: 0.68rem;
+  padding: 3px 7px;
+}
+
+.journey-tree-tools button:hover { color: #d5e3e7; border-color: rgba(255, 255, 255, 0.16); }
+.journey-tree-tools .journey-tree-inactive-toggle { margin-left: auto; }
+.journey-tree-tools .journey-tree-inactive-toggle[aria-pressed="true"] { color: #d5e3e7; }
+
+/* CR199: an inactive Journey shown in the tree, to hold an active child or because it is selected. */
+.journey-item.tree-node.is-inactive:not(.selected) .journey-copy { opacity: 0.55; }
+
 .journey-tree-refresh-status {
   color: #8fa3a8;
   font-size: 0.7rem;
@@ -5359,6 +5384,7 @@ dd {
 .sidebar-compact .journey-tree-toggle,
 .sidebar-compact .journey-tree-toggle-placeholder,
 .sidebar-compact .journey-tree-refresh-status,
+.sidebar-compact .journey-tree-tools,
 .sidebar-compact .journey-empty-state,
 .sidebar-compact .journey-conversation-toggle,
 .sidebar-compact .focused-conversation-sidebar {
@@ -8011,6 +8037,16 @@ dd {
   .app-shell[data-application-theme="mist"],
   .app-shell[data-application-theme="parchment"]
 ) .message-file-item small {
+  color: var(--light-muted);
+}
+
+/* RS028 group A: the tree tools in the light themes. */
+:is(
+  .app-shell[data-application-theme="daylight"],
+  .app-shell[data-application-theme="mist"],
+  .app-shell[data-application-theme="parchment"]
+) .journey-tree-tools button {
+  border-color: var(--light-border);
   color: var(--light-muted);
 }
 
