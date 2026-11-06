@@ -5,8 +5,8 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | RS028, depois RS027 |
-| **RS028 · Journey Management** | 🔄 ativa · 4 🟡 · grupos A e B validados · grupo C em curso |
-| ↳　C · CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · ampliada: nenhuma operação da árvore barrada por turno |
+| **RS028 · Journey Management** | 🔄 ativa · 1 🔵 · 3 🟡 · grupos A e B validados · grupo C em curso |
+| ↳　C · CR099 · Allow Safe Editing During Another Journey's Work | 🔵 in_progress · no `main` · censo entregue · falta a checagem |
 | ↳　C · CR203 · Reparent a Journey by Dragging It | 🟡 captured · absorve a CR098 |
 | ↳　D · CR204 · Delete a Journey With Everything Under It | 🟡 captured · precisa do Core e de decisões |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🟡 |

@@ -28,7 +28,7 @@ Related, already done: [CR100](../rs021-ux-pre-beta-evolution/cr100-make-journey
 | [CR201: Show a Journey's Folder in Its Tooltip](cr201-show-a-journeys-folder-in-its-tooltip.md) | A | done | validated 2026-11-05; always shown |
 | [CR202: Say Which Folder the Agent Is Working In](cr202-say-which-folder-the-agent-is-working-in.md) | B | done | validated 2026-11-06 |
 | [CR197: A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word](../rs026-after-the-0-3-cutover/cr197-a-moved-journey-folder-sends-the-turn-to-the-neutral-folder-without-a-word.md) | B | done | owned by RS026, delivered and validated here |
-| [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md) | C | captured | widened 2026-11-05 to every tree operation |
+| [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md) | C | in_progress | on `main`, census delivered, check owed |
 | [CR203: Reparent a Journey by Dragging It](cr203-reparent-a-journey-by-dragging-it.md) | C | captured | drag exists but is gated and crude |
 | [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md) | C | captured | absorbed by CR203 |
 | [CR204: Delete a Journey With Everything Under It](cr204-delete-a-journey-with-everything-under-it.md) | D | captured | needs a Core call; decided: records and optional folder go, children refuse |
@@ -79,9 +79,24 @@ CR202 and CR197, in the development app bound to `ensaio-5c-2`:
 6. Click the path. The folder opens in Finder. In a Journey that has never had a turn and has no
    project path, the click says the folder does not exist yet instead of doing nothing. (CR202)
 
+## Group C Check, part one (CR099)
+
+In the development app bound to `ensaio-5c-2`, with a long turn running in one Journey:
+
+1. While it streams, create, rename, move and repaint **another** Journey. All of it works.
+2. Rename and move the **running** Journey itself. Both work, and the turn keeps going.
+3. Drag a Journey onto another while the turn streams. The drag starts.
+4. Use Reload Journey tree while the turn streams. The tree reloads and the turn keeps going.
+5. Right-click the running Journey. Delete is disabled and says an agent is working in it.
+6. Right-click its parent. Delete is disabled and names the Journey that is working.
+7. Right-click an idle sibling with no children. Delete is available.
+8. Change the running Journey's project path. It saves, says the new folder applies to the next
+   turn, and the running turn stays where it started. CR202's line still shows the old folder until
+   the next turn.
+
 ## Order
 
-A, B, C, D, accepted by the Navigator on 2026-11-05. Group A and group B are done. Group C is next.
+A, B, C, D, accepted by the Navigator on 2026-11-05. Group A and group B are done. Group C has CR099 on `main` with its check owed; CR203 and CR098 follow.
 
 ## Finding, outside the Change Requests (2026-11-05)
 
