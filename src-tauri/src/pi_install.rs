@@ -138,14 +138,17 @@ fn run_installer(
     mut progress: impl FnMut(PiInstallProgress),
 ) -> Result<(), String> {
     let log = root.join("install.log");
-    let mut child = Command::new(crate::platform::runtime_node_bin(runtime_dir))
+    let mut command = Command::new(crate::platform::runtime_node_bin(runtime_dir));
+    command
         .arg(installer)
         .args(args)
         .env_clear()
         .current_dir(root)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    crate::platform::system_environment(&mut command);
+    let mut child = command
         .spawn()
         .map_err(|error| format!("Could not start the installer: {error}"))?;
     let mut stderr = child.stderr.take().expect("piped");

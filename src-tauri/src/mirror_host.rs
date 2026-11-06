@@ -328,6 +328,7 @@ impl MirrorHost {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        crate::platform::system_environment(&mut command);
         #[cfg(unix)]
         {
             use std::os::unix::process::CommandExt;

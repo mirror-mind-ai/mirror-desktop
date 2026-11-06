@@ -95,6 +95,26 @@ pub(crate) fn bundled_resources_dir(exe: &Path) -> Option<PathBuf> {
     }
 }
 
+/// What a child started with a cleared environment still needs from the
+/// operating system, nothing of the person's. On POSIX, nothing: the host and
+/// the installers run with no environment at all, by design. On Windows a
+/// process cannot start without `SYSTEMROOT`: Node's OpenSSL loads its
+/// cryptographic provider from there, and aborts in its own bootstrap
+/// (`Assertion failed: ncrypto::CSPRNG`) when the variable is missing.
+/// `SYSTEMDRIVE` is its companion for the same loader paths. Both name the
+/// Windows installation, never the user.
+pub(crate) fn system_environment(command: &mut std::process::Command) -> &mut std::process::Command {
+    #[cfg(windows)]
+    {
+        for name in ["SYSTEMROOT", "SYSTEMDRIVE"] {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
+    }
+    command
+}
+
 /// Create one directory nobody else can read: `0o700` on POSIX, the profile's
 /// own ACL on Windows. The parent must exist, as with `DirBuilder::create`.
 pub(crate) fn create_private_dir(path: &Path) -> io::Result<()> {
@@ -254,6 +274,25 @@ mod tests {
             assert_eq!(fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o600);
         }
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_cleared_environment_keeps_only_what_the_os_needs() {
+        let mut command = std::process::Command::new("anything");
+        command.env_clear();
+        system_environment(&mut command);
+        let names: Vec<String> = command
+            .get_envs()
+            .filter_map(|(name, value)| value.map(|_| name.to_string_lossy().to_uppercase()))
+            .collect();
+        #[cfg(windows)]
+        assert!(names.contains(&"SYSTEMROOT".to_string()), "Node cannot start on Windows without SYSTEMROOT: {names:?}");
+        #[cfg(not(windows))]
+        assert!(names.is_empty(), "POSIX children run with no environment at all: {names:?}");
+        // Never anything of the person's.
+        for name in &names {
+            assert!(!matches!(name.as_str(), "HOME" | "USERPROFILE" | "PATH" | "APPDATA" | "USERNAME"), "{name}");
+        }
     }
 
     #[test]

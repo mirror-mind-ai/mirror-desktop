@@ -120,6 +120,7 @@ pub(crate) fn helper_command(pi: &AppPi, script: &Path, home: &Path, cwd: &Path,
         .env("HOME", home)
         .env("PATH", pi.node_bin.parent().unwrap_or(Path::new("/usr/bin")))
         .current_dir(cwd);
+    crate::platform::system_environment(&mut command);
     command
 }
 
