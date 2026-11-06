@@ -4,7 +4,7 @@
 
 **Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** `main` (`5b9151ec`, `cd1a17c6`), RS028 group B
+**Delivery:** `main` (`5b9151ec`, `7f2fbefe`), RS028 group B
 **Group:** B, where the agent works
 
 ## Friction
