@@ -31,7 +31,7 @@ Related, already done: [CR100](../rs021-ux-pre-beta-evolution/cr100-make-journey
 | [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md) | C | done | validated 2026-11-06 |
 | [CR203: Reparent a Journey by Dragging It](cr203-reparent-a-journey-by-dragging-it.md) | C | done | validated 2026-11-06, after five field reports |
 | [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md) | C | done | absorbed by CR203; the Move form's parent list fixed |
-| [CR204: Delete a Journey With Everything Under It](cr204-delete-a-journey-with-everything-under-it.md) | D | captured | needs a Core call; decided: records and optional folder go, children refuse |
+| [CR204: Delete a Journey With Everything Under It](cr204-delete-a-journey-with-everything-under-it.md) | D | in_progress | built with Core CR200 (a33a4575); awaiting the Group D check |
 
 ## Groups
 
@@ -115,9 +115,32 @@ In the development app bound to `ensaio-5c-2`, in Tree view:
 8. Open Move Journey on a Journey with children. Its own children are not offered as parents.
 9. With a turn running in another Journey, repeat step 1. The drag still works (CR099).
 
+## Group D Check (CR204)
+
+In the development app bound to `ensaio-5c-2` (`npm run tauri:dev`). Prepare a throwaway Journey
+`teste-exclusao` with one short conversation, and a folder `/private/tmp/teste-exclusao` holding a
+file or two, set as its project path.
+
+1. Right-click a Journey that has children. Delete is disabled and its tooltip names the children.
+2. Right-click `teste-exclusao`, Delete Journey. While Mirror answers, "Asking Mirror what this
+   Journey holds…"; then the list: what goes from Mirror (its conversation, messages, any memories),
+   Nautilus's files moved aside, and the folder box, off. The button reads "Delete Journey and N
+   records".
+3. With a turn running in `teste-exclusao`, open the same dialog. It refuses, saying an agent is
+   working, and the button stays disabled.
+4. Tick the box. A warning says the files are deleted, not moved to the Trash, and the folder stays.
+5. Confirm. The tree no longer shows the Journey. The status line under the tree names Mirror's
+   backup (`backups/pre-journey-deletion-…`), the `deleted-journeys` folder and how many items left
+   the project folder. `/private/tmp/teste-exclusao` exists and is empty.
+6. Restart the app. The Journey does not come back.
+7. Make a Journey whose project path is another Journey's folder, or a folder that holds one. Its box
+   is disabled and says why.
+8. Delete a Journey in which a memory of another Journey was made, if one exists: the list says that
+   memory is kept, and afterwards it is still there.
+
 ## Order
 
-A, B, C, D, accepted by the Navigator on 2026-11-05. Groups A, B and C are done (C validated 2026-11-06: CR099 and CR203 validated, CR098 absorbed). Group D (CR204) is next and needs a Core call.
+A, B, C, D, accepted by the Navigator on 2026-11-05. Groups A, B and C are done (C validated 2026-11-06: CR099 and CR203 validated, CR098 absorbed). Group D (CR204) is built and awaits its check; it ships only after Core CR200 is released.
 
 ## Finding, outside the Change Requests (2026-11-05)
 
