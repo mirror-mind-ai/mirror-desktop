@@ -9,3 +9,11 @@ import type { JourneyWorkspacePreview } from "../domain/journeyWorkingFolder";
 export async function previewJourneyWorkspace(journeyId: string): Promise<JourneyWorkspacePreview> {
   return invoke<JourneyWorkspacePreview>("preview_journey_workspace", { journeyId });
 }
+
+/**
+ * CR202, after the Navigator: open the folder the line shows, in the system file manager. Only the
+ * Journey is named, so the native side decides the path exactly as the turn does.
+ */
+export async function openJourneyWorkspace(journeyId: string): Promise<void> {
+  await invoke("open_journey_workspace", { journeyId });
+}

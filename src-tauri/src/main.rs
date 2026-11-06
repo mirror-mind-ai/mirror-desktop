@@ -7808,6 +7808,32 @@ fn preview_journey_workspace(app: AppHandle, journey_id: String) -> Result<Journ
     })
 }
 
+/// CR202, after the Navigator: why a folder cannot be opened yet. `~/Mirror Journeys/<id>` is made
+/// by the turn that uses it, and a preview makes nothing, so the line can name a folder that does
+/// not exist. Saying that is better than spawning Finder at a path and watching nothing happen.
+fn workspace_folder_missing_message(path: &Path) -> Option<String> {
+    if path.is_dir() {
+        return None;
+    }
+    Some(format!(
+        "{} does not exist yet. It is made when a turn runs there.",
+        path.display()
+    ))
+}
+
+/// CR202, after the Navigator: open the folder the "Working in" line shows. The renderer names a
+/// Journey, never a path, so this cannot be asked to open anything else.
+#[tauri::command(async)]
+fn open_journey_workspace(app: AppHandle, journey_id: String) -> Result<(), String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    let profile = active_runtime_channel()?;
+    let workspace = resolved_journey_workspace(&app, &journey_id, &profile, false)?;
+    if let Some(message) = workspace_folder_missing_message(&workspace.path) {
+        return Err(message);
+    }
+    open_path(&workspace.path)
+}
+
 #[derive(Clone, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct JourneyWorkspaceTransport {
@@ -10561,6 +10587,7 @@ fn main() {
             load_journey_registry,
             refresh_journey_registry,
             preview_journey_workspace,
+            open_journey_workspace,
             mutate_journey_registry,
             choose_project_directory,
             import_journey_custom_image,
@@ -15748,6 +15775,43 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         // The helper must not take the command guard: the turn path calls it off a command.
         assert!(!payload.contains("native_command_serialization::acquire()"), "{payload}");
         assert!(command.contains("native_command_serialization::acquire()"), "{command}");
+    }
+
+    #[test]
+    fn the_working_folder_opens_the_folder_the_line_shows_and_nothing_else() {
+        // CR202, after the Navigator: the line is clickable. The path comes from the native
+        // resolution, never from the renderer, so a click cannot be asked to open any other folder.
+        let source = production_source();
+        let open = body_of(&source, "fn open_journey_workspace(");
+        assert!(open.contains("resolved_journey_workspace(&app, &journey_id, &profile, false)"), "{open}");
+        assert!(!open.contains("path: String"), "the renderer names a Journey, not a path: {open}");
+        // Opened, not revealed: the Navigator asked for the folder, not for it selected in its parent.
+        assert!(open.contains("open_path("), "{open}");
+        assert!(!open.contains("reveal_path("), "{open}");
+        // A folder that does not exist yet is said, not spawned at.
+        let missing = open.find("workspace_folder_missing_message(").expect("says a missing folder");
+        assert!(missing < open.find("open_path(").expect("opens it"), "{open}");
+
+        // The command list carries it, so the renderer can reach it.
+        assert!(source.contains("            open_journey_workspace,"), "the command is registered");
+    }
+
+    #[test]
+    fn a_folder_that_does_not_exist_yet_is_explained_rather_than_opened() {
+        let root = std::env::temp_dir().join(format!("rs028b-open-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let present = root.join("here");
+        fs::create_dir_all(&present).unwrap();
+        assert_eq!(workspace_folder_missing_message(&present), None);
+        let absent = root.join("not-yet");
+        let message = workspace_folder_missing_message(&absent).expect("a sentence for a missing folder");
+        assert!(message.contains(&absent.display().to_string()), "{message}");
+        assert!(message.contains("made when a turn runs"), "{message}");
+        // A file where a folder should be is not opened either.
+        let file = root.join("a-file");
+        fs::write(&file, "x").unwrap();
+        assert!(workspace_folder_missing_message(&file).is_some());
     }
 
     #[test]

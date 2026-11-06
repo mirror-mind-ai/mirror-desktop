@@ -7,7 +7,7 @@ import {
 } from "react";
 import { homeDir } from "@tauri-apps/api/path";
 import { describeWorkingFolder, type JourneyWorkspacePreview } from "../domain/journeyWorkingFolder";
-import { previewJourneyWorkspace } from "./journeyWorkspaceStorage";
+import { openJourneyWorkspace, previewJourneyWorkspace } from "./journeyWorkspaceStorage";
 import { describeComposerModelSelection, visibleThinkingLabel } from "../agent/providerConfig";
 import { ambiguousBareModelNames, modelDisplayName } from "../domain/modelIdentity";
 import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamEvent, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
@@ -5269,6 +5269,20 @@ export function App({ model }: AppProps) {
     setCollapsedJourneyIds(new Set());
   }
 
+  /**
+   * CR202, after the Navigator: open the folder the line names. A folder that does not exist yet,
+   * which `~/Mirror Journeys/<id>` is until a turn runs there, comes back as a sentence rather than
+   * as a click that appears to do nothing.
+   */
+  async function openSelectedJourneyWorkspace() {
+    if (!selectedJourney) return;
+    try {
+      await openJourneyWorkspace(selectedJourney);
+    } catch (error) {
+      setConversationActionMessage(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   function toggleCollapsedJourney(journeyId: string) {
     setCollapsedJourneyIds((current) => {
       const next = new Set(current);
@@ -6682,11 +6696,16 @@ export function App({ model }: AppProps) {
                     />
                   </div>
                   {workingFolder ? (
-                    <p
-                      className={`active-journey-folder ${workingFolder.kind}`}
-                      title={workingFolder.detail ?? workingFolder.label}
-                    >
-                      {workingFolder.label}
+                    <p className={`active-journey-folder ${workingFolder.kind}`}>
+                      <span className="active-journey-folder-prefix">{workingFolder.prefix}</span>{" "}
+                      <button
+                        type="button"
+                        className="active-journey-folder-path"
+                        onClick={() => void openSelectedJourneyWorkspace()}
+                        title={workingFolder.detail ? `${workingFolder.detail}\n${workingFolder.action.title}` : workingFolder.action.title}
+                      >
+                        {workingFolder.action.label}
+                      </button>
                       {workingFolder.detail ? <span className="active-journey-folder-note"> · this Journey's folder is unavailable</span> : null}
                     </p>
                   ) : null}

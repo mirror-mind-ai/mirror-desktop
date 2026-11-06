@@ -155,8 +155,9 @@ mod tests {
         // CR184 added `load_dedicated_journey_conversation_metadata`, serialised and off the main
         // thread: 105 → 106.
         // RS028 group B added `preview_journey_workspace`, serialised and off the main thread, a
-        // read of the folder the next turn would use: 106 → 107.
-        assert_eq!(v.len(), 107, "the command census changed; update SOURCES or this count");
+        // read of the folder the next turn would use: 106 → 107. Then `open_journey_workspace`,
+        // the same read followed by one spawn of the file manager: 107 → 108.
+        assert_eq!(v.len(), 108, "the command census changed; update SOURCES or this count");
         v
     }
 

@@ -958,6 +958,24 @@ textarea {
 .active-journey-folder.fallback { color: #e8b57a; }
 .active-journey-folder .active-journey-folder-note { opacity: 0.85; }
 
+/* The path is the only clickable part of the line. */
+.active-journey-folder-path {
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.22);
+  text-underline-offset: 2px;
+}
+
+.active-journey-folder-path:hover { color: #d5e3e7; text-decoration-color: currentColor; }
+.active-journey-folder.fallback .active-journey-folder-path:hover { color: #f3cb9b; }
+.active-journey-folder-path:focus-visible { outline: 1px solid currentColor; outline-offset: 2px; }
+
 /* RS028 group A: Collapse all, Expand all and the inactive filter, under the view switch. */
 .journey-tree-tools {
   display: flex;
