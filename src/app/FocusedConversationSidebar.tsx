@@ -56,6 +56,8 @@ type Props = {
   // CR153: a global view filter over kinds, not a per-entry choice. It arrives as a prop rather
   // than living here because it is the same state in every open group (CR133).
   hideMirrorHistory: boolean;
+  /** CR206: off while Mirror history is unsupported, because the filter has nothing to filter. */
+  offerMirrorHistoryFilter?: boolean;
   onToggleMirrorHistoryFilter: () => void;
 };
 
@@ -201,7 +203,7 @@ export function FocusedConversationSidebar(props: Props) {
       icon-only control was declined: a state resting on a background tint does not survive a
       greyscale display or a reduced-motion preference.
     */}
-    <button
+    {props.offerMirrorHistoryFilter === false ? null : <button
       className={`focused-conversation-kind-filter${props.hideMirrorHistory ? " is-on" : ""}`}
       type="button"
       onClick={props.onToggleMirrorHistoryFilter}
@@ -218,7 +220,7 @@ export function FocusedConversationSidebar(props: Props) {
       {props.hideMirrorHistory && kindFilter.filtered > 0 ? (
         <span className="focused-conversation-kind-filter-count">· {kindFilter.filtered} Mirror hidden</span>
       ) : null}
-    </button>
+    </button>}
     <div className="focused-conversation-list">
       {visibleEntries.map((entry) => renderEntry(entry))}
     </div>

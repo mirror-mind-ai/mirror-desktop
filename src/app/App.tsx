@@ -215,6 +215,7 @@ import { deriveDeadChildRelease, describeDeadChildRelease } from "./deadChildRel
 import { FocusedSidebarResizeHandle } from "./FocusedSidebarResizeHandle";
 import { loadFocusedSidebarWidth, saveFocusedSidebarWidth } from "./focusedSidebarWidthStorage";
 import { MirrorHistoryActionSurface } from "./MirrorHistoryActionSurface";
+import { MIRROR_HISTORY_SUPPORTED } from "../domain/mirrorHistorySupport";
 import { ConversationDetailHeader } from "./ConversationDetailHeader";
 import {
   createDesktopConversation, deleteDesktopConversation, loadDesktopConversationCatalog,
@@ -5086,7 +5087,7 @@ export function App({ model }: AppProps) {
   }
 
   async function createConversationFromMirrorHistory(entry: Extract<ConversationCatalogEntry, { kind: "mirror_history" }>) {
-    if (!availableConversationActions(entry).includes("create_agent_handoff")) return;
+    if (!MIRROR_HISTORY_SUPPORTED || !availableConversationActions(entry).includes("create_agent_handoff")) return;
     setConversationActionBusy(true);
     setConversationActionMessage("Creating dedicated Desktop authority…");
     try {
@@ -6964,6 +6965,7 @@ export function App({ model }: AppProps) {
                   // position. A deliberate consequence of the grain, not an oversight: the
                   // measurement that chose global found the Mirror noise in every Journey.
                   hideMirrorHistory={hideMirrorHistory}
+                  offerMirrorHistoryFilter={MIRROR_HISTORY_SUPPORTED}
                   onToggleMirrorHistoryFilter={() => setHideMirrorHistory((current) => !current)}
                 />
               ) : null}

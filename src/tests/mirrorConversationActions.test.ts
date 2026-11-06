@@ -4,12 +4,15 @@ const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
 import { openMirrorConversationInTerminal } from "../app/mirrorConversationCatalog";
+import { MIRROR_HISTORY_SUPPORTED } from "../domain/mirrorHistorySupport";
 import tauriSource from "../../src-tauri/src/main.rs?raw";
 
 describe("Mirror history continuation actions", () => {
   beforeEach(() => invoke.mockReset());
 
-  it("opens bounded recall through an exact native Terminal boundary", async () => {
+  // CR206: Mirror history is unsupported, so the wrapper refuses before the native boundary
+  // (cr206OnlyNautilusConversations). This contract holds again if the switch is turned back on.
+  it.skipIf(!MIRROR_HISTORY_SUPPORTED)("opens bounded recall through an exact native Terminal boundary", async () => {
     invoke.mockResolvedValue({
       schemaVersion: "1.0.0", status: "opened", journeyId: "mirror-desktop",
       conversationId: "mirror-history-1234567890", messageLimit: 30,

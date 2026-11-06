@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ConversationCatalogEntry } from "../domain/conversationSpaces";
 import { parseConversationCatalog } from "../domain/conversationSpaces";
+import { MIRROR_HISTORY_SUPPORTED, MIRROR_HISTORY_UNSUPPORTED_MESSAGE } from "../domain/mirrorHistorySupport";
 
 export async function loadMirrorConversationCatalog(input: {
   journeyId: string;
@@ -8,6 +9,8 @@ export async function loadMirrorConversationCatalog(input: {
   managedMirrorConversationIds: readonly string[];
   limit?: number;
 }): Promise<ConversationCatalogEntry[]> {
+  // CR206: no Mirror history is listed, so the Core is not asked for it.
+  if (!MIRROR_HISTORY_SUPPORTED) return [];
   const payload = await invoke<unknown>("load_mirror_conversation_catalog", {
     journeyId: input.journeyId,
     limit: input.limit ?? 30,
@@ -28,6 +31,7 @@ export async function openMirrorConversationInTerminal(input: {
   conversationId: string;
   messageLimit: number;
 }): Promise<void> {
+  if (!MIRROR_HISTORY_SUPPORTED) throw new Error(MIRROR_HISTORY_UNSUPPORTED_MESSAGE);
   const payload = await invoke<unknown>("open_mirror_conversation_in_terminal", input);
   const record = payload as Record<string, unknown> | undefined;
   if (record?.schemaVersion !== "1.0.0" || record.status !== "opened"
@@ -42,6 +46,7 @@ export async function renameMirrorConversation(input: {
   conversationId: string;
   title: string;
 }): Promise<{ conversationId: string; title: string }> {
+  if (!MIRROR_HISTORY_SUPPORTED) throw new Error(MIRROR_HISTORY_UNSUPPORTED_MESSAGE);
   const payload = await invoke<unknown>("rename_mirror_conversation", input);
   const record = payload as Record<string, unknown> | undefined;
   if (record?.status !== "ok" || record.journeyId !== input.journeyId
