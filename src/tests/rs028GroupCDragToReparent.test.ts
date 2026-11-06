@@ -6,7 +6,11 @@ import {
   type JourneyDropZone,
 } from "../domain/journeyDropTarget";
 import appSource from "../app/App.tsx?raw";
+// @ts-expect-error Vitest runs in Node; production code has no Node dependency.
+import { readFileSync } from "node:fs";
 import { flattenJourneyRegistry } from "../domain/journeyRegistry";
+
+const styleSource = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
 import type { JourneyRegistry } from "../domain/journeyRegistry";
 
 /**
@@ -262,5 +266,22 @@ describe("CR203: the surface uses one decision and can speak for itself", () => 
 
   it("keeps the ineligible parents out of the Move form", () => {
     expect(appSource).toContain("eligibleParentJourneys(journeyRegistry, journeyAdminDialog.journeyId, flattenJourneyRegistry(journeyRegistry))");
+  });
+});
+
+describe("CR203: the row is a drag source in WebKit, not a text selection", () => {
+  /**
+   * Found by the Navigator on 2026-11-06: the drag did nothing and the pointer selected the row's
+   * text. `draggable` is honoured by WKWebView only for links and images without help; for anything
+   * else a mousedown on selectable text goes to the selection instead of starting a drag.
+   */
+  it("names the row as the drag source and takes the competing gesture away", () => {
+    const row = styleSource.slice(styleSource.indexOf(".journey-item {"), styleSource.indexOf(".journey-item::before"));
+    expect(row).toContain("-webkit-user-drag: element");
+    expect(row).toContain("user-select: none");
+  });
+
+  it("leaves the controls inside the row pressable", () => {
+    expect(styleSource).toContain(".journey-item button { -webkit-user-drag: none; }");
   });
 });

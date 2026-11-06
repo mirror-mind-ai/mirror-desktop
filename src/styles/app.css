@@ -978,6 +978,22 @@ textarea {
 
 /* RS028 group A: Collapse all, Expand all and the inactive filter, under the view switch. */
 /* RS028 group C (CR203): where a dragged Journey would land, while the gesture is happening. */
+
+/*
+ * The gesture itself, in WebKit. `draggable` alone is not enough here: for anything that is not a
+ * link or an image, WKWebView gives a mousedown on selectable text to the text selection, so the
+ * row never becomes a drag source and the pointer paints a selection instead. `-webkit-user-drag`
+ * names the row as the source and `user-select: none` takes the competing gesture away. The row is
+ * a `role="button"`, so there is no text in it anybody needs to select.
+ */
+.journey-item {
+  -webkit-user-drag: element;
+  user-select: none;
+}
+
+/* A control inside the row is pressed, not dragged. */
+.journey-item button { -webkit-user-drag: none; }
+
 .journey-item.tree-node.is-dragging { opacity: 0.45; }
 
 .journey-item.tree-node.drop-into {
