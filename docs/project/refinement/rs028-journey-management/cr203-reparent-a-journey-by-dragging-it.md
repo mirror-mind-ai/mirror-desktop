@@ -4,7 +4,7 @@
 
 **Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** `main` (`61a434cc`, `77b55a8a`, `710e3bab`, `ffd7dc4d`), RS028 group C
+**Delivery:** `main` (`61a434cc`, `77b55a8a`, `710e3bab`, `ffd7dc4d`, `1e4cecb2`), RS028 group C
 **Group:** C, reshaping the tree
 
 ## Friction
@@ -125,3 +125,33 @@ when only its decisions were delivered: a drag is also a feel (cursor, ghost, re
 selection) and an ending that speaks. Falsifier for this round: pressing and moving must never
 paint a selection anywhere in the window, and every landed drop must leave a green sentence naming
 the destination.
+
+## Fourth field report: the tree moved under the hand (2026-11-06)
+
+A screenshot from the Navigator showed a selection painted over the rows above the dragged one,
+the plan line shifting the tree as its sentence changed length, and no way to give a drag up
+(no place to release it, and Escape did nothing).
+
+The screenshot also showed a cause the Navigator had not named. **The root zone and the plan line
+were inserted above the tree in the instant the drag began, after the rows had been measured.**
+Every row then sat about 70px below where the gesture believed it was, so a drop landed on the
+row above the one under the pointer. This is the likely path by which Vida Acadêmica2 went into
+`alissonvale-com` in the third report: not a misplaced hand, a gesture aiming at stale rows.
+
+Answers in `1e4cecb2`:
+
+- **Nothing in the tree moves during a drag.** The root zone is laid over the tree tools; the plan
+  is spoken in the ghost beside the pointer; and the rows are measured on every move, so no later
+  shift (a message, a parent opening) can make the gesture aim at stale rows again.
+- **The selection is refused from the press**, through `selectstart`. `user-select` applied when
+  the drag is recognised was too late, because WebKit begins the selection at the press.
+- **A drag can be cancelled.** Escape abandons it while the button is held; the pointer stays
+  captured, so the release that follows is consumed without moving anything. Releasing over
+  nothing also cancels, and the ghost says so ("Release here to cancel. Esc also cancels."). A lost
+  capture ends the gesture.
+- **The click-swallowing flag lives only until its release's click**, so a release outside the row
+  can no longer eat the next real click.
+
+Seven mutations caught. Falsifiers for the Navigator: no selection anywhere during a drag; nothing
+in the tree moves while the pointer moves; the row highlighted is exactly the row under the
+pointer; Escape mid-drag leaves the tree untouched.
