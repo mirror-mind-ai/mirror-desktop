@@ -5,6 +5,7 @@
 **Status:** captured
 **Driver:** —
 **Delivery:** —
+**Group:** C, absorbed by CR203
 
 ## Friction
 

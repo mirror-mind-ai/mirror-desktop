@@ -5,6 +5,7 @@
 **Status:** captured
 **Driver:** —
 **Delivery:** —
+**Group:** C, reshaping the tree
 
 ## Friction
 
@@ -45,3 +46,19 @@ runtime map). Narrowing either alone changes nothing. What `runtimeBusy` gates i
 conversation restart, reload tree, create and edit Journey, appearance and attachments — not Send,
 which is already workspace-scoped through `conversationAvailability`. CR140 deliberately left this
 reach untouched; it is this CR's to plan against both predicates.
+
+## Direction widened by the Navigator (2026-11-05)
+
+No operation on the Journey tree should be blocked because a turn is running, anywhere, unless there
+is a very strong reason, and that reason is then named on the control. This includes the running
+Journey itself, not only its siblings. The investigation therefore lists every tree operation gated
+by `runtimeBusy` (create, edit, move, drag, delete, reload tree, appearance, pin) and, for each,
+either removes the gate or records the strong reason. Candidates the Driver expects to keep, to be
+confirmed by measurement rather than assumed:
+
+- Deleting a Journey, or a subtree (CR204), that contains a running agent: the run would lose its
+  destination.
+- Changing the project path of the Journey whose turn is running: the running turn keeps its cwd, so
+  this may be allowed with a note that it takes effect on the next turn.
+
+Moving or renaming a running Journey changes metadata only and is expected to be allowed.

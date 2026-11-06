@@ -45,6 +45,7 @@ referent when the plan was re-based on 0.3. DS-001's field check was retired, no
 
 ## Current Focus
 
+- **RS028 is next (2026-11-05, Navigator):** Journey Management moves ahead of RS027. CR199 to CR204 captured; delivery in groups A to D (see RS028); CR099 widened so that no tree operation is blocked by a running turn without a very strong reason.
 - **Backlog reorganized (2026-11-03, Navigator):** CR187 is next, then CR190 (captured). CR159, CR163, CR166, CR164, CR155, CR161, CR148 and CR131 moved to RS027, where each needs a verdict (keep, close or merge) before any build. CR098 and CR099 moved to RS028 (Journey Management). CR156 and CR171 are parked, to be absorbed by a future demand. CR094 and CR189 stay in RS022 (Core debts). CR157 was re-read: half delivered by CR184; CR170 was re-read: not done, Core-only. Later the same day the Navigator moved CR157 to RS027 and CR170 to RS022, closed phase 5 with the window back, and closed CV-010 (roadmap).
 - **RS026 (2026-11-01, Navigator):** the queue of work that waits for the 0.3 cutover. It owns CR167–CR171, captured from the phase 5 rehearsals, and orders the open CRs of RS016, RS021, RS022 and RS025 by reference. CR165 (done) and CR166 (captured) were missing from the table below and were added.
 - Refinement Story: RS024
@@ -316,6 +317,12 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
 | 2 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |
 
+| — | [CR199](rs028-journey-management/cr199-keep-inactive-journeys-out-of-the-tree-until-asked.md) | RS028 | Keep Inactive Journeys Out of the Tree Until Asked | captured | — | — |
+| — | [CR200](rs028-journey-management/cr200-collapse-or-expand-the-whole-tree-at-once.md) | RS028 | Collapse or Expand the Whole Tree at Once | captured | — | — |
+| — | [CR201](rs028-journey-management/cr201-show-a-journeys-folder-in-its-tooltip.md) | RS028 | Show a Journey's Folder in Its Tooltip | captured | — | — |
+| — | [CR202](rs028-journey-management/cr202-say-which-folder-the-agent-is-working-in.md) | RS028 | Say Which Folder the Agent Is Working In | captured | — | — |
+| — | [CR203](rs028-journey-management/cr203-reparent-a-journey-by-dragging-it.md) | RS028 | Reparent a Journey by Dragging It | captured | — | — |
+| — | [CR204](rs028-journey-management/cr204-delete-a-journey-with-everything-under-it.md) | RS028 | Delete a Journey With Everything Under It | captured | — | — |
 | 4 | [CR099](rs028-journey-management/cr099-allow-safe-editing-during-another-journeys-work.md) | RS028 | Allow Safe Editing During Another Journey's Work | captured | — | — |
 | 5 | [CR098](rs028-journey-management/cr098-allow-a-journey-to-be-reparented.md) | RS028 | Allow a Journey to Be Reparented | captured | — | — |
 | 6 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | done | @alissonvale | CV-010.DS-005 slice 4b |
