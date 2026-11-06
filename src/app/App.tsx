@@ -18,10 +18,12 @@ import {
 import {
   clickEndsADrag,
   dragGhostSentence,
+  dropOutcomeMessage,
   dropTargetUnderPointer,
   exceedsDragThreshold,
   isDragCancelKey,
   shouldBeginJourneyDrag,
+  type JourneyDropMessage,
   type JourneyRowGeometry,
 } from "../domain/journeyPointerDrag";
 
@@ -779,6 +781,7 @@ export function App({ model }: AppProps) {
 
   useEffect(() => () => {
     document.body.classList.remove("is-dragging-journey");
+    document.body.classList.remove("is-moving-journey");
     document.removeEventListener("selectstart", refuseSelectionStart);
   }, []);
 
@@ -798,7 +801,8 @@ export function App({ model }: AppProps) {
   }, [draggedJourneyId]);
   /** CR203: the row under the pointer and what dropping there would do, read by the row and the line. */
   const [journeyDropTarget, setJourneyDropTarget] = useState<{ journeyId: string | null; zone: JourneyDropZone; plan: JourneyDropPlan }>();
-  const [journeyDropMessage, setJourneyDropMessage] = useState<{ kind: "move" | "refused"; text: string }>();
+  const [journeyDropMessage, setJourneyDropMessage] = useState<JourneyDropMessage>();
+  const journeyMoveInFlightRef = useRef(false);
   // CR113: the visible text is owned by the Composer input, not by this root component. What the
   // root keeps is the current value, for the send and steering boundaries that read it, and
   // whether it is blank, for the controls whose enablement depends on that.
@@ -5393,6 +5397,7 @@ export function App({ model }: AppProps) {
       treeView: journeyListOrder === "tree",
       dragAllowed: treeOperation("drag", journeyId).allowed,
       onControl: (event.target as HTMLElement).closest("button") !== null,
+      moveInFlight: journeyMoveInFlightRef.current,
     });
     if (!begin) return;
     journeyDragRef.current = {
@@ -5456,24 +5461,42 @@ export function App({ model }: AppProps) {
       return;
     }
     if (plan.outcome === "unchanged") return;
-    // The sentence stays until the next gesture, and the new parent is opened, so a Journey
-    // dropped into a collapsed subtree does not look deleted.
-    setJourneyDropMessage({ kind: "move", text: plan.completion });
-    if (plan.parentId !== null) {
-      const parentId = plan.parentId;
-      setCollapsedJourneyIds((current) => {
-        if (!current.has(parentId)) return current;
-        const opened = new Set(current);
-        opened.delete(parentId);
-        return opened;
-      });
+    void moveDroppedJourney(drag.journeyId, plan);
+  }
+
+  /**
+   * The write takes seconds (the move, then a full reread of the tree), so the drop says "Moving…"
+   * under a wait cursor until Mirror answers, then "Moved…" or the refusal. The sentence stays until
+   * the next gesture, and the new parent is opened, so a Journey dropped into a collapsed subtree
+   * does not look deleted. The parent is opened only after the answer, because the answer restores
+   * the collapsed set captured at the drop and would shut it again.
+   */
+  async function moveDroppedJourney(journeyId: string, plan: Extract<JourneyDropPlan, { outcome: "move" }>) {
+    setJourneyDropMessage({ kind: "moving", text: plan.progress });
+    journeyMoveInFlightRef.current = true;
+    document.body.classList.add("is-moving-journey");
+    let refusal: string | undefined;
+    try {
+      const moved = await executeJourneyMutation(
+        "move_journey",
+        { journeyId, parentId: plan.parentId, position: plan.position },
+        false,
+        (message) => { refusal = message; },
+      );
+      setJourneyDropMessage(dropOutcomeMessage(plan, { moved, refusal }));
+      if (moved && plan.parentId !== null) {
+        const parentId = plan.parentId;
+        setCollapsedJourneyIds((current) => {
+          if (!current.has(parentId)) return current;
+          const opened = new Set(current);
+          opened.delete(parentId);
+          return opened;
+        });
+      }
+    } finally {
+      journeyMoveInFlightRef.current = false;
+      document.body.classList.remove("is-moving-journey");
     }
-    void executeJourneyMutation(
-      "move_journey",
-      { journeyId: drag.journeyId, parentId: plan.parentId, position: plan.position },
-      false,
-      (message) => setJourneyDropMessage({ kind: "refused", text: message }),
-    );
   }
 
   /**
@@ -6665,7 +6688,7 @@ export function App({ model }: AppProps) {
 
         {!draggedJourneyId && journeyDropMessage ? (
           <p
-            className={`journey-drop-hint ${journeyDropMessage.kind === "refused" ? "refused" : "completed"}`}
+            className={`journey-drop-hint ${journeyDropMessage.kind === "refused" ? "refused" : journeyDropMessage.kind === "moving" ? "moving" : "completed"}`}
             role={journeyDropMessage.kind === "refused" ? "alert" : "status"}
           >
             {journeyDropMessage.text}

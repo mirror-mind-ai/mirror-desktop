@@ -1,5 +1,7 @@
 import { dropZoneFromOffset, type JourneyDropPlan, type JourneyDropZone } from "./journeyDropTarget";
 
+export type JourneyDropMessage = { kind: "moving" | "move" | "refused"; text: string };
+
 /**
  * CR203: the drag gesture, driven by pointer events rather than by the browser's own.
  *
@@ -58,8 +60,10 @@ export function shouldBeginJourneyDrag(input: {
   dragAllowed: boolean;
   /** The press landed on a control inside the row, such as the collapse arrow. */
   onControl: boolean;
+  /** An earlier drop is still being written; its answer will replace the tree this drag would read. */
+  moveInFlight: boolean;
 }): boolean {
-  return input.button === 0 && input.treeView && input.dragAllowed && !input.onControl;
+  return input.button === 0 && input.treeView && input.dragAllowed && !input.onControl && !input.moveInFlight;
 }
 
 /**
@@ -83,4 +87,19 @@ export function dragGhostSentence(plan: JourneyDropPlan | undefined): string {
 
 export function isDragCancelKey(key: string): boolean {
   return key === "Escape";
+}
+
+/**
+ * What the drop says once Mirror has answered. "Moved" is said only on a confirmed move, and a
+ * refusal without words (a stale tree, reloaded behind the scenes) still ends the "Moving" line.
+ */
+export function dropOutcomeMessage(
+  plan: Extract<JourneyDropPlan, { outcome: "move" }>,
+  answer: { moved: boolean; refusal?: string },
+): JourneyDropMessage {
+  if (answer.moved) return { kind: "move", text: plan.completion };
+  return {
+    kind: "refused",
+    text: answer.refusal ?? "The Journey was not moved: the tree changed in Mirror and was reloaded. Drag it again.",
+  };
 }

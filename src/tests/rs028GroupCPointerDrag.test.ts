@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   clickEndsADrag,
   dragGhostSentence,
+  dropOutcomeMessage,
   dropTargetUnderPointer,
   exceedsDragThreshold,
   isDragCancelKey,
@@ -79,7 +80,7 @@ describe("CR203: which row the pointer is over", () => {
 });
 
 describe("CR203: which presses begin a drag", () => {
-  const press = { button: 0, treeView: true, dragAllowed: true, onControl: false };
+  const press = { button: 0, treeView: true, dragAllowed: true, onControl: false, moveInFlight: false };
 
   it("begins on a primary press on a row in Tree view", () => {
     expect(shouldBeginJourneyDrag(press)).toBe(true);
@@ -100,6 +101,11 @@ describe("CR203: which presses begin a drag", () => {
 
   it("refuses a press that landed on a control inside the row, such as the collapse arrow", () => {
     expect(shouldBeginJourneyDrag({ ...press, onControl: true })).toBe(false);
+  });
+
+  it("refuses while an earlier drop is still being written to Mirror", () => {
+    // A second move planned against the tree the first is about to replace would aim at stale rows.
+    expect(shouldBeginJourneyDrag({ ...press, moveInFlight: true })).toBe(false);
   });
 });
 
@@ -127,6 +133,7 @@ describe("CR203: the surface drives the gesture with pointer events", () => {
     expect(appSource).toContain('treeView: journeyListOrder === "tree",');
     expect(appSource).toContain('dragAllowed: treeOperation("drag", journeyId).allowed,');
     expect(appSource).toContain('onControl: (event.target as HTMLElement).closest("button") !== null,');
+    expect(appSource).toContain("moveInFlight: journeyMoveInFlightRef.current,");
     // The HTML5 gesture is gone, not left behind to compete with this one.
     expect(appSource).not.toContain("onDragStart=");
     expect(appSource).not.toContain("onDragOver=");
@@ -145,7 +152,8 @@ describe("CR203: the surface drives the gesture with pointer events", () => {
   });
 
   it("gives the drag its own place to report a refusal from Mirror, not the dialog's", () => {
-    expect(appSource).toContain('(message) => setJourneyDropMessage({ kind: "refused", text: message })');
+    expect(appSource).toContain("(message) => { refusal = message; },");
+    expect(appSource).toContain("setJourneyDropMessage(dropOutcomeMessage(plan, { moved, refusal }));");
     expect(appSource).toContain("onFailure?: (message: string) => void");
     expect(appSource).toContain("onFailure?.(message)");
   });
@@ -153,7 +161,7 @@ describe("CR203: the surface drives the gesture with pointer events", () => {
   it("says where the Journey went after the drop, so leaving the visible tree does not read as deletion", () => {
     // The Navigator lost Vida Acadêmica2 this way on 2026-11-06: an unintended drop moved it into
     // a collapsed subtree, and the tree showed nothing about it.
-    expect(appSource).toContain('setJourneyDropMessage({ kind: "move", text: plan.completion })');
+    expect(appSource).toContain("setJourneyDropMessage(dropOutcomeMessage(plan, { moved, refusal }));");
   });
 
   it("opens a collapsed parent that just received a Journey", () => {
@@ -222,7 +230,7 @@ describe("CR203: nothing in the tree moves while a Journey is being dragged", ()
 
 describe("CR203: what travels with the pointer", () => {
   it("names the plan, the refusal or the absence of a change", () => {
-    expect(dragGhostSentence({ outcome: "move", parentId: "a", position: 0, description: "Move X into A, as its first Journey.", completion: "" }))
+    expect(dragGhostSentence({ outcome: "move", parentId: "a", position: 0, description: "Move X into A, as its first Journey.", progress: "", completion: "" }))
       .toBe("Move X into A, as its first Journey.");
     expect(dragGhostSentence({ outcome: "refused", reason: "A Journey cannot be moved into itself." }))
       .toBe("A Journey cannot be moved into itself.");
@@ -260,5 +268,55 @@ describe("CR203: the text selection never starts, rather than being undone after
     // press; refusing the selection's start does.
     expect(appSource).toContain('document.addEventListener("selectstart", refuseSelectionStart);');
     expect(appSource).toContain('document.removeEventListener("selectstart", refuseSelectionStart);');
+  });
+});
+
+describe("CR203: the wait between the drop and Mirror's answer is visible", () => {
+  /**
+   * Fifth field report, 2026-11-06: two or three seconds pass between the release and the reloaded
+   * tree, and in that silence the drop felt like it had failed. The drop now says "Moving…" with a
+   * wait cursor, and turns into "Moved…" or the refusal when Mirror answers.
+   */
+  const plan = {
+    outcome: "move" as const,
+    parentId: "nautilus",
+    position: 0,
+    description: "Move X into Nautilus, as its first Journey.",
+    progress: "Moving X into Nautilus, as its first Journey…",
+    completion: "Moved X into Nautilus, as its first Journey.",
+  };
+
+  it("says Moved only when Mirror confirmed the move", () => {
+    expect(dropOutcomeMessage(plan, { moved: true })).toEqual({ kind: "move", text: plan.completion });
+  });
+
+  it("says Mirror's refusal when there is one", () => {
+    expect(dropOutcomeMessage(plan, { moved: false, refusal: "invalid_parent" }))
+      .toEqual({ kind: "refused", text: "invalid_parent" });
+  });
+
+  it("never leaves Moving on screen when Mirror refused without words", () => {
+    // A stale tree is reloaded without a refusal sentence; the drop must still end.
+    const ended = dropOutcomeMessage(plan, { moved: false });
+    expect(ended.kind).toBe("refused");
+    expect(ended.text).toContain("not moved");
+  });
+
+  it("shows the gerund and a wait cursor for as long as the write lasts, and only that long", () => {
+    expect(appSource).toContain('setJourneyDropMessage({ kind: "moving", text: plan.progress });');
+    expect(appSource).toContain('document.body.classList.add("is-moving-journey");');
+    const finished = appSource.slice(appSource.indexOf("} finally {", appSource.indexOf("async function moveDroppedJourney(")));
+    expect(finished.slice(0, 200)).toContain('document.body.classList.remove("is-moving-journey");');
+    expect(finished.slice(0, 200)).toContain("journeyMoveInFlightRef.current = false;");
+    const cursor = styleSource.slice(styleSource.indexOf("body.is-moving-journey"), styleSource.indexOf("body.is-moving-journey") + 120);
+    expect(cursor).toContain("cursor: wait");
+  });
+
+  it("opens the new parent after Mirror answers, not before", () => {
+    // executeJourneyMutation restores the collapsed set it captured at the drop, so a parent opened
+    // before the answer was shut again by the answer.
+    const move = appSource.slice(appSource.indexOf("async function moveDroppedJourney("), appSource.indexOf("} finally {", appSource.indexOf("async function moveDroppedJourney(")));
+    expect(move.indexOf("await executeJourneyMutation(")).toBeGreaterThan(-1);
+    expect(move.indexOf("opened.delete(parentId);")).toBeGreaterThan(move.indexOf("await executeJourneyMutation("));
   });
 });

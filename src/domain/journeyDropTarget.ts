@@ -15,7 +15,7 @@ import { findJourneyById, type JourneyRegistry, type JourneyRegistryItem } from 
 export type JourneyDropZone = "before" | "into" | "after" | "root";
 
 export type JourneyDropPlan =
-  | { outcome: "move"; parentId: string | null; position: number; description: string; completion: string }
+  | { outcome: "move"; parentId: string | null; position: number; description: string; progress: string; completion: string }
   | { outcome: "unchanged" }
   | { outcome: "refused"; reason: string };
 
@@ -100,6 +100,8 @@ function plannedMove(
     parentId,
     position,
     description: `Move ${dragged.name} ${where}.`,
+    // Said while Mirror writes the move, which takes seconds: silence there read as a failure.
+    progress: `Moving ${dragged.name} ${where}…`,
     // Said after the drop lands, so a Journey that left the visible part of the tree is not read
     // as deleted: the Navigator lost one this way on 2026-11-06.
     completion: `Moved ${dragged.name} ${where}.`,

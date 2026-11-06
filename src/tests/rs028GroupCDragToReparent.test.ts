@@ -69,6 +69,7 @@ describe("CR203: where a dragged Journey lands", () => {
       parentId: "nautilus",
       position: 2,
       description: "Move Finanças into Nautilus, after its 2 Journeys.",
+      progress: "Moving Finanças into Nautilus, after its 2 Journeys…",
       completion: "Moved Finanças into Nautilus, after its 2 Journeys.",
     });
   });
@@ -79,6 +80,7 @@ describe("CR203: where a dragged Journey lands", () => {
       parentId: "site",
       position: 0,
       description: "Move Finanças into Site, as its first Journey.",
+      progress: "Moving Finanças into Site, as its first Journey…",
       completion: "Moved Finanças into Site, as its first Journey.",
     });
   });
@@ -91,6 +93,7 @@ describe("CR203: placing a Journey among siblings", () => {
       parentId: "nautilus",
       position: 1,
       description: "Move Vida Criativa into Nautilus, above Nautilus Framework.",
+      progress: "Moving Vida Criativa into Nautilus, above Nautilus Framework…",
       completion: "Moved Vida Criativa into Nautilus, above Nautilus Framework.",
     });
   });
@@ -101,6 +104,7 @@ describe("CR203: placing a Journey among siblings", () => {
       parentId: "nautilus",
       position: 1,
       description: "Move Vida Criativa into Nautilus, below Nautilus App.",
+      progress: "Moving Vida Criativa into Nautilus, below Nautilus App…",
       completion: "Moved Vida Criativa into Nautilus, below Nautilus App.",
     });
   });
@@ -113,6 +117,7 @@ describe("CR203: placing a Journey among siblings", () => {
       parentId: "nautilus",
       position: 1,
       description: "Move Nautilus App into Nautilus, below Nautilus Framework.",
+      progress: "Moving Nautilus App into Nautilus, below Nautilus Framework…",
       completion: "Moved Nautilus App into Nautilus, below Nautilus Framework.",
     });
     // Upwards in the same parent needs no such correction.
@@ -121,6 +126,7 @@ describe("CR203: placing a Journey among siblings", () => {
       parentId: "nautilus",
       position: 0,
       description: "Move Nautilus Framework into Nautilus, above Nautilus App.",
+      progress: "Moving Nautilus Framework into Nautilus, above Nautilus App…",
       completion: "Moved Nautilus Framework into Nautilus, above Nautilus App.",
     });
   });
@@ -131,6 +137,7 @@ describe("CR203: placing a Journey among siblings", () => {
       parentId: null,
       position: 2,
       description: "Move Finanças to the root, below Vida Criativa.",
+      progress: "Moving Finanças to the root, below Vida Criativa…",
       completion: "Moved Finanças to the root, below Vida Criativa.",
     });
     expect(plan("finances", "vida-tecnica", "before")).toEqual({
@@ -138,6 +145,7 @@ describe("CR203: placing a Journey among siblings", () => {
       parentId: null,
       position: 0,
       description: "Move Finanças to the root, above Vida Técnica.",
+      progress: "Moving Finanças to the root, above Vida Técnica…",
       completion: "Moved Finanças to the root, above Vida Técnica.",
     });
   });
@@ -152,6 +160,7 @@ describe("CR203: dropping into the parent a Journey already has", () => {
       parentId: "nautilus",
       position: 1,
       description: "Move Nautilus App into Nautilus, after its 1 Journey.",
+      progress: "Moving Nautilus App into Nautilus, after its 1 Journey…",
       completion: "Moved Nautilus App into Nautilus, after its 1 Journey.",
     });
   });
@@ -214,6 +223,7 @@ describe("CR203: the drop zone that makes a Journey a root", () => {
       parentId: null,
       position: 0,
       description: "Move Nautilus App to the root, as the first Journey.",
+      progress: "Moving Nautilus App to the root, as the first Journey…",
       completion: "Moved Nautilus App to the root, as the first Journey.",
     });
   });
@@ -230,6 +240,7 @@ describe("CR203: the drop zone that makes a Journey a root", () => {
       parentId: null,
       position: 0,
       description: "Move Vida Criativa to the root, as the first Journey.",
+      progress: "Moving Vida Criativa to the root, as the first Journey…",
       completion: "Moved Vida Criativa to the root, as the first Journey.",
     });
   });

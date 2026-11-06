@@ -1045,6 +1045,13 @@ body.is-dragging-journey * {
 .journey-drag-ghost.move { border-color: rgba(118, 189, 199, 0.7); }
 
 .journey-drop-hint.completed { color: #9fd4a8; }
+.journey-drop-hint.moving { color: #cfe3e7; }
+
+/* While Mirror writes a dropped Journey, the window shows it is busy rather than idle. */
+body.is-moving-journey,
+body.is-moving-journey * {
+  cursor: wait !important;
+}
 
 .journey-item.tree-node.drop-into {
   background: rgba(118, 189, 199, 0.14);
