@@ -5,14 +5,14 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | RS028, depois RS027 |
-| **RS028 · Journey Management** | 🔄 ativa · 5 🟡 · grupo A validado · grupo B em curso |
-| ↳　B · CR202 · Say Which Folder the Agent Is Working In | 🟡 captured · com a CR197 |
+| **RS028 · Journey Management** | 🔄 ativa · 1 🔵 · 4 🟡 · grupo A validado · grupo B no `main` |
+| ↳　B · CR202 · Say Which Folder the Agent Is Working In | 🔵 in_progress · no `main` com a CR197, falta a checagem do grupo B |
 | ↳　C · CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · ampliada: nenhuma operação da árvore barrada por turno |
 | ↳　C · CR203 · Reparent a Journey by Dragging It | 🟡 captured · absorve a CR098 |
 | ↳　D · CR204 · Delete a Journey With Everything Under It | 🟡 captured · precisa do Core e de decisões |
-| **RS026 · After the 0.3 Cutover** | 🔄 ativa · 2 🟡 |
+| **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🔵 · 1 🟡 |
 | ↳　CR196 · Render a Table Whose First Header Cell Is Empty | 🟡 captured · causa achada: célula vazia no cabeçalho |
-| ↳　CR197 · A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word | 🟡 captured · causa achada: registro em cache velho · entregue no grupo B da RS028 |
+| ↳　CR197 · A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word | 🔵 in_progress · no `main` no grupo B da RS028 |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
 | ↳　CR159 · Say Why the Provider Refused a Turn | 🔵 in_progress |
 | ↳　CR163 · A Hung Mirror Append Freezes Every Exit | 🔵 in_progress |

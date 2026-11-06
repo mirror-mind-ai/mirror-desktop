@@ -2,7 +2,7 @@
 
 # CR197: A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word
 
-**Status:** captured
+**Status:** in_progress
 **Line:** 0.4 · Desktop
 
 ## Friction
@@ -33,9 +33,29 @@ tools would have read and written there.
 
 ## Plan Or Decision
 
-Captured by the Navigator's word, 2026-11-05 ("registre a CR"). Not planned. Spec first: a registry
-naming a missing folder while the Mirror names an existing one.
+Captured by the Navigator's word, 2026-11-05 ("registre a CR"). Delivered with
+[CR202](../rs028-journey-management/cr202-say-which-folder-the-agent-is-working-in.md) as RS028's
+group B, because the line CR202 adds is where this fallback becomes visible.
+
+## A Second Cause, Measured (2026-11-06)
+
+The fallback **was** announced: `resolve_journey_workspace` returned CR176's sentence and the turn
+emitted it as a `Stderr` event. The renderer maps that to a `warning` and a `diagnostic`
+(`src/agent/piProcessStream.ts`). The `warning` is read only by `preAgentProviderWarnings`, which
+explains a message returned to the composer, and the `diagnostic` is collected without being
+surfaced. So on a turn that otherwise succeeded, the sentence had no reader. That is why nothing was
+on the screen, and it is a second defect this CR had recorded as absence of a note.
 
 ## Outcome
 
-Pending: captured, not planned.
+On `main` in `5b9151ec`, Group B Check owed.
+
+- The refresh: `plan_after_refresh` adopts a plan taken from a freshly read Mirror tree only when
+  the cached plan falls back and the refreshed one does not, asking at most once. A turn whose
+  folder exists never pays for it. Measured at about 11 ms (median of 12 reads of the production
+  tree, 13 roots, over the already running host), so no memo is needed and none is kept: a memo
+  would have re-created this very defect after a repair made outside the app.
+- A folder gone in Mirror too keeps the cached plan's own sentence, so the person reads about the
+  folder they registered rather than about the refresh.
+- The visibility: CR202's line names the folder in use and marks a fallback, with CR176's sentence
+  as its tooltip. The stderr emit is kept as the transcript's record.

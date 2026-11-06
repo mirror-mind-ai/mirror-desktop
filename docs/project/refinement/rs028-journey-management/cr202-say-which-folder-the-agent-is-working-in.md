@@ -2,9 +2,9 @@
 
 # CR202: Say Which Folder the Agent Is Working In
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `main` (`5b9151ec`), RS028 group B
 **Group:** B, where the agent works
 
 ## Friction
@@ -37,3 +37,22 @@ composer).
 
 No change to how the folder is chosen. Making a stale cache refuse or warn before a turn is CR197,
 delivered in the same group.
+
+## Delivered (2026-11-06)
+
+On `main` in `5b9151ec`; the Group B Check is owed.
+
+- `plan_journey_workspace` (`src-tauri/src/journey_workspace.rs`) decides the folder without
+  creating anything, and `resolve_journey_workspace` is now that plan plus the one folder a turn is
+  allowed to make. A test asserts the plan and the turn agree on the path and on the sentence, which
+  is the acceptance line about a second derivation that could disagree.
+- `resolved_journey_workspace` (`main.rs`) serves the turn (`ensure = true`), the compaction and the
+  new read-only command `preview_journey_workspace`. A source guard holds the preview to calling it
+  rather than planning on its own, and holds both Pi-spawning callers to `ensure = true`.
+- The line sits under the Journey's name in the chat header: "Working in ~/…". When the Journey's own
+  folder could not be used it turns amber, adds "this Journey's folder is unavailable", and carries
+  CR176's exact sentence as its tooltip.
+- It is read when the Journey changes, when the registry changes (a Journey edit or Reload Journey
+  tree) and when a turn ends, never while a turn streams.
+- **Decision:** the line says nothing at all until the folder is known, rather than showing a guess.
+  CR197 exists because a folder nobody had shown the Navigator was trusted.

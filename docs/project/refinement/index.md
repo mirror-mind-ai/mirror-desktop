@@ -281,7 +281,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR195](rs022-mirror-core-debts/cr195-the-mirror-context-takes-three-to-seven-seconds-before-every-turn.md) | RS022 | The Mirror Context Takes Three to Seven Seconds Before Every Turn | captured | — | Core PR (branch `cr198-capture-mirror-context-latency`) |
 | — | [CR190](rs026-after-the-0-3-cutover/cr190-show-the-person-in-the-header-and-in-their-turns.md) | RS026 | Show the Person in the Header and in Their Turns | captured | — | — |
 | — | [CR196](rs026-after-the-0-3-cutover/cr196-render-a-table-whose-first-header-cell-is-empty.md) | RS026 | Render a Table Whose First Header Cell Is Empty | captured | — | — |
-| — | [CR197](rs026-after-the-0-3-cutover/cr197-a-moved-journey-folder-sends-the-turn-to-the-neutral-folder-without-a-word.md) | RS026 | A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word | captured | — | — |
+| — | [CR197](rs026-after-the-0-3-cutover/cr197-a-moved-journey-folder-sends-the-turn-to-the-neutral-folder-without-a-word.md) | RS026 | A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word | in_progress | @alissonvale | `main` (`5b9151ec`) |
 | — | [CR191](rs026-after-the-0-3-cutover/cr191-notice-a-new-version-while-the-app-stays-open.md) | RS026 | Notice a New Version While the App Stays Open | done | @alissonvale | `main` |
 | — | [CR192](rs026-after-the-0-3-cutover/cr192-the-0-2-carry-left-segment-receipts-stale.md) | RS026 | The 0.2 Carry Left Segment Receipts Stale | done | @alissonvale | `main` |
 | — | [CR165](rs025-legible-endings-for-a-turn-that-ends-badly/cr165-a-turn-after-an-unanswered-request-never-settles.md) | RS025 | A Turn After an Unanswered Request Never Settles | done | @alissonvale | `main` (`4078eef`) |
@@ -320,7 +320,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR199](rs028-journey-management/cr199-keep-inactive-journeys-out-of-the-tree-until-asked.md) | RS028 | Keep Inactive Journeys Out of the Tree Until Asked | done | @alissonvale | `main` (`21ffb4b8`) |
 | — | [CR200](rs028-journey-management/cr200-collapse-or-expand-the-whole-tree-at-once.md) | RS028 | Collapse or Expand the Whole Tree at Once | done | @alissonvale | `main` (`21ffb4b8`) |
 | — | [CR201](rs028-journey-management/cr201-show-a-journeys-folder-in-its-tooltip.md) | RS028 | Show a Journey's Folder in Its Tooltip | done | @alissonvale | `main` (`21ffb4b8`) |
-| — | [CR202](rs028-journey-management/cr202-say-which-folder-the-agent-is-working-in.md) | RS028 | Say Which Folder the Agent Is Working In | captured | — | — |
+| — | [CR202](rs028-journey-management/cr202-say-which-folder-the-agent-is-working-in.md) | RS028 | Say Which Folder the Agent Is Working In | in_progress | @alissonvale | `main` (`5b9151ec`) |
 | — | [CR203](rs028-journey-management/cr203-reparent-a-journey-by-dragging-it.md) | RS028 | Reparent a Journey by Dragging It | captured | — | — |
 | — | [CR204](rs028-journey-management/cr204-delete-a-journey-with-everything-under-it.md) | RS028 | Delete a Journey With Everything Under It | captured | — | — |
 | 4 | [CR099](rs028-journey-management/cr099-allow-safe-editing-during-another-journeys-work.md) | RS028 | Allow Safe Editing During Another Journey's Work | captured | — | — |
