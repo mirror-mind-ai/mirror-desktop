@@ -17,11 +17,17 @@ import {
 } from "../domain/journeyDropTarget";
 import {
   clickEndsADrag,
+  dragGhostSentence,
   dropTargetUnderPointer,
   exceedsDragThreshold,
+  isDragCancelKey,
   shouldBeginJourneyDrag,
   type JourneyRowGeometry,
 } from "../domain/journeyPointerDrag";
+
+function refuseSelectionStart(event: Event) {
+  event.preventDefault();
+}
 import {
   journeyTreeAvailability,
   mutationTargetJourneyId,
@@ -760,16 +766,36 @@ export function App({ model }: AppProps) {
   const journeyDragRef = useRef<{
     journeyId: string;
     pointerId: number;
+    element: HTMLElement;
     origin: { x: number; y: number };
     started: boolean;
-    rows: JourneyRowGeometry[];
     moved: boolean;
+    abandoned: boolean;
   } | null>(null);
+  const abandonJourneyDragRef = useRef<() => void>(() => undefined);
   const journeyDragClickRef = useRef(false);
   const journeyRootDropZoneRef = useRef<HTMLDivElement | null>(null);
   const journeyDragGhostRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => () => document.body.classList.remove("is-dragging-journey"), []);
+  useEffect(() => () => {
+    document.body.classList.remove("is-dragging-journey");
+    document.removeEventListener("selectstart", refuseSelectionStart);
+  }, []);
+
+  // CR203: Escape gives a drag up. Listened for only while a drag lasts, and in the capture phase,
+  // so the key cannot also reach a dialog or the composer underneath.
+  useEffect(() => {
+    if (!draggedJourneyId) return;
+    const cancelOnKey = (event: globalThis.KeyboardEvent) => {
+      if (isDragCancelKey(event.key)) {
+        event.preventDefault();
+        event.stopPropagation();
+        abandonJourneyDragRef.current();
+      }
+    };
+    window.addEventListener("keydown", cancelOnKey, true);
+    return () => window.removeEventListener("keydown", cancelOnKey, true);
+  }, [draggedJourneyId]);
   /** CR203: the row under the pointer and what dropping there would do, read by the row and the line. */
   const [journeyDropTarget, setJourneyDropTarget] = useState<{ journeyId: string | null; zone: JourneyDropZone; plan: JourneyDropPlan }>();
   const [journeyDropMessage, setJourneyDropMessage] = useState<{ kind: "move" | "refused"; text: string }>();
@@ -5347,9 +5373,10 @@ export function App({ model }: AppProps) {
   }
 
   /**
-   * CR203: the drag, driven by pointer capture. The rows are measured once when the gesture starts,
-   * because a captured pointer cannot scroll the list, and every decision about where the Journey
-   * would land is taken by `journeyPointerDrag` and `journeyDropTarget` rather than here.
+   * CR203: the drag, driven by pointer capture. The rows are measured on every move, because the
+   * tree may shift under the hand (a message appearing, a parent opening) and a measurement taken
+   * once aimed drops at the row above the one under the pointer. Every decision about where the
+   * Journey would land is taken by `journeyPointerDrag` and `journeyDropTarget` rather than here.
    */
   function measureJourneyRows(): JourneyRowGeometry[] {
     const list = journeyListRef.current;
@@ -5371,30 +5398,30 @@ export function App({ model }: AppProps) {
     journeyDragRef.current = {
       journeyId,
       pointerId: event.pointerId,
+      element: event.currentTarget,
       origin: { x: event.clientX, y: event.clientY },
       started: false,
-      rows: [],
       moved: false,
+      abandoned: false,
     };
+    // A press that may become a drag must not begin a text selection: WebKit starts it at the press,
+    // and refusing selection only once the drag is recognised is too late to stop it growing.
+    document.addEventListener("selectstart", refuseSelectionStart);
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function continueJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
     const drag = journeyDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag || drag.pointerId !== event.pointerId || drag.abandoned) return;
     const point = { x: event.clientX, y: event.clientY };
     if (!drag.started) {
       if (!exceedsDragThreshold(drag.origin, point)) return;
       drag.started = true;
       drag.moved = true;
-      drag.rows = measureJourneyRows();
-      // The press is a drag now: the text selection it may have begun is taken back, and nothing
-      // in the window may select or show a text cursor until the pointer is released.
       window.getSelection()?.removeAllRanges();
       document.body.classList.add("is-dragging-journey");
       setDraggedJourneyId(drag.journeyId);
       setJourneyDropMessage(undefined);
-      return;
     }
     event.preventDefault();
     const ghost = journeyDragGhostRef.current;
@@ -5402,7 +5429,7 @@ export function App({ model }: AppProps) {
       ghost.style.left = `${point.x + 14}px`;
       ghost.style.top = `${point.y + 10}px`;
     }
-    const aimed = dropTargetUnderPointer({ point, rows: drag.rows, rootZone: journeyRootDropZone() });
+    const aimed = dropTargetUnderPointer({ point, rows: measureJourneyRows(), rootZone: journeyRootDropZone() });
     if (!aimed) {
       setJourneyDropTarget(undefined);
       return;
@@ -5417,13 +5444,12 @@ export function App({ model }: AppProps) {
   function finishJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
     const drag = journeyDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const started = drag.started;
-    const aimed = started
-      ? dropTargetUnderPointer({ point: { x: event.clientX, y: event.clientY }, rows: drag.rows, rootZone: journeyRootDropZone() })
+    const dropping = drag.started && !drag.abandoned;
+    const aimed = dropping
+      ? dropTargetUnderPointer({ point: { x: event.clientX, y: event.clientY }, rows: measureJourneyRows(), rootZone: journeyRootDropZone() })
       : undefined;
-    releaseJourneyDrag(event);
-    if (!started) return;
-    if (!aimed) return;
+    releaseJourneyDrag();
+    if (!dropping || !aimed) return;
     const plan = planJourneyDrop({ draggedJourneyId: drag.journeyId, targetJourneyId: aimed.journeyId, zone: aimed.zone, registry: journeyRegistry });
     if (plan.outcome === "refused") {
       setJourneyDropMessage({ kind: "refused", text: plan.reason });
@@ -5450,21 +5476,40 @@ export function App({ model }: AppProps) {
     );
   }
 
-  function cancelJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
-    if (journeyDragRef.current?.pointerId !== event.pointerId) return;
-    releaseJourneyDrag(event);
+  /**
+   * Escape gives the drag up while the button is still held. The pointer stays captured, so the
+   * release that follows still reaches the row and is consumed there without moving anything.
+   */
+  function abandonJourneyDrag() {
+    const drag = journeyDragRef.current;
+    if (!drag || !drag.started || drag.abandoned) return;
+    drag.abandoned = true;
+    document.body.classList.remove("is-dragging-journey");
+    setDraggedJourneyId(null);
+    setJourneyDropTarget(undefined);
   }
+  abandonJourneyDragRef.current = abandonJourneyDrag;
 
-  function releaseJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
+  /** Ends the gesture however it ended: a release, a cancelled pointer or a lost capture. */
+  function releaseJourneyDrag() {
     const drag = journeyDragRef.current;
     journeyDragRef.current = null;
-    journeyDragClickRef.current = clickEndsADrag(drag);
+    document.removeEventListener("selectstart", refuseSelectionStart);
     document.body.classList.remove("is-dragging-journey");
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    // Only the click that belongs to this release is swallowed; one that never arrives (the
+    // release landed outside the row) must not swallow the next real click.
+    journeyDragClickRef.current = clickEndsADrag(drag);
+    window.setTimeout(() => { journeyDragClickRef.current = false; }, 0);
+    if (drag && drag.element.hasPointerCapture(drag.pointerId)) {
+      drag.element.releasePointerCapture(drag.pointerId);
     }
     setDraggedJourneyId(null);
     setJourneyDropTarget(undefined);
+  }
+
+  function cancelJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (journeyDragRef.current?.pointerId !== event.pointerId) return;
+    releaseJourneyDrag();
   }
 
   /** The click that ends a drag must not also select the Journey it just moved. */
@@ -6580,6 +6625,7 @@ export function App({ model }: AppProps) {
           ) : null}
         </div>
         {treeToolsVisible ? (
+          <div className="journey-tree-tools-slot">
           <div className="journey-tree-tools" role="group" aria-label="Journey tree tools">
             <button type="button" onClick={collapseAllJourneys} title="Collapse all">
               <span aria-hidden="true">⊟</span> Collapse all
@@ -6599,6 +6645,17 @@ export function App({ model }: AppProps) {
               </button>
             ) : null}
           </div>
+          {draggedJourneyId ? (
+            // Laid over the tools rather than inserted above the tree, so the rows do not move
+            // under the hand when the drag begins.
+            <div
+              ref={journeyRootDropZoneRef}
+              className={`journey-root-drop-zone ${journeyDropTarget?.zone === "root" ? "is-aimed" : ""}`}
+            >
+              Drop here to make it a root Journey
+            </div>
+          ) : null}
+          </div>
         ) : null}
         {journeyRegistryRefreshMessage ? (
           <p className={`journey-tree-refresh-status ${journeyRegistryRefreshState}`} role="status">
@@ -6606,23 +6663,6 @@ export function App({ model }: AppProps) {
           </p>
         ) : null}
 
-        {draggedJourneyId && journeyListOrder === "tree" ? (
-          <div
-            ref={journeyRootDropZoneRef}
-            className={`journey-root-drop-zone ${journeyDropTarget?.zone === "root" ? "is-aimed" : ""}`}
-          >
-            Drop here to make it a root Journey
-          </div>
-        ) : null}
-        {draggedJourneyId && journeyDropTarget ? (
-          <p className={`journey-drop-hint ${journeyDropTarget.plan.outcome}`} role="status">
-            {journeyDropTarget.plan.outcome === "move"
-              ? journeyDropTarget.plan.description
-              : journeyDropTarget.plan.outcome === "refused"
-                ? journeyDropTarget.plan.reason
-                : "It is already there."}
-          </p>
-        ) : null}
         {!draggedJourneyId && journeyDropMessage ? (
           <p
             className={`journey-drop-hint ${journeyDropMessage.kind === "refused" ? "refused" : "completed"}`}
@@ -6632,8 +6672,13 @@ export function App({ model }: AppProps) {
           </p>
         ) : null}
         {draggedJourneyId ? (
-          <div ref={journeyDragGhostRef} className="journey-drag-ghost" aria-hidden="true">
-            {findJourneyById(journeyRegistry, draggedJourneyId)?.name ?? draggedJourneyId}
+          <div
+            ref={journeyDragGhostRef}
+            className={`journey-drag-ghost ${journeyDropTarget?.plan.outcome ?? "none"}`}
+            role="status"
+          >
+            <strong>{findJourneyById(journeyRegistry, draggedJourneyId)?.name ?? draggedJourneyId}</strong>
+            <span>{dragGhostSentence(journeyDropTarget?.plan)}</span>
           </div>
         ) : null}
 
@@ -6707,6 +6752,9 @@ export function App({ model }: AppProps) {
                 onPointerMove={continueJourneyDrag}
                 onPointerUp={finishJourneyDrag}
                 onPointerCancel={cancelJourneyDrag}
+                onLostPointerCapture={(event) => {
+                  if (journeyDragRef.current?.pointerId === event.pointerId) releaseJourneyDrag();
+                }}
                 onContextMenu={(event) => {
                   event.preventDefault(); event.stopPropagation();
                   openJourneyItemMenu(journey.id, event.currentTarget, event.clientX, event.clientY);

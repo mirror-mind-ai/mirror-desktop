@@ -254,8 +254,10 @@ describe("CR098, absorbed: the parents the form may offer", () => {
 
 describe("CR203: the surface uses one decision and can speak for itself", () => {
   it("offers the root as a drop target only while a drag is happening", () => {
-    expect(appSource).toContain('draggedJourneyId && journeyListOrder === "tree" ? (');
-    expect(appSource).toContain("Drop here to make it a root Journey");
+    // Inside the tree tools slot, which exists only in Tree view, and only while a drag lasts.
+    const slot = appSource.slice(appSource.indexOf('<div className="journey-tree-tools-slot">'), appSource.indexOf("Drop here to make it a root Journey"));
+    expect(slot).toContain("{draggedJourneyId ? (");
+    expect(appSource).toContain('const treeToolsVisible = journeyListOrder === "tree"');
   });
 
   it("keeps the ineligible parents out of the Move form", () => {

@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   clickEndsADrag,
+  dragGhostSentence,
   dropTargetUnderPointer,
   exceedsDragThreshold,
+  isDragCancelKey,
   JOURNEY_DRAG_THRESHOLD_PX,
   shouldBeginJourneyDrag,
   type JourneyRowGeometry,
@@ -170,7 +172,7 @@ describe("CR203: the surface drives the gesture with pointer events", () => {
   });
 
   it("shows the dragged Journey's name travelling with the pointer", () => {
-    expect(appSource).toContain('className="journey-drag-ghost"');
+    expect(appSource).toContain("className={`journey-drag-ghost ${journeyDropTarget?.plan.outcome ?? \"none\"}`}");
     const ghost = styleSource.slice(styleSource.indexOf(".journey-drag-ghost"), styleSource.indexOf(".journey-drop-hint.completed"));
     expect(ghost).toContain("position: fixed");
     expect(ghost).toContain("pointer-events: none");
@@ -180,9 +182,83 @@ describe("CR203: the surface drives the gesture with pointer events", () => {
     expect(appSource).toContain("if (consumeJourneyDragClick()) return;");
   });
 
+  it("swallows only the click of this release, never a later real click", () => {
+    // A release outside the row produces no click on it; the flag must not survive to eat the next.
+    expect(appSource).toContain("window.setTimeout(() => { journeyDragClickRef.current = false; }, 0);");
+  });
+
   it("stops WebKit from starting its own drag or painting a selection on the row", () => {
     const row = styleSource.slice(styleSource.indexOf(".journey-item {"), styleSource.indexOf(".journey-item::before"));
     expect(row).toContain("-webkit-user-drag: none");
     expect(row).toContain("user-select: none");
+  });
+});
+
+describe("CR203: nothing in the tree moves while a Journey is being dragged", () => {
+  /**
+   * Fourth field report, 2026-11-06: the root zone and the plan line were inserted above the tree
+   * in the same instant the drag began, after the rows had been measured. Every row then sat about
+   * 70px below where the gesture believed it was, so a drop landed on the row above the one under
+   * the pointer; this is the likely path by which Vida Acadêmica2 went into alissonvale.com. The
+   * plan line also changed height with its sentence, so the tree jumped while the hand moved.
+   */
+  it("measures the rows on every move, so no shift can leave the gesture aiming at stale rows", () => {
+    expect(appSource).toContain("const aimed = dropTargetUnderPointer({ point, rows: measureJourneyRows(), rootZone: journeyRootDropZone() });");
+    expect(appSource).not.toContain("drag.rows = measureJourneyRows();");
+  });
+
+  it("lays the root zone over the tree tools instead of inserting it above the tree", () => {
+    expect(appSource).toContain('<div className="journey-tree-tools-slot">');
+    const slot = styleSource.slice(styleSource.indexOf(".journey-tree-tools-slot {"), styleSource.indexOf(".journey-tree-tools-slot .journey-root-drop-zone {") + 400);
+    expect(slot).toContain("position: relative");
+    expect(slot).toContain("position: absolute");
+  });
+
+  it("speaks the plan beside the pointer, not in a line that pushes the tree", () => {
+    expect(appSource).toContain("dragGhostSentence(journeyDropTarget?.plan)");
+    expect(appSource).not.toContain("{draggedJourneyId && journeyDropTarget ? (");
+  });
+});
+
+describe("CR203: what travels with the pointer", () => {
+  it("names the plan, the refusal or the absence of a change", () => {
+    expect(dragGhostSentence({ outcome: "move", parentId: "a", position: 0, description: "Move X into A, as its first Journey.", completion: "" }))
+      .toBe("Move X into A, as its first Journey.");
+    expect(dragGhostSentence({ outcome: "refused", reason: "A Journey cannot be moved into itself." }))
+      .toBe("A Journey cannot be moved into itself.");
+    expect(dragGhostSentence({ outcome: "unchanged" })).toBe("It is already there.");
+  });
+
+  it("tells the hand how to give up when it is over nothing", () => {
+    expect(dragGhostSentence(undefined)).toBe("Release here to cancel. Esc also cancels.");
+  });
+});
+
+describe("CR203: a drag can be cancelled", () => {
+  it("answers Escape, and nothing else, as the cancel key", () => {
+    expect(isDragCancelKey("Escape")).toBe(true);
+    expect(isDragCancelKey("Enter")).toBe(false);
+    expect(isDragCancelKey(" ")).toBe(false);
+  });
+
+  it("listens for the key only while a drag lasts, and abandons without moving anything", () => {
+    expect(appSource).toContain('window.addEventListener("keydown", cancelOnKey, true);');
+    expect(appSource).toContain('window.removeEventListener("keydown", cancelOnKey, true);');
+    expect(appSource).toContain("if (isDragCancelKey(event.key))");
+    const abandon = appSource.slice(appSource.indexOf("function abandonJourneyDrag()"), appSource.indexOf("function releaseJourneyDrag()"));
+    expect(abandon).toContain("drag.abandoned = true;");
+    expect(abandon).not.toContain("executeJourneyMutation");
+    // The release that follows an abandoned drag still arrives, and must not drop.
+    expect(appSource).toContain("const dropping = drag.started && !drag.abandoned;");
+    expect(appSource).toContain("if (!dropping || !aimed) return;");
+  });
+});
+
+describe("CR203: the text selection never starts, rather than being undone after", () => {
+  it("refuses selectstart from the moment a press may become a drag until it is released", () => {
+    // user-select applied when the drag begins does not stop a selection WebKit began at the
+    // press; refusing the selection's start does.
+    expect(appSource).toContain('document.addEventListener("selectstart", refuseSelectionStart);');
+    expect(appSource).toContain('document.removeEventListener("selectstart", refuseSelectionStart);');
   });
 });

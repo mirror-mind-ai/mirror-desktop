@@ -1021,11 +1021,28 @@ body.is-dragging-journey * {
   padding: 6px 12px;
   pointer-events: none;
   position: fixed;
-  text-overflow: ellipsis;
   top: -9999px;
-  white-space: nowrap;
   z-index: 60;
 }
+
+/* The ghost speaks the plan beside the pointer, where its length can change without moving the tree. */
+.journey-drag-ghost strong,
+.journey-drag-ghost span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journey-drag-ghost span {
+  color: #a9b8bd;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.journey-drag-ghost.refused { border-color: rgba(226, 149, 127, 0.7); }
+.journey-drag-ghost.refused span { color: #e2957f; }
+.journey-drag-ghost.move { border-color: rgba(118, 189, 199, 0.7); }
 
 .journey-drop-hint.completed { color: #9fd4a8; }
 
@@ -1058,6 +1075,30 @@ body.is-dragging-journey * {
   color: #cfe3e7;
 }
 
+/*
+ * The root zone is laid over the tree tools while a drag lasts, never inserted above the tree:
+ * an inserted zone pushed every row down after the gesture had measured them, so drops landed one
+ * row above the pointer.
+ */
+.journey-tree-tools-slot {
+  position: relative;
+}
+
+.journey-tree-tools-slot .journey-root-drop-zone {
+  align-items: center;
+  background: #142026;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  margin: 0;
+  position: absolute;
+  z-index: 2;
+}
+
+.journey-tree-tools-slot .journey-root-drop-zone.is-aimed {
+  background: #1d3238;
+}
+
 .journey-drop-hint {
   color: #849399;
   font-size: 0.68rem;
@@ -1065,7 +1106,6 @@ body.is-dragging-journey * {
 }
 
 .journey-drop-hint.refused { color: #e2957f; }
-.journey-drop-hint.unchanged { opacity: 0.75; }
 
 .journey-tree-tools {
   display: flex;

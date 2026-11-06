@@ -1,4 +1,4 @@
-import { dropZoneFromOffset, type JourneyDropZone } from "./journeyDropTarget";
+import { dropZoneFromOffset, type JourneyDropPlan, type JourneyDropZone } from "./journeyDropTarget";
 
 /**
  * CR203: the drag gesture, driven by pointer events rather than by the browser's own.
@@ -13,7 +13,7 @@ export const JOURNEY_DRAG_THRESHOLD_PX = 4;
 
 export type PointerPoint = { x: number; y: number };
 
-/** The rows, as the tree measured them when the gesture began. */
+/** The rows, as the tree measures them at the moment of the pointer move being judged. */
 export type JourneyRowGeometry = { journeyId: string; top: number; height: number };
 
 export type PointerDropTarget = { journeyId: string | null; zone: JourneyDropZone };
@@ -68,4 +68,19 @@ export function shouldBeginJourneyDrag(input: {
  */
 export function clickEndsADrag(drag: { moved: boolean } | null | undefined): boolean {
   return drag?.moved ?? false;
+}
+
+/**
+ * What travels beside the pointer. The plan is spoken there rather than in a line above the tree,
+ * because a line whose height follows its sentence pushed the tree up and down under the hand.
+ */
+export function dragGhostSentence(plan: JourneyDropPlan | undefined): string {
+  if (!plan) return "Release here to cancel. Esc also cancels.";
+  if (plan.outcome === "move") return plan.description;
+  if (plan.outcome === "refused") return plan.reason;
+  return "It is already there.";
+}
+
+export function isDragCancelKey(key: string): boolean {
+  return key === "Escape";
 }
