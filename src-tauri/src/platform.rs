@@ -124,6 +124,33 @@ pub(crate) fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
     path
 }
 
+/// Where people's own command-line tools are installed on Windows, for a PATH the app builds
+/// itself: the Mirror installer's `~/.mirror/bin` (the `mirror` the `mm-*` skills run), npm's
+/// global commands, and Git for Windows' `git`. The POSIX list names `~/.local/bin` and the rest
+/// outright; empty there.
+pub(crate) fn user_tool_directories(home: &Path) -> Vec<PathBuf> {
+    #[cfg(windows)]
+    {
+        let mut directories = vec![home.join(".mirror").join("bin")];
+        if let Some(app_data) = std::env::var_os("APPDATA") {
+            directories.push(PathBuf::from(app_data).join("npm"));
+        }
+        for root in ["ProgramFiles", "LOCALAPPDATA"] {
+            if let Some(root) = std::env::var_os(root) {
+                let root = PathBuf::from(root);
+                let git = if root.ends_with("Local") { root.join("Programs").join("Git") } else { root.join("Git") };
+                directories.push(git.join("cmd"));
+            }
+        }
+        directories
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = home;
+        Vec::new()
+    }
+}
+
 /// The directories the OS's own command-line tools live in, for a PATH the app builds itself.
 /// The POSIX list names `/usr/bin` and `/bin` outright; Windows keeps `cmd.exe`, `where`, `tar`
 /// and friends under the system root, which is only known at runtime. Empty on POSIX.

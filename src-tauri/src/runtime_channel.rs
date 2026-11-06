@@ -208,6 +208,7 @@ pub(crate) fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
     ] {
         directories.extend(discover_versioned_runtime_directories(&root, suffix));
     }
+    directories.extend(crate::platform::user_tool_directories(home));
     directories.extend(crate::platform::system_tool_directories());
     directories
 }
@@ -547,6 +548,10 @@ mod tests {
             let system32 = std::path::PathBuf::from(std::env::var("SystemRoot").unwrap()).join("System32");
             assert_eq!(directories.last(), Some(&system32.join("WindowsPowerShell").join("v1.0")));
             assert!(directories.contains(&system32));
+            // The person's tools before the OS's: the Mirror installer's bin, npm's global commands.
+            let mirror_bin = directories.iter().position(|path| path == &home.join(".mirror").join("bin")).unwrap();
+            assert!(mirror_bin < directories.iter().position(|path| path == &system32).unwrap());
+            assert!(directories.iter().any(|path| path.ends_with("npm")));
         }
         #[cfg(not(windows))]
         assert_eq!(directories.last().map(|path| path.starts_with(&home)), Some(true));
