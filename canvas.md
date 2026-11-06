@@ -5,11 +5,9 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | RS028, depois RS027 |
-| **RS028 · Journey Management** | ✅ grupos A a D em produção (alpha.4) · 2 🔵 · 1 🟡 |
+| **RS028 · Journey Management** | ✅ grupos A a D em produção (alpha.4) · CR208 e CR209 validadas, vão na alpha.5 · 1 🟡 |
 | ↳　D · CR204 · Delete a Journey With Everything Under It | ✅ done · Core `0.40.0-next.1` fixado |
 | ↳　D · CR205 · Make the Deletion List Legible and Name the Journey in the Title | 🟡 captured · cor fixa `#b9cbd0` nos temas claros |
-| ↳　CR208 · Align a Nested Journey's Conversations Under It | 🔵 in_progress · construída · aguarda checagem |
-| ↳　CR209 · Make the Working Folder Line Readable on Light Themes | 🔵 in_progress · construída · aguarda checagem |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🟡 |
 | ↳　CR196 · Render a Table Whose First Header Cell Is Empty | 🟡 captured · causa achada: célula vazia no cabeçalho |
 | **RS027 · Re-examine the Older Open Work** | 🔄 ativa · 3 🔵 · 4 🟡 · 2 ⏸️ · veredito de cada uma |
@@ -27,9 +25,7 @@
 | ↳　CR094 · Mirror Mode Activation Rebinds a Desktop Conversation's Journey | ⏸️ parked |
 | ↳　CR170 · Pass the Invocation Directory to the Core Explicitly | ⏸️ parked |
 | ↳　CR189 · Route the Persona by What the Turn Is About | ⏸️ parked |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa · 2 🔵 · 1 ⏸️ |
-| ↳　CR207 · Create a Conversation in the Journey Whose New Was Pressed | 🔵 in_progress · construída · aguarda checagem |
-| ↳　CR206 · Work Only With Conversations Nautilus Created | 🔵 in_progress · construída · aguarda a checagem do Navigator |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa · CR206 e CR207 validadas, vão na alpha.5 · 1 ⏸️ |
 | ↳　CR156 · Simplify the Context Map | ⏸️ parked · vai para a CV-012 |
 
 ## Roadmap

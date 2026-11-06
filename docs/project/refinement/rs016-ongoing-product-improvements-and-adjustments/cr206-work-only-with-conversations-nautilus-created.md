@@ -2,7 +2,7 @@
 
 # CR206: Work Only With Conversations Nautilus Created
 
-**Status:** in_progress
+**Status:** done
 **Driver:** assistant
 **Delivery:** `main` (`6aaf505b`)
 **Navigator decision:** 2026-11-06
@@ -85,3 +85,7 @@ In the development app (`npm run tauri:dev`), on a Journey that had Mirror histo
    and takes a turn.
 4. Quit with a Desktop conversation selected and reopen: it is restored. (A Journey whose remembered
    selection was Mirror history opens on the Journey itself.)
+
+## Validation
+
+Validated by the Navigator on 2026-11-06 in the development app. Ships in v0.4.0-alpha.5.

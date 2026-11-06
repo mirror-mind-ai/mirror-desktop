@@ -2,7 +2,7 @@
 
 # CR207: Create a Conversation in the Journey Whose New Was Pressed
 
-**Status:** in_progress
+**Status:** done
 **Driver:** assistant
 **Delivery:** `main` (`75382d16`)
 **Reported:** Navigator, 2026-11-06, on v0.4.0-alpha.4 development
@@ -34,3 +34,7 @@ choosing a conversation in a group does.
 2. Create it. The app goes to Vida Técnica, with the new conversation selected and listed under
    Vida Técnica, not under Nautilus.
 3. New in the selected Journey's own group still works as before.
+
+## Validation
+
+Validated by the Navigator on 2026-11-06 in the development app. Ships in v0.4.0-alpha.5.

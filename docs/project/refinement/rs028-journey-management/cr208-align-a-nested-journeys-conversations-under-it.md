@@ -2,7 +2,7 @@
 
 # CR208: Align a Nested Journey's Conversations Under It
 
-**Status:** in_progress
+**Status:** done
 **Driver:** assistant
 **Delivery:** `main` (`75382d16`)
 **Group:** follow-up to group A, found 2026-11-06
@@ -27,3 +27,7 @@ and its margin is `calc(20px + depth × 16px)`.
 
 Open the conversations of a root Journey, of a child and of a grandchild (Livro Liderança Soberana).
 Each group's guide and its "Conversations" heading start under its own Journey.
+
+## Validation
+
+Validated by the Navigator on 2026-11-06 in the development app. Ships in v0.4.0-alpha.5.
