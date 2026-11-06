@@ -169,6 +169,32 @@ pub(crate) fn system_tool_directories() -> Vec<PathBuf> {
     }
 }
 
+/// Give the main window its big icon on Windows. tao sets a window's small icon only (the one in
+/// the title bar); the taskbar and Alt-Tab ask for the big one and, finding none, fall back to
+/// whatever the shell has cached for the app's shortcut, which here was the retired diamond. The
+/// icon is the executable's own, the group `tauri-build` embeds under `32512` (IDI_APPLICATION).
+/// A no-op elsewhere.
+pub(crate) fn apply_window_big_icon(window: &tauri::WebviewWindow) {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
+        use windows_sys::Win32::UI::WindowsAndMessaging::{LoadIconW, SendMessageW, ICON_BIG, IDI_APPLICATION, WM_SETICON};
+        let Ok(hwnd) = window.hwnd() else { return };
+        // SAFETY: plain Win32 calls on handles this process owns; a null icon is checked before use.
+        unsafe {
+            let module = GetModuleHandleW(std::ptr::null());
+            let icon = LoadIconW(module, IDI_APPLICATION);
+            if !icon.is_null() {
+                SendMessageW(hwnd.0 as _, WM_SETICON, ICON_BIG as usize, icon as isize);
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = window;
+    }
+}
+
 /// Keep a child from opening a console window. The app is a windowed program; on Windows a
 /// console program it starts (Node, the host, Pi, rundll32) is given a console of its own, which
 /// appears as a terminal window beside the app, unless it is started with `CREATE_NO_WINDOW`.

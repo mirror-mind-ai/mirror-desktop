@@ -10792,6 +10792,7 @@ fn main() {
                 // are messages to the event loop and nothing processes them until it is running.
                 // The window is configured invisible, so this happens with nothing on screen.
                 if let Some(window) = app_handle.get_webview_window("main") {
+                    crate::platform::apply_window_big_icon(&window);
                     if let Ok(app_data_root) = app_handle.path().app_data_dir() {
                         apply_startup_window_geometry(&window, &app_data_root);
                     }
