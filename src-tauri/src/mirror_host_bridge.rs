@@ -89,7 +89,7 @@ pub(crate) fn runtime_dir(channel: RuntimeChannel, resources: Option<&Path>, rep
     if let Some(directory) = resources.map(|resources| resources.join("mirror-host")) {
         if directory.join("host.mjs").is_file() {
             check_bundled_runtime(&directory, platform)?;
-            return directory.canonicalize().map_err(|error| format!("Could not resolve {}: {error}", directory.display()));
+            return crate::platform::canonicalize(&directory).map_err(|error| format!("Could not resolve {}: {error}", directory.display()));
         }
     }
     if channel != RuntimeChannel::Development {
@@ -99,7 +99,7 @@ pub(crate) fn runtime_dir(channel: RuntimeChannel, resources: Option<&Path>, rep
     if !directory.join("host.mjs").is_file() {
         return Err(format!("No Mirror host runtime at {}. Run: node scripts/mirror_host_pin.mjs materialize", directory.display()));
     }
-    directory.canonicalize().map_err(|error| format!("Could not resolve {}: {error}", directory.display()))
+    crate::platform::canonicalize(&directory).map_err(|error| format!("Could not resolve {}: {error}", directory.display()))
 }
 
 /// The runtime this process runs with. The resources folder is the one Tauri resolves on macOS,
@@ -573,7 +573,7 @@ mod tests {
         let directory = std::env::temp_dir().join(format!("mirror-host-bridge-{label}-{}-{:?}", std::process::id(), std::thread::current().id()));
         let _ = std::fs::remove_dir_all(&directory);
         std::fs::create_dir_all(&directory).unwrap();
-        directory.canonicalize().unwrap()
+        crate::platform::canonicalize(&directory).unwrap()
     }
 
     /// The host's own runtime platform, and one that is not it: the bridge's rule is about

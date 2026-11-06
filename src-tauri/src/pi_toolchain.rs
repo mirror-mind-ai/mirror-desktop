@@ -94,13 +94,13 @@ pub(crate) fn resolve_app_pi(app_data_root: &Path, runtime_dir: &Path) -> Result
     if !executable_file(&pi_bin) {
         return Err(PI_NOT_INSTALLED.to_string());
     }
-    let pi_bin = pi_bin.canonicalize().map_err(|_| PI_NOT_INSTALLED.to_string())?;
-    let directory = directory.canonicalize().map_err(|_| PI_NOT_INSTALLED.to_string())?;
+    let pi_bin = crate::platform::canonicalize(&pi_bin).map_err(|_| PI_NOT_INSTALLED.to_string())?;
+    let directory = crate::platform::canonicalize(&directory).map_err(|_| PI_NOT_INSTALLED.to_string())?;
     if !pi_bin.starts_with(&directory) {
         return Err(PI_NOT_INSTALLED.to_string());
     }
-    let node_bin = node_bin.canonicalize().map_err(|_| crate::mirror_host_bridge::RUNTIME_MISSING.to_string())?;
-    let package_dir = package_dir.canonicalize().map_err(|_| PI_NOT_INSTALLED.to_string())?;
+    let node_bin = crate::platform::canonicalize(&node_bin).map_err(|_| crate::mirror_host_bridge::RUNTIME_MISSING.to_string())?;
+    let package_dir = crate::platform::canonicalize(&package_dir).map_err(|_| PI_NOT_INSTALLED.to_string())?;
     Ok(AppPi { pi_bin, node_bin, package_dir })
 }
 
@@ -121,7 +121,7 @@ pub(crate) mod tests {
         let directory = std::env::temp_dir().join(format!("pi-toolchain-{label}-{}-{:?}", std::process::id(), std::thread::current().id()));
         let _ = fs::remove_dir_all(&directory);
         fs::create_dir_all(&directory).unwrap();
-        directory.canonicalize().unwrap()
+        crate::platform::canonicalize(&directory).unwrap()
     }
 
     #[cfg(unix)]

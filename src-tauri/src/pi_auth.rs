@@ -682,7 +682,9 @@ case "$line" in *'"id":"p1"'*'"value":"typed"'*) echo '{"event":"done","provider
         let envs: Vec<_> = command.get_envs().map(|(key, value)| (key.to_string_lossy().into_owned(), value.map(|v| v.to_string_lossy().into_owned()))).collect();
         assert!(envs.contains(&("HOME".into(), Some("/Users/ana".into()))));
         assert!(envs.contains(&("PATH".into(), Some("/app/runtime/node/bin".into()))));
-        assert_eq!(envs.len(), 2);
+        // HOME and PATH, and on Windows the two the OS itself needs (`platform::system_environment`).
+        let ours: Vec<_> = envs.iter().filter(|(key, _)| !matches!(key.as_str(), "SYSTEMROOT" | "SYSTEMDRIVE")).collect();
+        assert_eq!(ours.len(), 2);
         let source = include_str!("pi_auth.rs");
         let body = &source[source.find("pub(crate) fn helper_command(").unwrap()..];
         assert!(body[..body.find("\n}\n").unwrap()].contains(".env_clear()"));

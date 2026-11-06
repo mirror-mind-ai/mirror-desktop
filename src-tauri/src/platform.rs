@@ -95,6 +95,35 @@ pub(crate) fn bundled_resources_dir(exe: &Path) -> Option<PathBuf> {
     }
 }
 
+/// `Path::canonicalize` as a plain path on every platform.
+///
+/// On Windows `canonicalize` returns the verbatim form, `\\?\C:\...`. Handed
+/// to a child process as its working directory or as a script argument it
+/// is a different string: Node, given `\\?\C:\...\host.mjs`, exits 0 having
+/// written nothing, which the bridge then reports as a host that "exited
+/// before its handshake". The prefix is stripped, and a UNC verbatim path
+/// (`\\?\UNC\server\share`) becomes `\\server\share`. POSIX is unchanged.
+pub(crate) fn canonicalize(path: &Path) -> io::Result<PathBuf> {
+    path.canonicalize().map(strip_verbatim_prefix)
+}
+
+#[cfg(windows)]
+pub(crate) fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy();
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{rest}"))
+    } else if let Some(rest) = text.strip_prefix(r"\\?\") {
+        PathBuf::from(rest)
+    } else {
+        path
+    }
+}
+
+#[cfg(not(windows))]
+pub(crate) fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
+    path
+}
+
 /// What a child started with a cleared environment still needs from the
 /// operating system, nothing of the person's. On POSIX, nothing: the host and
 /// the installers run with no environment at all, by design. On Windows a
@@ -272,6 +301,21 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             assert_eq!(fs::metadata(&dir).unwrap().permissions().mode() & 0o777, 0o700);
             assert_eq!(fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o600);
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn canonicalize_returns_a_plain_path_a_child_process_can_take() {
+        let root = scratch("canon");
+        let canonical = canonicalize(&root).unwrap();
+        assert!(!canonical.to_string_lossy().starts_with(r"\\?\"), "{}", canonical.display());
+        assert!(canonical.is_absolute());
+        #[cfg(windows)]
+        {
+            assert_eq!(strip_verbatim_prefix(PathBuf::from(r"\\?\C:\a\b")), PathBuf::from(r"C:\a\b"));
+            assert_eq!(strip_verbatim_prefix(PathBuf::from(r"\\?\UNC\srv\share\x")), PathBuf::from(r"\\srv\share\x"));
+            assert_eq!(strip_verbatim_prefix(PathBuf::from(r"C:\plain")), PathBuf::from(r"C:\plain"));
         }
         let _ = fs::remove_dir_all(&root);
     }
