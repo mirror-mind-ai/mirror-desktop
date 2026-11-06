@@ -390,7 +390,7 @@ fn pi_auth_context(app: &AppHandle) -> Result<(AppPi, PathBuf, PathBuf, PathBuf)
     let runtime_dir = crate::mirror_host_bridge::current_runtime_dir()?;
     let pi = resolve_app_pi(&app_data_root, &runtime_dir)?;
     let script = auth_script(&runtime_dir)?;
-    let home = std::env::var_os("HOME").map(PathBuf::from).ok_or_else(|| "Could not resolve your home folder.".to_string())?;
+    let home = crate::platform::home_directory().ok_or_else(|| "Could not resolve your home folder.".to_string())?;
     Ok((pi, script, home, app_data_root))
 }
 

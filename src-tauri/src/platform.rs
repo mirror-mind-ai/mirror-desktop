@@ -28,6 +28,33 @@ pub(crate) fn home_directory() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+/// The application data root for `identifier`, as Tauri's `app_data_dir`
+/// resolves it, for the code that runs without an `AppHandle`:
+/// `~/Library/Application Support/<id>` on macOS, `%APPDATA%\<id>` on
+/// Windows, `$XDG_DATA_HOME/<id>` (else `~/.local/share/<id>`) elsewhere.
+pub(crate) fn app_data_root(home: &Path, identifier: &str) -> PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        home.join("Library/Application Support").join(identifier)
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::env::var_os("APPDATA")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| home.join("AppData").join("Roaming"))
+            .join(identifier)
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::env::var_os("XDG_DATA_HOME")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| home.join(".local/share"))
+            .join(identifier)
+    }
+}
+
 /// The Node binary inside a laid-out Mirror host runtime. The archives
 /// differ, and the runtime keeps each as it shipped: `node/bin/node` from the
 /// POSIX tarball, `node/node.exe` from the Windows zip. `mirror_host_pin.mjs`

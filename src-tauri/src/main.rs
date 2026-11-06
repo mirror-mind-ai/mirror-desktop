@@ -2315,7 +2315,7 @@ fn journey_deletion_context(app: &AppHandle, journey_id: &str) -> Result<Journey
     let paths = journey_deletion::project_paths(&tree["roots"]);
     let folder = paths.iter().find(|(id, _)| id == &journey_id).map(|(_, path)| {
         let others: Vec<String> = paths.iter().filter(|(id, _)| id != &journey_id).map(|(_, path)| path.clone()).collect();
-        let home = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".to_string()));
+        let home = crate::platform::home_directory().unwrap_or_else(|| PathBuf::from("/"));
         let mut guarded = vec![state_dir.clone()];
         // The app's data folder, `<root>/homes/<home id>` above the state folder.
         if let Some(root) = state_dir.ancestors().nth(2) { guarded.push(root.to_path_buf()); }
@@ -3225,11 +3225,7 @@ fn inspect_file_attachments(journey_id: String, paths: Vec<String>) -> Result<Fi
 }
 
 fn current_user_home_directory() -> Result<PathBuf, String> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .ok_or_else(|| "Current-user home directory is unavailable.".to_string())
+    crate::platform::home_directory().ok_or_else(|| "Current-user home directory is unavailable.".to_string())
 }
 
 fn resolve_home_relative_file(path: &str, home_directory: &Path) -> Result<PathBuf, String> {
@@ -5592,7 +5588,7 @@ fn project_dedicated_user_text_and_envelope(value: &str) -> (String, String) {
 }
 
 fn validate_pi_session_file(app: &AppHandle, session_file: &str, pi_session_id: &str) -> Result<(), String> {
-    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
+    let home = crate::platform::home_directory().ok_or_else(|| "Your home folder is unavailable.".to_string())?;
     let app_data_root = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     validate_pi_session_file_at(
@@ -9223,7 +9219,7 @@ fn default_pi_session_dir(cwd: &Path) -> Result<PathBuf, String> {
     let agent_dir = if let Some(agent_dir) = std::env::var_os("PI_CODING_AGENT_DIR") {
         expand_home_path(PathBuf::from(agent_dir))?
     } else {
-        let home = std::env::var_os("HOME")
+        let home = crate::platform::home_directory()
             .ok_or_else(|| "Could not resolve home directory for Pi sessions.".to_string())?;
         PathBuf::from(home).join(".pi").join("agent")
     };
@@ -9239,7 +9235,7 @@ fn default_pi_session_dir(cwd: &Path) -> Result<PathBuf, String> {
 fn expand_home_path(path: PathBuf) -> Result<PathBuf, String> {
     let value = path.to_string_lossy();
     if value == "~" || value.starts_with("~/") {
-        let home = std::env::var_os("HOME")
+        let home = crate::platform::home_directory()
             .ok_or_else(|| "Could not expand home directory for Pi sessions.".to_string())?;
         return Ok(if value == "~" {
             PathBuf::from(home)
@@ -10105,7 +10101,7 @@ fn journey_thread_operation_path(app: &AppHandle, journey_id: &str) -> Result<Pa
 }
 
 fn validate_run_authority(app: &AppHandle, authority: &RunAuthority) -> Result<(), String> {
-    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
+    let home = crate::platform::home_directory().ok_or_else(|| "Your home folder is unavailable.".to_string())?;
     let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     let runtime_channel = active_runtime_channel()?.channel;
@@ -10121,7 +10117,7 @@ fn validate_pre_admission_run_authority(
     app: &AppHandle,
     authority: &RunAuthority,
 ) -> Result<(), String> {
-    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
+    let home = crate::platform::home_directory().ok_or_else(|| "Your home folder is unavailable.".to_string())?;
     let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     let runtime_channel = active_runtime_channel()?.channel;

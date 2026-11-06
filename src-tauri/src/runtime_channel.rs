@@ -312,13 +312,11 @@ impl RuntimeChannelProfile {
     /// tree, a user or `uv`. Since slice 3b, Pi is the app's own install, run with the Node the
     /// app carries, whose folder leads `PATH` so Pi's `env node` finds it.
     pub fn active() -> Result<Self, String> {
-        let home = env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
-            "Could not resolve HOME for the Nautilus runtime channel.".to_string()
+        let home = crate::platform::home_directory().ok_or_else(|| {
+            "Could not resolve your home folder for the Nautilus runtime channel.".to_string()
         })?;
         let channel = RuntimeChannel::active();
-        let app_data_root = home
-            .join("Library/Application Support")
-            .join(channel.bundle_identifier());
+        let app_data_root = crate::platform::app_data_root(&home, channel.bundle_identifier());
         let marked = crate::mirror_home::load_home_binding(&app_data_root)?
             .ok_or_else(|| UNBOUND_0_3.to_string())?;
         let runtime_dir = crate::mirror_host_bridge::current_runtime_dir()?;
