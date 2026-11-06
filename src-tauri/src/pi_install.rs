@@ -505,13 +505,11 @@ mod tests {
         run_install(&app_data, &runtime, |step| last = Some(step)).unwrap();
         assert_eq!(last, Some(PiInstallProgress { phase: "check", done: 1, total: 1 }));
         let pi = resolve_app_pi(&app_data, &runtime).unwrap();
-        let version = Command::new(&pi.pi_bin)
-            .arg("--version")
-            .env_clear()
-            .env("HOME", &app_data)
-            .env("PATH", pi.node_bin.parent().unwrap())
-            .output()
-            .unwrap();
+        let mut version = Command::new(&pi.pi_bin);
+        version.arg("--version").env_clear().env("PATH", pi.node_bin.parent().unwrap());
+        crate::platform::home_environment(&mut version, &app_data);
+        crate::platform::system_environment(&mut version);
+        let version = version.output().unwrap();
         assert_eq!(String::from_utf8_lossy(&version.stdout).trim(), "1.4.0");
         let mut entries: Vec<_> = fs::read_dir(app_data.join("pi")).unwrap().map(|entry| entry.unwrap().file_name().into_string().unwrap()).collect();
         entries.sort();

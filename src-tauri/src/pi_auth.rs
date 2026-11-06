@@ -117,9 +117,9 @@ pub(crate) fn helper_command(pi: &AppPi, script: &Path, home: &Path, cwd: &Path,
         .arg("--pi")
         .arg(&pi.package_dir)
         .env_clear()
-        .env("HOME", home)
         .env("PATH", pi.node_bin.parent().unwrap_or(Path::new("/usr/bin")))
         .current_dir(cwd);
+    crate::platform::home_environment(&mut command, home);
     crate::platform::system_environment(&mut command);
     command
 }
@@ -683,7 +683,10 @@ case "$line" in *'"id":"p1"'*'"value":"typed"'*) echo '{"event":"done","provider
         assert!(envs.contains(&("HOME".into(), Some("/Users/ana".into()))));
         assert!(envs.contains(&("PATH".into(), Some("/app/runtime/node/bin".into()))));
         // HOME and PATH, and on Windows the two the OS itself needs (`platform::system_environment`).
-        let ours: Vec<_> = envs.iter().filter(|(key, _)| !matches!(key.as_str(), "SYSTEMROOT" | "SYSTEMDRIVE")).collect();
+        // On Windows USERPROFILE is the HOME Node reads there (`platform::home_environment`).
+        #[cfg(windows)]
+        assert!(envs.contains(&("USERPROFILE".into(), Some("/Users/ana".into()))));
+        let ours: Vec<_> = envs.iter().filter(|(key, _)| !matches!(key.as_str(), "SYSTEMROOT" | "SYSTEMDRIVE" | "USERPROFILE")).collect();
         assert_eq!(ours.len(), 2);
         let source = include_str!("pi_auth.rs");
         let body = &source[source.find("pub(crate) fn helper_command(").unwrap()..];

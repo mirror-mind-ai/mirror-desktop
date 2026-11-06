@@ -124,6 +124,15 @@ pub(crate) fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
     path
 }
 
+/// Name `home` as the child's home directory. `HOME` is what Node reads on POSIX; on Windows it
+/// reads `USERPROFILE` and, finding neither, asks the OS for the account's real profile, so a
+/// scratch home named only through `HOME` would silently be the person's own `~/.pi`.
+pub(crate) fn home_environment(command: &mut std::process::Command, home: &Path) {
+    command.env("HOME", home);
+    #[cfg(windows)]
+    command.env("USERPROFILE", home);
+}
+
 /// What a child started with a cleared environment still needs from the
 /// operating system, nothing of the person's. On POSIX, nothing: the host and
 /// the installers run with no environment at all, by design. On Windows a
