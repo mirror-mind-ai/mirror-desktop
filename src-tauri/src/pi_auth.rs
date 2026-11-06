@@ -111,6 +111,7 @@ pub(crate) fn auth_script(runtime_dir: &Path) -> Result<PathBuf, String> {
 /// nothing else from the app's environment.
 pub(crate) fn helper_command(pi: &AppPi, script: &Path, home: &Path, cwd: &Path, args: &[&str]) -> Command {
     let mut command = Command::new(&pi.node_bin);
+    crate::platform::without_console(&mut command);
     command
         .arg(script)
         .args(args)

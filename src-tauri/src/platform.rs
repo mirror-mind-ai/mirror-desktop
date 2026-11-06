@@ -169,6 +169,23 @@ pub(crate) fn system_tool_directories() -> Vec<PathBuf> {
     }
 }
 
+/// Keep a child from opening a console window. The app is a windowed program; on Windows a
+/// console program it starts (Node, the host, Pi, rundll32) is given a console of its own, which
+/// appears as a terminal window beside the app, unless it is started with `CREATE_NO_WINDOW`.
+/// Pipes are unaffected. A no-op elsewhere.
+pub(crate) fn without_console(command: &mut std::process::Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = command;
+    }
+}
+
 /// A command that runs Pi's `cli.js`. On POSIX the file runs itself through its `#!/usr/bin/env
 /// node` line, and PATH, which the caller sets, names the carried Node. Windows has no shebang:
 /// `CreateProcess` refuses a `.js` file (EFTYPE), so the carried Node runs it, and the file is the
@@ -178,6 +195,7 @@ pub(crate) fn pi_command(pi_bin: &Path, node_bin: &Path) -> std::process::Comman
     {
         let mut command = std::process::Command::new(node_bin);
         command.arg(pi_bin);
+        without_console(&mut command);
         command
     }
     #[cfg(not(windows))]

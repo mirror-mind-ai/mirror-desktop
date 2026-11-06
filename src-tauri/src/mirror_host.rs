@@ -321,6 +321,7 @@ impl MirrorHost {
 
     fn start(&mut self) -> Result<RunningHost, MirrorHostError> {
         let mut command = Command::new(&self.config.node_bin);
+        crate::platform::without_console(&mut command);
         command
             .arg(&self.config.host_script)
             .current_dir(&self.config.host_dir)

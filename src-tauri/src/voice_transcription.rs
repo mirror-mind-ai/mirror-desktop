@@ -672,7 +672,9 @@ fn run_transcription(
     fs::write(&temp.0, wav).map_err(|_| "voice_component_unavailable".to_string())?;
 
     let started = Instant::now();
-    let mut child = Command::new(executable)
+    let mut command = Command::new(executable);
+    crate::platform::without_console(&mut command);
+    let mut child = command
         .args(transcription_arguments(model, &temp.0, language))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

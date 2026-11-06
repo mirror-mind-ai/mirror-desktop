@@ -10410,6 +10410,7 @@ pub(crate) fn open_url(url: &str) -> Result<(), String> {
     let mut command = {
         let mut command = Command::new("rundll32");
         command.args(["url.dll,FileProtocolHandler", url]);
+        crate::platform::without_console(&mut command);
         command
     };
 
@@ -10458,7 +10459,9 @@ fn reveal_path(path: &Path) -> Result<(), String> {
     let metadata = path.metadata()
         .map_err(|_| "Could not inspect the selected Journey artifact.".to_string())?;
     let specification = native_reveal_command(std::env::consts::OS, path, metadata.is_dir())?;
-    Command::new(&specification.program)
+    let mut command = Command::new(&specification.program);
+    crate::platform::without_console(&mut command);
+    command
         .args(&specification.args)
         .spawn()
         .map(|_| ())
@@ -10484,6 +10487,7 @@ fn open_path(path: &PathBuf) -> Result<(), String> {
     let mut command = {
         let mut command = Command::new("cmd");
         command.args(["/C", "start", "", &path.to_string_lossy()]);
+        crate::platform::without_console(&mut command);
         command
     };
 

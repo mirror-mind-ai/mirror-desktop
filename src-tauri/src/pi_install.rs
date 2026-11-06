@@ -139,6 +139,7 @@ fn run_installer(
 ) -> Result<(), String> {
     let log = root.join("install.log");
     let mut command = Command::new(crate::platform::runtime_node_bin(runtime_dir));
+    crate::platform::without_console(&mut command);
     command
         .arg(installer)
         .args(args)
