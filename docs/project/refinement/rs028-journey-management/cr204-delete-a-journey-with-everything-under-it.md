@@ -17,8 +17,9 @@ emptied by hand, child by child.
 
 ## Outcome
 
-The Navigator can delete a Journey and its descendants in one act, after a confirmation that lists
-what will go, with a Mirror backup taken first.
+The Navigator can delete a Journey and every record that belongs to it in one act, after a
+confirmation that lists what will go, with a Mirror backup taken first. A checkbox, off by default,
+also deletes the contents of the Journey's project path.
 
 ## First Investigation
 
@@ -28,14 +29,31 @@ detached, or moved to the parent. Memories and conversations are the Navigator's
 them is irreversible outside a backup. Also decide what happens to the folders on disk (the default
 should be nothing) and to a running agent anywhere in the subtree (refuse).
 
+## Navigator decisions (2026-11-05)
+
+- **Everything goes.** Conversations, memories, tasks, attachments and every other associated record
+  are deleted with the Journey. Organizing the tree and the data is the person's own act, and the
+  product grants that autonomy even at the risk of a mistaken loss.
+- **The folder is the person's choice.** A checkbox in the confirmation, off by default, deletes the
+  contents of the Journey's project path as well.
+- **The one friction kept:** a Journey with child Journeys cannot be deleted. Its children must be
+  moved or deleted first, so the act is never a silent cascade through the tree.
+
+These decisions replace the title's "everything under it" for child Journeys: the cascade runs
+through a Journey's records, not through its descendants.
+
 ## Acceptance
 
 - The confirmation names the Journeys and the counts of each record kind that the act affects.
 - A backup exists before the first write, and the deletion is one transaction.
-- A subtree with a running agent is refused with the Journey named.
-- After deletion and restart, no record points at a removed Journey, and no folder was touched.
+- A Journey with child Journeys is refused, naming them.
+- A Journey with a running agent is refused with the Journey named.
+- After deletion and restart, no record points at the removed Journey.
+- With the checkbox off, no file on disk is touched; with it on, the project path's contents are gone
+  and nothing outside that folder is touched. A project path that is the home, a volume root or an
+  ancestor of another Journey's folder is refused.
 
 ## Boundaries
 
-No deletion of files on disk. No cascade without the confirmation. The Core change follows the Core's
+No deletion of files on disk unless the checkbox is ticked. No deletion without the confirmation. The Core change follows the Core's
 own gates.

@@ -2,9 +2,9 @@
 
 # CR200: Collapse or Expand the Whole Tree at Once
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `main` (`21ffb4b8`), RS028 group A
 **Group:** A, reading the tree
 
 ## Friction
@@ -32,3 +32,13 @@ header or the tree's menu) and whether Collapse all keeps the selected Journey's
 ## Boundaries
 
 Tree view only. No change to conversation-list disclosure inside a Journey.
+
+## Delivered (2026-11-05)
+
+On `main` in `21ffb4b8`; the development check is owed (RS028, Group A Check).
+
+- Collapse all and Expand all sit in the tree tools row under the view switch.
+- Collapse all keeps the selected Journey's ancestors open, so the selection stays on screen; its own
+  children close like any other branch.
+- **Finding:** closed branches survived only a tree reload (CR133), not a restart; they lived in
+  memory. They are now saved as `collapsedJourneyIds`, so both gestures survive a restart.

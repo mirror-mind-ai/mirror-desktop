@@ -2,9 +2,9 @@
 
 # CR201: Show a Journey's Folder in Its Tooltip
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `main` (`21ffb4b8`), RS028 group A
 **Group:** A, reading the tree
 
 ## Friction
@@ -15,22 +15,28 @@ editor.
 
 ## Outcome
 
-An option in Settings adds the Journey's project path to its tooltip, abbreviated with `~`, or says
-that no folder is set.
+The Journey's tooltip always shows its project path, abbreviated with `~`, or says that no folder is
+set. There is no option to turn it off (Navigator, 2026-11-05).
 
 ## First Investigation
 
-`projectPath` is on the registry item. Decide the option's default with the Navigator, and whether
-the tooltip shows the path Mirror stores or the folder the agent would actually run in (they differ
+`projectPath` is on the registry item. Decide whether the tooltip shows the path Mirror stores or the folder the agent would actually run in (they differ
 when the folder is missing, CR197); this CR shows the stored one and leaves the effective one to
 CR202.
 
 ## Acceptance
 
-- With the option on, hovering a Journey shows its path; with it off, the tooltip is unchanged.
+- Hovering a Journey shows its path.
 - A Journey without a path says so instead of showing nothing.
-- The choice survives a restart.
 
 ## Boundaries
 
 Read only. No path is checked on disk by this CR.
+
+## Delivered (2026-11-05)
+
+On `main` in `21ffb4b8`; the development check is owed (RS028, Group A Check).
+
+- `journeyItemTitle` keeps the name and agent state on the first line and puts the folder on the
+  second, abbreviated with `~` from the home Tauri reports, or "No folder set".
+- The tooltip shows the stored path. Whether that folder exists is CR202's and CR197's question.
