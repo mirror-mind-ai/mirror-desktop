@@ -208,6 +208,7 @@ pub(crate) fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
     ] {
         directories.extend(discover_versioned_runtime_directories(&root, suffix));
     }
+    directories.extend(crate::platform::system_tool_directories());
     directories
 }
 
@@ -540,6 +541,15 @@ mod tests {
         let older_index = directories.iter().position(|path| path == &older).unwrap();
         assert!(newer_index < older_index);
         assert!(directories.contains(&home.join(".volta/bin")));
+        // The OS's own tools come last, after everything the person installed (`platform`).
+        #[cfg(windows)]
+        {
+            let system32 = std::path::PathBuf::from(std::env::var("SystemRoot").unwrap()).join("System32");
+            assert_eq!(directories.last(), Some(&system32.join("WindowsPowerShell").join("v1.0")));
+            assert!(directories.contains(&system32));
+        }
+        #[cfg(not(windows))]
+        assert_eq!(directories.last().map(|path| path.starts_with(&home)), Some(true));
         fs::remove_dir_all(home).unwrap();
     }
 

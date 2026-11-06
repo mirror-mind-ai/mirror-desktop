@@ -124,6 +124,24 @@ pub(crate) fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
     path
 }
 
+/// The directories the OS's own command-line tools live in, for a PATH the app builds itself.
+/// The POSIX list names `/usr/bin` and `/bin` outright; Windows keeps `cmd.exe`, `where`, `tar`
+/// and friends under the system root, which is only known at runtime. Empty on POSIX.
+pub(crate) fn system_tool_directories() -> Vec<PathBuf> {
+    #[cfg(windows)]
+    {
+        let Some(root) = std::env::var_os("SystemRoot").map(PathBuf::from) else {
+            return Vec::new();
+        };
+        let system32 = root.join("System32");
+        vec![system32.clone(), root, system32.join("Wbem"), system32.join("WindowsPowerShell").join("v1.0")]
+    }
+    #[cfg(not(windows))]
+    {
+        Vec::new()
+    }
+}
+
 /// A command that runs Pi's `cli.js`. On POSIX the file runs itself through its `#!/usr/bin/env
 /// node` line, and PATH, which the caller sets, names the carried Node. Windows has no shebang:
 /// `CreateProcess` refuses a `.js` file (EFTYPE), so the carried Node runs it, and the file is the
