@@ -71,7 +71,7 @@ fn executable_file(path: &Path) -> bool {
 /// The installed Pi, when its install receipt is the pinned one; `PI_NOT_INSTALLED` otherwise.
 pub(crate) fn resolve_app_pi(app_data_root: &Path, runtime_dir: &Path) -> Result<AppPi, String> {
     let pinned = pinned_pi(runtime_dir)?;
-    let node_bin = runtime_dir.join("node").join("bin").join("node");
+    let node_bin = crate::platform::runtime_node_bin(runtime_dir);
     if !executable_file(&node_bin) {
         return Err(crate::mirror_host_bridge::RUNTIME_MISSING.to_string());
     }

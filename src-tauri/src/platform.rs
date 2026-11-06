@@ -28,6 +28,46 @@ pub(crate) fn home_directory() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+/// The Node binary inside a laid-out Mirror host runtime. The archives
+/// differ, and the runtime keeps each as it shipped: `node/bin/node` from the
+/// POSIX tarball, `node/node.exe` from the Windows zip. `mirror_host_pin.mjs`
+/// (`nodeBinaryEntry`) is the other half of this agreement.
+pub(crate) fn runtime_node_bin(runtime_dir: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        runtime_dir.join("node").join("node.exe")
+    }
+    #[cfg(not(windows))]
+    {
+        runtime_dir.join("node").join("bin").join("node")
+    }
+}
+
+/// The Mirror host runtime's platform name, as `mirror-host/pin.json` and
+/// Node's own archives spell it (`win-x64`, not `win32-x64`).
+pub(crate) fn runtime_platform(arch: &str) -> Option<&'static str> {
+    match (std::env::consts::OS, arch) {
+        ("macos", "x86_64") => Some("darwin-x64"),
+        ("macos", "aarch64") => Some("darwin-arm64"),
+        ("windows", "x86_64") => Some("win-x64"),
+        _ => None,
+    }
+}
+
+/// Where a built app keeps its bundled resources, from its executable: inside
+/// the `.app` on macOS (`Contents/MacOS/<exe>` -> `Contents/Resources`), and
+/// beside the executable on Windows, where Tauri lays resources next to it.
+pub(crate) fn bundled_resources_dir(exe: &Path) -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        exe.parent().and_then(Path::parent).map(|contents| contents.join("Resources"))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        exe.parent().map(Path::to_path_buf)
+    }
+}
+
 /// Create one directory nobody else can read: `0o700` on POSIX, the profile's
 /// own ACL on Windows. The parent must exist, as with `DirBuilder::create`.
 pub(crate) fn create_private_dir(path: &Path) -> io::Result<()> {

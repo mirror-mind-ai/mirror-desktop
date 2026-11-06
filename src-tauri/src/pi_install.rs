@@ -138,7 +138,7 @@ fn run_installer(
     mut progress: impl FnMut(PiInstallProgress),
 ) -> Result<(), String> {
     let log = root.join("install.log");
-    let mut child = Command::new(runtime_dir.join("node").join("bin").join("node"))
+    let mut child = Command::new(crate::platform::runtime_node_bin(runtime_dir))
         .arg(installer)
         .args(args)
         .env_clear()

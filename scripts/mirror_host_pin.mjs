@@ -40,7 +40,7 @@ import { fileURLToPath } from "node:url";
 import { CLAUDE_AGENT_SDK, readLockfile, treeSha256 } from "../mirror-host/pi-install.mjs";
 
 export const MIN_NODE_VERSION = "24.21.0";
-export const PLATFORMS = ["darwin-arm64", "darwin-x64"];
+export const PLATFORMS = ["darwin-arm64", "darwin-x64", "win-x64"];
 export const PIN_PATH = "mirror-host/pin.json";
 export const HOST_SCRIPT_PATH = "mirror-host/host.mjs";
 export const PI_INSTALLER_PATH = "mirror-host/pi-install.mjs";
@@ -54,7 +54,41 @@ export function readPin(root) {
 }
 
 export function nodeArchiveName(version, platform) {
-  return `node-v${version}-${platform}.tar.gz`;
+  return `node-v${version}-${platform}.${isWindowsPlatform(platform) ? "zip" : "tar.gz"}`;
+}
+
+export function isWindowsPlatform(platform) {
+  return platform.startsWith("win-");
+}
+
+/** The `process.platform-process.arch` form of a Node archive platform (`win-x64` -> `win32-x64`). */
+export function npmPlatform(platform) {
+  return platform.replace(/^win-/, "win32-");
+}
+
+/**
+ * Where Node's binary sits inside a laid-out runtime, relative to it. The
+ * archives differ: the POSIX tarball is `node-vX-P/bin/node`, the Windows zip
+ * is `node-vX-P/node.exe`; the runtime keeps each as the archive shipped it.
+ */
+export function nodeBinaryEntry(platform) {
+  return isWindowsPlatform(platform) ? "node/node.exe" : "node/bin/node";
+}
+
+/** The entries the bundle carries from a runtime for `platform`. */
+export function bundleEntries(platform) {
+  return BUNDLE_ENTRIES.map((entry) => (entry === "node/bin/node" ? nodeBinaryEntry(platform) : entry));
+}
+
+/**
+ * The `tar` that opens an archive: GNU tar on Git Bash cannot open a zip, so on
+ * Windows the system's bsdtar (`System32\\tar.exe`, Windows 10 1803+) is named
+ * explicitly, and it opens both.
+ */
+function tarExecutable() {
+  if (process.platform !== "win32") return "tar";
+  const system = join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+  return existsSync(system) ? system : "tar";
 }
 
 export function sha256File(path) {
@@ -156,10 +190,11 @@ export function validateAnthropicPin(pin, root) {
   const scripted = entries.filter(([, entry]) => entry.hasInstallScript).map(([path]) => path);
   if (scripted.length > 0) problems.push(`the Anthropic provider's lockfile has packages with install scripts: ${scripted.join(", ")}`);
   for (const platform of PLATFORMS) {
-    const [os, arch] = platform.split("-");
+    // Node names its archives `win-x64`; npm and `process.platform` say `win32-x64`.
+    const [os, arch] = npmPlatform(platform).split("-");
     try {
       const laid = readLockfile(bytes, anthropic.lockfileSha256, { platform: os, arch }).packages;
-      const binary = laid.find((entry) => entry.path === `node_modules/${CLAUDE_AGENT_SDK}-${platform}`);
+      const binary = laid.find((entry) => entry.path === `node_modules/${CLAUDE_AGENT_SDK}-${npmPlatform(platform)}`);
       if (binary?.version !== anthropic.claudeAgentSdk) problems.push(`the Anthropic provider's lockfile holds no Claude Code ${anthropic.claudeAgentSdk} for ${platform}`);
     } catch (error) {
       problems.push(`the Anthropic provider's lockfile is refused: ${error.message}`);
@@ -169,7 +204,8 @@ export function validateAnthropicPin(pin, root) {
 }
 
 export function hostPlatform() {
-  return `${process.platform}-${process.arch}`;
+  // In Node's archive naming, so it compares with PLATFORMS and the pin.
+  return `${process.platform === "win32" ? "win" : process.platform}-${process.arch}`;
 }
 
 async function downloadArchive(url, destination) {
@@ -180,7 +216,7 @@ async function downloadArchive(url, destination) {
 
 function extractPackage(tarball, target) {
   mkdirSync(target, { recursive: true });
-  execFileSync("tar", ["-xzf", tarball, "-C", target, "--strip-components=1"]);
+  execFileSync(tarExecutable(), ["-xzf", tarball, "-C", target, "--strip-components=1"]);
 }
 
 /**
@@ -252,13 +288,15 @@ export async function materializeHost({
     }
     const extracted = join(staging, "extract");
     mkdirSync(extracted);
-    execFileSync("tar", ["-xzf", archive, "-C", extracted]);
+    // `-xf` lets bsdtar pick the format: gzip for the tarball, zip for the zip.
+    execFileSync(tarExecutable(), ["-xf", archive, "-C", extracted]);
     const top = join(extracted, `node-v${version}-${platform}`);
-    if (!existsSync(join(top, "bin", "node"))) {
-      throw new Error(`${archiveName} does not hold node-v${version}-${platform}/bin/node`);
+    const binaryInArchive = isWindowsPlatform(platform) ? "node.exe" : join("bin", "node");
+    if (!existsSync(join(top, binaryInArchive))) {
+      throw new Error(`${archiveName} does not hold node-v${version}-${platform}/${binaryInArchive}`);
     }
     renameSync(top, join(staging, "node"));
-    const nodeBin = join(staging, "node", "bin", "node");
+    const nodeBin = join(staging, nodeBinaryEntry(platform));
     if (runVersionCheck) {
       const reported = execFileSync(nodeBin, ["--version"], { encoding: "utf8" }).trim();
       if (reported !== `v${version}`) throw new Error(`the extracted Node reports ${reported}, not v${version}`);
@@ -272,7 +310,7 @@ export async function materializeHost({
     renameSync(laidOut, outDir);
     rmSync(staging, { recursive: true, force: true });
     placed = true;
-    return { outDir, nodeBin: join(outDir, "node", "bin", "node"), coreDir: join(outDir, "node_modules", pin.core.package) };
+    return { outDir, nodeBin: join(outDir, nodeBinaryEntry(platform)), coreDir: join(outDir, "node_modules", pin.core.package) };
   } finally {
     if (!placed) rmSync(staging, { recursive: true, force: true });
   }
@@ -328,7 +366,7 @@ export function checkRuntime({ root, pin, platform, dir }) {
   if (!existsSync(installer) || sha256File(installer) !== receipt.piInstaller?.sha256) problems.push("the runtime's pi-install.mjs is not the one its receipt records");
   const host = join(dir, "host.mjs");
   if (!existsSync(host) || sha256File(host) !== receipt.host?.sha256) problems.push("the runtime's host.mjs is not the one its receipt records");
-  if (!existsSync(join(dir, "node", "bin", "node"))) problems.push("the runtime has no node/bin/node");
+  if (!existsSync(join(dir, nodeBinaryEntry(platform)))) problems.push(`the runtime has no ${nodeBinaryEntry(platform)}`);
   const corePackage = join(dir, "node_modules", pin.core.package, "package.json");
   if (!existsSync(corePackage) || JSON.parse(readFileSync(corePackage, "utf8")).version !== pin.core.version) {
     problems.push(`the runtime's ${pin.core.package} is not version ${pin.core.version}`);
@@ -349,7 +387,7 @@ export function stageBundle({ root, pin, platform, runtimeDir, outDir }) {
   mkdirSync(dirname(outDir), { recursive: true });
   const staging = join(dirname(outDir), `.${basename(outDir)}.staging-${process.pid}-${randomBytes(6).toString("hex")}`);
   try {
-    for (const entry of BUNDLE_ENTRIES) {
+    for (const entry of bundleEntries(platform)) {
       const target = join(staging, entry);
       mkdirSync(dirname(target), { recursive: true });
       cpSync(join(runtimeDir, entry), target, {
@@ -360,13 +398,13 @@ export function stageBundle({ root, pin, platform, runtimeDir, outDir }) {
         },
       });
     }
-    chmodSync(join(staging, "node", "bin", "node"), 0o755);
+    if (!isWindowsPlatform(platform)) chmodSync(join(staging, "node", "bin", "node"), 0o755);
     rmSync(outDir, { recursive: true, force: true });
     renameSync(staging, outDir);
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
-  return { outDir, entries: BUNDLE_ENTRIES };
+  return { outDir, entries: bundleEntries(platform) };
 }
 
 /** The Tauri config a packaged build merges so the staged runtime ships as `Resources/mirror-host/`. */

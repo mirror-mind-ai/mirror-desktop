@@ -94,7 +94,7 @@ impl MirrorHostConfig {
     /// A laid-out runtime directory: `node/bin/node`, `host.mjs` and `node_modules`.
     pub fn for_runtime(runtime_dir: PathBuf) -> Self {
         Self {
-            node_bin: runtime_dir.join("node").join("bin").join("node"),
+            node_bin: crate::platform::runtime_node_bin(&runtime_dir),
             host_script: runtime_dir.join("host.mjs"),
             host_dir: runtime_dir,
             handshake_timeout: Duration::from_secs(10),
