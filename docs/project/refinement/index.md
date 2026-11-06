@@ -321,10 +321,10 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR200](rs028-journey-management/cr200-collapse-or-expand-the-whole-tree-at-once.md) | RS028 | Collapse or Expand the Whole Tree at Once | done | @alissonvale | `main` (`21ffb4b8`) |
 | — | [CR201](rs028-journey-management/cr201-show-a-journeys-folder-in-its-tooltip.md) | RS028 | Show a Journey's Folder in Its Tooltip | done | @alissonvale | `main` (`21ffb4b8`) |
 | — | [CR202](rs028-journey-management/cr202-say-which-folder-the-agent-is-working-in.md) | RS028 | Say Which Folder the Agent Is Working In | done | @alissonvale | `main` (`5b9151ec`, `7f2fbefe`) |
-| — | [CR203](rs028-journey-management/cr203-reparent-a-journey-by-dragging-it.md) | RS028 | Reparent a Journey by Dragging It | captured | — | — |
+| — | [CR203](rs028-journey-management/cr203-reparent-a-journey-by-dragging-it.md) | RS028 | Reparent a Journey by Dragging It | in_progress | @alissonvale | `main` (`61a434cc`) |
 | — | [CR204](rs028-journey-management/cr204-delete-a-journey-with-everything-under-it.md) | RS028 | Delete a Journey With Everything Under It | captured | — | — |
-| 4 | [CR099](rs028-journey-management/cr099-allow-safe-editing-during-another-journeys-work.md) | RS028 | Allow Safe Editing During Another Journey's Work | in_progress | @alissonvale | `main` (`03e38bbc`) |
-| 5 | [CR098](rs028-journey-management/cr098-allow-a-journey-to-be-reparented.md) | RS028 | Allow a Journey to Be Reparented | captured | — | — |
+| 4 | [CR099](rs028-journey-management/cr099-allow-safe-editing-during-another-journeys-work.md) | RS028 | Allow Safe Editing During Another Journey's Work | done | @alissonvale | `main` (`03e38bbc`) |
+| 5 | [CR098](rs028-journey-management/cr098-allow-a-journey-to-be-reparented.md) | RS028 | Allow a Journey to Be Reparented | done | @alissonvale | absorbed by CR203 |
 | 6 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | done | @alissonvale | CV-010.DS-005 slice 4b |
 | 7 | [CR113](rs021-ux-pre-beta-evolution/cr113-make-composer-typing-responsive-in-large-journeys.md) | RS021 | Make Composer Typing Responsive in Large Journeys | done | @alissonvale | `refinement/rs021-cr113-rs016-cr115-typing-responsiveness` |
 | 8 | [CR114](rs021-ux-pre-beta-evolution/cr114-make-the-current-segment-the-default-working-set.md) | RS021 | Make the Current Segment the Default Working Set | done | @alissonvale | `refinement/rs021-cr114-current-segment-working-set` |

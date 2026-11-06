@@ -2,9 +2,9 @@
 
 # CR203: Reparent a Journey by Dragging It
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** in_progress
+**Driver:** @alissonvale
+**Delivery:** `main` (`61a434cc`), RS028 group C
 **Group:** C, reshaping the tree
 
 ## Friction
@@ -38,3 +38,37 @@ and map each to a sentence. Decide with the Navigator whether a drop asks for co
 
 Absorbs CR098's outcome: the edit form need not change the parent once the dialog and the drag both
 do. No bulk move.
+
+## Delivered (2026-11-06)
+
+On `main` in `61a434cc`; the Group C Check, part two, is owed.
+
+- `src/domain/journeyDropTarget.ts` answers the gesture as data. `dropZoneFromOffset` gives a
+  quarter of the row to each edge and the half in the middle to "into", because a border is harder
+  to aim at than a band. `planJourneyDrop` returns `move`, `unchanged` or `refused`, and the move
+  carries the sentence the Navigator reads while dragging.
+- **Positions follow the Core, read rather than assumed.** `placeInGroup` in
+  `ts/src/journey/journeyCalls.ts` filters the moving Journey out of its sibling list and *then*
+  splices it at `position`, so an index is counted on the list without it. A downward move inside
+  one parent therefore needs no +1 correction, and a test pins both directions.
+- The row under the pointer paints `drop-into`, `drop-before`, `drop-after` or `drop-refused`, a
+  dashed zone above the tree accepts a drop to the root, and a line below the tools says what the
+  drop would do. All three read the same plan the drop acts on.
+- Refused before Mirror is asked: into itself, into a descendant, or beside a Journey whose parent
+  is inside the dragged subtree. The Journey is named in the sentence.
+- A drag that Mirror still refuses now has a reader: `executeJourneyMutation` takes an `onFailure`
+  sink, because its `journeyAdminMessage` is only rendered inside a dialog and a drag has none.
+- Six mutations caught: "after" behaving as "before", the dragged Journey not removed from the list
+  first, only direct children refusing, the middle zone shrinking, nothing ever being unchanged, and
+  a zero-height row dividing by zero.
+
+## Decisions (reversible, taken by the Driver)
+
+- **No confirmation on a drop.** The CR left this open for the Navigator. A drag is undone by
+  dragging back, the plan is shown in words before the drop, and CR204's reading was that organizing
+  the tree is the person's own autonomy. A dialog on every drop would make the gesture slower than
+  the Move form it replaces.
+- **The root zone inserts as the first root**, because the zone sits at the top of the tree and a
+  drop should land where it was aimed.
+- **Dropping into the parent a Journey already has** sends it to the end of that parent. It is a
+  reordering, not a no-op, and the sentence says so.

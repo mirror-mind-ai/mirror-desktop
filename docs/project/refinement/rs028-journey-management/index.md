@@ -28,9 +28,9 @@ Related, already done: [CR100](../rs021-ux-pre-beta-evolution/cr100-make-journey
 | [CR201: Show a Journey's Folder in Its Tooltip](cr201-show-a-journeys-folder-in-its-tooltip.md) | A | done | validated 2026-11-05; always shown |
 | [CR202: Say Which Folder the Agent Is Working In](cr202-say-which-folder-the-agent-is-working-in.md) | B | done | validated 2026-11-06 |
 | [CR197: A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word](../rs026-after-the-0-3-cutover/cr197-a-moved-journey-folder-sends-the-turn-to-the-neutral-folder-without-a-word.md) | B | done | owned by RS026, delivered and validated here |
-| [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md) | C | in_progress | on `main`, census delivered, check owed |
-| [CR203: Reparent a Journey by Dragging It](cr203-reparent-a-journey-by-dragging-it.md) | C | captured | drag exists but is gated and crude |
-| [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md) | C | captured | absorbed by CR203 |
+| [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md) | C | done | validated 2026-11-06 |
+| [CR203: Reparent a Journey by Dragging It](cr203-reparent-a-journey-by-dragging-it.md) | C | in_progress | on `main`, check owed |
+| [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md) | C | done | absorbed by CR203; the Move form's parent list fixed |
 | [CR204: Delete a Journey With Everything Under It](cr204-delete-a-journey-with-everything-under-it.md) | D | captured | needs a Core call; decided: records and optional folder go, children refuse |
 
 ## Groups
@@ -94,9 +94,27 @@ In the development app bound to `ensaio-5c-2`, with a long turn running in one J
    turn, and the running turn stays where it started. CR202's line still shows the old folder until
    the next turn.
 
+## Group C Check, part two (CR203)
+
+In the development app bound to `ensaio-5c-2`, in Tree view:
+
+1. Drag a Journey onto the middle of another. The row highlights, the line reads "Move X into Y,
+   after its N Journeys", and the drop makes it the last child.
+2. Drag onto the top quarter of a row. A line appears at the top of that row, the sentence says
+   "above", and the drop puts it there.
+3. Drag onto the bottom quarter. Same, saying "below".
+4. Drag a nested Journey onto the dashed zone above the tree. It becomes the first root Journey.
+5. Drag a Journey onto one of its own children. The row turns red, the line names the Journey, and
+   the drop changes nothing.
+6. Drag a Journey back onto the place it already occupies. The line says "It is already there." and
+   no mutation is sent.
+7. Reload the Journey tree, then restart the app. Every move survived both.
+8. Open Move Journey on a Journey with children. Its own children are not offered as parents.
+9. With a turn running in another Journey, repeat step 1. The drag still works (CR099).
+
 ## Order
 
-A, B, C, D, accepted by the Navigator on 2026-11-05. Group A and group B are done. Group C has CR099 on `main` with its check owed; CR203 and CR098 follow.
+A, B, C, D, accepted by the Navigator on 2026-11-05. Group A and group B are done. In group C, CR099 is validated and CR098 is closed as absorbed; CR203 is on `main` with its check owed.
 
 ## Finding, outside the Change Requests (2026-11-05)
 

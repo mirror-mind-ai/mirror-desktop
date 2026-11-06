@@ -2,9 +2,9 @@
 
 # CR098: Allow a Journey to Be Reparented
 
-**Status:** captured
-**Driver:** —
-**Delivery:** —
+**Status:** done
+**Driver:** @alissonvale
+**Delivery:** absorbed by [CR203](cr203-reparent-a-journey-by-dragging-it.md), `main` (`61a434cc`)
 **Group:** C, absorbed by CR203
 
 ## Friction
@@ -37,3 +37,14 @@ registry after reload.
 
 No implicit move, no bulk restructuring, and no mutation while the exact Journey's own active work
 would make that unsafe. This CR does not decide the separate cross-Journey editing policy in CR099.
+
+## Closed as absorbed (2026-11-06)
+
+The outcome is met without the surface this CR imagined. Reparenting is reachable two ways: the Move
+Journey form, which always carried a Parent field and a sibling position, and the drag CR203 made
+usable. The edit form stays about identity, and says so.
+
+What this CR still paid for: the Move form listed **every** Journey as a candidate parent, including
+the moved Journey's own descendants, which the Core refuses as `invalid_parent`. Offering a choice
+that cannot work is worse than not offering it, so `eligibleParentJourneys` now removes the moved
+Journey and its subtree from the list. That was this CR's real remaining defect.

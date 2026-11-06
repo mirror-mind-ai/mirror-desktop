@@ -5,9 +5,8 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | RS028, depois RS027 |
-| **RS028 · Journey Management** | 🔄 ativa · 1 🔵 · 3 🟡 · grupos A e B validados · grupo C em curso |
-| ↳　C · CR099 · Allow Safe Editing During Another Journey's Work | 🔵 in_progress · no `main` · censo entregue · falta a checagem |
-| ↳　C · CR203 · Reparent a Journey by Dragging It | 🟡 captured · absorve a CR098 |
+| **RS028 · Journey Management** | 🔄 ativa · 1 🔵 · 1 🟡 · grupos A e B validados · CR099 validada · grupo C em curso |
+| ↳　C · CR203 · Reparent a Journey by Dragging It | 🔵 in_progress · no `main` · absorveu a CR098 · falta a checagem |
 | ↳　D · CR204 · Delete a Journey With Everything Under It | 🟡 captured · precisa do Core e de decisões |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🟡 |
 | ↳　CR196 · Render a Table Whose First Header Cell Is Empty | 🟡 captured · causa achada: célula vazia no cabeçalho |

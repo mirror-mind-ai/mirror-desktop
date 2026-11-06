@@ -2,9 +2,9 @@
 
 # CR099: Allow Safe Editing During Another Journey's Work
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
-**Delivery:** `main` (`03e38bbc`), RS028 group C
+**Delivery:** `main` (`03e38bbc`), RS028 group C; validated 2026-11-06
 **Group:** C, reshaping the tree
 
 ## Friction
