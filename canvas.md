@@ -25,7 +25,8 @@
 | ↳　CR094 · Mirror Mode Activation Rebinds a Desktop Conversation's Journey | ⏸️ parked |
 | ↳　CR170 · Pass the Invocation Directory to the Core Explicitly | ⏸️ parked |
 | ↳　CR189 · Route the Persona by What the Turn Is About | ⏸️ parked |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa · 1 ⏸️ |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa · 1 🔵 · 1 ⏸️ |
+| ↳　CR206 · Work Only With Conversations Nautilus Created | 🔵 in_progress · construída · aguarda a checagem do Navigator |
 | ↳　CR156 · Simplify the Context Map | ⏸️ parked · vai para a CV-012 |
 
 ## Roadmap
