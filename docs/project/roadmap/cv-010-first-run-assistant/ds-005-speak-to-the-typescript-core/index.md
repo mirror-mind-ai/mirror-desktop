@@ -4067,3 +4067,18 @@ prerelease. One rule stays with the release preparation: a preview that adds a m
 reach a real home before Core's `stable` carries it, because the terminal's `mirror` opens the same
 home and would refuse it as `ahead`. CR200 has no migration; its first preview is expected to be
 `0.40.0-next.1`.
+
+### The Pin on the First Preview, `mirror-mind@0.40.0-next.1` (2026-11-06)
+
+The Core published CR200 as the train's first preview: release commit through Core PR #57, merged
+as `cc75c60f39d21d460a0587f35f6d22bc23e3be27`, tagged `v0.40.0-next.1` by hand, a GitHub prerelease,
+staged by `publish.yml` under `next` and approved by the Navigator with 2FA. `next` is
+`0.40.0-next.1`; `latest` and `stable` stay `0.39.5`. The pin now names `release: v0.40.0-next.1`
+and that commit, drops `branch`, and carries the tarball npm serves,
+`vendor/mirror-host/mirror-mind-0.40.0-next.1.tgz` (sha256 `7e1b3372…`, the registry's sha512
+`Lwgp+ftR…`, checked on download). The branch tarball is removed. Node stays `v24.22.2`. The pin
+verifies, the runtime is rematerialized, and `requireReleasedCore` accepts it, so a Nautilus
+release can leave `main` again.
+
+Preparing the preview showed two Core tests and the updater smoke assuming a plain `X.Y.Z` package
+version; they were fixed in PR #57 before the tag, with no production code change.
