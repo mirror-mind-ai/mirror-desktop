@@ -96,7 +96,7 @@ describe("Journey item context menu", () => {
     expect(appSource).toContain('aria-haspopup="menu"');
     expect(appSource).not.toContain('journeyListOrder === "tree" && !runtimeBusy ? (event) =>');
     // CR099: the tree asks per Journey, so the global flag no longer reaches these controls.
-    expect(appSource).toContain('treeOperation("drag", journey.id).allowed');
+    expect(appSource).toContain('dragAllowed: treeOperation("drag", journeyId).allowed,');
     expect(appSource).toContain('treeOperation("delete", journeyItemMenu.journeyId)');
     expect(appSource).not.toContain('journeyListOrder === "tree" && (event.key === "ContextMenu"');
   });

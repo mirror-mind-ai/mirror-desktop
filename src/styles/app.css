@@ -980,14 +980,13 @@ textarea {
 /* RS028 group C (CR203): where a dragged Journey would land, while the gesture is happening. */
 
 /*
- * The gesture itself, in WebKit. `draggable` alone is not enough here: for anything that is not a
- * link or an image, WKWebView gives a mousedown on selectable text to the text selection, so the
- * row never becomes a drag source and the pointer paints a selection instead. `-webkit-user-drag`
- * names the row as the source and `user-select: none` takes the competing gesture away. The row is
- * a `role="button"`, so there is no text in it anybody needs to select.
+ * The gesture is driven by pointer capture, not by the browser's own drag: two attempts at the
+ * HTML5 gesture never started in WKWebView, which gave the press to the text selection. So WebKit
+ * is told not to start a drag of its own, and the text selection that was winning the press is
+ * taken away. The row is a `role="button"`, so there is no text in it anybody needs to select.
  */
 .journey-item {
-  -webkit-user-drag: element;
+  -webkit-user-drag: none;
   user-select: none;
 }
 

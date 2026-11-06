@@ -1,7 +1,7 @@
 import {
   Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState,
   type CSSProperties,
-  type DragEvent as ReactDragEvent,
+  type PointerEvent as ReactPointerEvent,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
@@ -10,12 +10,18 @@ import { homeDir } from "@tauri-apps/api/path";
 import { describeWorkingFolder, type JourneyWorkspacePreview } from "../domain/journeyWorkingFolder";
 import { openJourneyWorkspace, previewJourneyWorkspace } from "./journeyWorkspaceStorage";
 import {
-  dropZoneFromOffset,
   eligibleParentJourneys,
   planJourneyDrop,
   type JourneyDropPlan,
   type JourneyDropZone,
 } from "../domain/journeyDropTarget";
+import {
+  clickEndsADrag,
+  dropTargetUnderPointer,
+  exceedsDragThreshold,
+  shouldBeginJourneyDrag,
+  type JourneyRowGeometry,
+} from "../domain/journeyPointerDrag";
 import {
   journeyTreeAvailability,
   mutationTargetJourneyId,
@@ -751,6 +757,16 @@ export function App({ model }: AppProps) {
   const [journeyAdminMessage, setJourneyAdminMessage] = useState<string | undefined>();
   const [journeyAdminPendingRequest, setJourneyAdminPendingRequest] = useState<JourneyMutationRequest | null>(null);
   const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
+  const journeyDragRef = useRef<{
+    journeyId: string;
+    pointerId: number;
+    origin: { x: number; y: number };
+    started: boolean;
+    rows: JourneyRowGeometry[];
+    moved: boolean;
+  } | null>(null);
+  const journeyDragClickRef = useRef(false);
+  const journeyRootDropZoneRef = useRef<HTMLDivElement | null>(null);
   /** CR203: the row under the pointer and what dropping there would do, read by the row and the line. */
   const [journeyDropTarget, setJourneyDropTarget] = useState<{ journeyId: string | null; zone: JourneyDropZone; plan: JourneyDropPlan }>();
   const [journeyDropMessage, setJourneyDropMessage] = useState<string>();
@@ -5328,38 +5344,106 @@ export function App({ model }: AppProps) {
   }
 
   /**
-   * CR203: the drag reads where the pointer is inside the row, so one gesture reaches a child, a
-   * place among siblings and the root. The plan is kept on state because the row paints from it and
-   * the line below the tree reads the same sentence the drop will act on.
+   * CR203: the drag, driven by pointer capture. The rows are measured once when the gesture starts,
+   * because a captured pointer cannot scroll the list, and every decision about where the Journey
+   * would land is taken by `journeyPointerDrag` and `journeyDropTarget` rather than here.
    */
-  function aimJourneyDrop(event: ReactDragEvent<HTMLElement>, targetJourneyId: string | null, zone?: JourneyDropZone) {
-    if (!draggedJourneyId) return;
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const aimed = zone ?? dropZoneFromOffset(event.clientY - rect.top, rect.height);
-    const plan = planJourneyDrop({ draggedJourneyId, targetJourneyId, zone: aimed, registry: journeyRegistry });
-    setJourneyDropTarget({ journeyId: targetJourneyId, zone: aimed, plan });
+  function measureJourneyRows(): JourneyRowGeometry[] {
+    const list = journeyListRef.current;
+    if (!list) return [];
+    return [...list.querySelectorAll<HTMLElement>("[data-journey-id]")].map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { journeyId: element.dataset.journeyId ?? "", top: rect.top, height: rect.height };
+    });
   }
 
-  function endJourneyDrag() {
-    setDraggedJourneyId(null);
-    setJourneyDropTarget(undefined);
+  function beginJourneyDrag(event: ReactPointerEvent<HTMLElement>, journeyId: string) {
+    const begin = shouldBeginJourneyDrag({
+      button: event.button,
+      treeView: journeyListOrder === "tree",
+      dragAllowed: treeOperation("drag", journeyId).allowed,
+      onControl: (event.target as HTMLElement).closest("button") !== null,
+    });
+    if (!begin) return;
+    journeyDragRef.current = {
+      journeyId,
+      pointerId: event.pointerId,
+      origin: { x: event.clientX, y: event.clientY },
+      started: false,
+      rows: [],
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function dropJourney(event: ReactDragEvent<HTMLElement>, targetJourneyId: string | null, zone?: JourneyDropZone) {
-    event.preventDefault();
-    if (!draggedJourneyId) return endJourneyDrag();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const aimed = zone ?? dropZoneFromOffset(event.clientY - rect.top, rect.height);
-    const plan = planJourneyDrop({ draggedJourneyId, targetJourneyId, zone: aimed, registry: journeyRegistry });
-    endJourneyDrag();
+  function continueJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
+    const drag = journeyDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const point = { x: event.clientX, y: event.clientY };
+    if (!drag.started) {
+      if (!exceedsDragThreshold(drag.origin, point)) return;
+      drag.started = true;
+      drag.moved = true;
+      drag.rows = measureJourneyRows();
+      setDraggedJourneyId(drag.journeyId);
+      setJourneyDropMessage(undefined);
+      return;
+    }
+    const aimed = dropTargetUnderPointer({ point, rows: drag.rows, rootZone: journeyRootDropZone() });
+    if (!aimed) {
+      setJourneyDropTarget(undefined);
+      return;
+    }
+    const plan = planJourneyDrop({ draggedJourneyId: drag.journeyId, targetJourneyId: aimed.journeyId, zone: aimed.zone, registry: journeyRegistry });
+    setJourneyDropTarget({ journeyId: aimed.journeyId, zone: aimed.zone, plan });
+  }
+
+  function finishJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
+    const drag = journeyDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const started = drag.started;
+    const aimed = started
+      ? dropTargetUnderPointer({ point: { x: event.clientX, y: event.clientY }, rows: drag.rows, rootZone: journeyRootDropZone() })
+      : undefined;
+    releaseJourneyDrag(event);
+    if (!started) return;
+    if (!aimed) return;
+    const plan = planJourneyDrop({ draggedJourneyId: drag.journeyId, targetJourneyId: aimed.journeyId, zone: aimed.zone, registry: journeyRegistry });
     if (plan.outcome === "refused") {
       setJourneyDropMessage(plan.reason);
       return;
     }
     if (plan.outcome === "unchanged") return;
     setJourneyDropMessage(undefined);
-    void executeJourneyMutation("move_journey", { journeyId: draggedJourneyId, parentId: plan.parentId, position: plan.position }, false, setJourneyDropMessage);
+    void executeJourneyMutation("move_journey", { journeyId: drag.journeyId, parentId: plan.parentId, position: plan.position }, false, setJourneyDropMessage);
+  }
+
+  function cancelJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (journeyDragRef.current?.pointerId !== event.pointerId) return;
+    releaseJourneyDrag(event);
+  }
+
+  function releaseJourneyDrag(event: ReactPointerEvent<HTMLElement>) {
+    const drag = journeyDragRef.current;
+    journeyDragRef.current = null;
+    journeyDragClickRef.current = clickEndsADrag(drag);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setDraggedJourneyId(null);
+    setJourneyDropTarget(undefined);
+  }
+
+  /** The click that ends a drag must not also select the Journey it just moved. */
+  function consumeJourneyDragClick(): boolean {
+    const dragged = journeyDragClickRef.current;
+    journeyDragClickRef.current = false;
+    return dragged;
+  }
+
+  function journeyRootDropZone(): { top: number; bottom: number } | undefined {
+    const rect = journeyRootDropZoneRef.current?.getBoundingClientRect();
+    return rect ? { top: rect.top, bottom: rect.bottom } : undefined;
   }
 
   function toggleCollapsedJourney(journeyId: string) {
@@ -6491,9 +6575,8 @@ export function App({ model }: AppProps) {
 
         {draggedJourneyId && journeyListOrder === "tree" ? (
           <div
+            ref={journeyRootDropZoneRef}
             className={`journey-root-drop-zone ${journeyDropTarget?.zone === "root" ? "is-aimed" : ""}`}
-            onDragOver={(event) => aimJourneyDrop(event, null, "root")}
-            onDrop={(event) => dropJourney(event, null, "root")}
           >
             Drop here to make it a root Journey
           </div>
@@ -6576,16 +6659,17 @@ export function App({ model }: AppProps) {
                 aria-label={`${journey.name}${journeyStateDescription ? `, ${journeyStateDescription}` : ""}`}
                 aria-haspopup="menu"
                 aria-expanded={journeyItemMenu?.journeyId === journey.id}
-                draggable={journeyListOrder === "tree" && treeOperation("drag", journey.id).allowed}
-                onDragStart={() => { setDraggedJourneyId(journey.id); setJourneyDropMessage(undefined); }}
-                onDragOver={(event) => aimJourneyDrop(event, journey.id)}
-                onDrop={(event) => dropJourney(event, journey.id)}
-                onDragEnd={endJourneyDrag}
+                data-journey-id={journey.id}
+                onPointerDown={(event) => beginJourneyDrag(event, journey.id)}
+                onPointerMove={continueJourneyDrag}
+                onPointerUp={finishJourneyDrag}
+                onPointerCancel={cancelJourneyDrag}
                 onContextMenu={(event) => {
                   event.preventDefault(); event.stopPropagation();
                   openJourneyItemMenu(journey.id, event.currentTarget, event.clientX, event.clientY);
                 }}
                 onClick={() => {
+                  if (consumeJourneyDragClick()) return;
                   dispatchConversationSelection({ type: "select_root", journeyId: journey.id });
                   selectJourney(journey.id, "pointer");
                   dispatchJourneySearch({ type: "journey_selected", intent: "pointer" });

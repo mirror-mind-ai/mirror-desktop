@@ -103,8 +103,8 @@ describe("Journey administration boundary", () => {
     expect(appSource).toContain("onCreate={openCreateJourney}");
     expect(appSource).toContain('event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")');
     expect(appSource).toContain('setJourneyAdminParent(parentId)');
-    // CR099: drag is offered per Journey now, not withdrawn from the whole tree by one turn.
-    expect(appSource).toContain('draggable={journeyListOrder === "tree" && treeOperation("drag", journey.id).allowed}');
+    // CR203: the row starts its own drag from a pointer press, gated per Journey by CR099.
+    expect(appSource).toContain('onPointerDown={(event) => beginJourneyDrag(event, journey.id)}');
   });
 
   it("offers one prefilled Edit Journey form while keeping identity and hierarchy immutable", () => {
