@@ -4,7 +4,7 @@
 
 **Status:** in_progress
 **Driver:** @alissonvale
-**Delivery:** `main` (`61a434cc`, `77b55a8a`, `710e3bab`, `ffd7dc4d`, `1e4cecb2`), RS028 group C
+**Delivery:** `main` (`61a434cc`, `77b55a8a`, `710e3bab`, `ffd7dc4d`, `1e4cecb2`, `9df394ed`), RS028 group C
 **Group:** C, reshaping the tree
 
 ## Friction
@@ -155,3 +155,17 @@ Answers in `1e4cecb2`:
 Seven mutations caught. Falsifiers for the Navigator: no selection anywhere during a drag; nothing
 in the tree moves while the pointer moves; the row highlighted is exactly the row under the
 pointer; Escape mid-drag leaves the tree untouched.
+
+## Fifth field report: the wait after the drop (2026-11-06)
+
+The Navigator confirmed the gesture works. What remained: two or three seconds between the release
+and the reloaded tree (the move, then a full reread of Mirror's tree), a silence that read as a
+failure. Delivered in `9df394ed`, as the Navigator proposed: "Moving X into Y…" under a wait cursor for
+as long as Mirror writes, then "Moved X into Y." or the refusal. A refusal without words still ends
+the wait with its own sentence, and no new drag can start while a move is in flight.
+
+Found on the way: `executeJourneyMutation` restores the collapsed set captured at the drop, so a
+parent opened at the drop was shut again by the answer. It is now opened after the answer.
+
+The seconds themselves are not reduced here. Whether the move needs the full tree reread is a
+question for the measurement, not for this CR.
