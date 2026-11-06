@@ -2,9 +2,9 @@
 
 # CR204: Delete a Journey With Everything Under It
 
-**Status:** in_progress (built, awaiting the Navigator's check)
+**Status:** done
 **Driver:** Navigator
-**Delivery:** Core CR200 on branch `nautilus-core-requests` (`ac9a84da`); app `a33a4575`
+**Delivery:** Core CR200 on branch `nautilus-core-requests` (`ac9a84da`); app `a33a4575`, `cf9c8a70`
 **Group:** D, removing a subtree
 
 ## Friction
@@ -99,3 +99,12 @@ and lets the person decide, rather than block.
 - Tests: `rs028GroupDDeleteJourney` (10), the native module (10), the bridge's mapping and refusals,
   and the real-host test driving the new Core end to end. Mutations: 14 on the domain, 21 on the native
   module, all caught but one equivalent.
+
+## Validation (2026-11-06)
+
+The Navigator ran the Group D check in the development app and validated it, with two corrections
+applied in `cf9c8a70`: the line under the tree after a deletion listed the backup and the
+moved-aside folder by full path, crowded the sidebar and vanished in three seconds, so a clean
+deletion now says nothing (the tree is the answer) and only an unfinished step is written, staying
+until read; and the confirmation's "Deleted from Mirror:" read as already done, so the list now says
+what **will be** deleted and kept. The CR ships when Core CR200 is released and pinned.

@@ -31,7 +31,7 @@ Related, already done: [CR100](../rs021-ux-pre-beta-evolution/cr100-make-journey
 | [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md) | C | done | validated 2026-11-06 |
 | [CR203: Reparent a Journey by Dragging It](cr203-reparent-a-journey-by-dragging-it.md) | C | done | validated 2026-11-06, after five field reports |
 | [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md) | C | done | absorbed by CR203; the Move form's parent list fixed |
-| [CR204: Delete a Journey With Everything Under It](cr204-delete-a-journey-with-everything-under-it.md) | D | in_progress | built with Core CR200 (a33a4575); awaiting the Group D check |
+| [CR204: Delete a Journey With Everything Under It](cr204-delete-a-journey-with-everything-under-it.md) | D | done | validated 2026-11-06; ships with the Core CR200 release |
 
 ## Groups
 
@@ -115,7 +115,7 @@ In the development app bound to `ensaio-5c-2`, in Tree view:
 8. Open Move Journey on a Journey with children. Its own children are not offered as parents.
 9. With a turn running in another Journey, repeat step 1. The drag still works (CR099).
 
-## Group D Check (CR204)
+## Group D Check (CR204, passed 2026-11-06)
 
 In the development app bound to `ensaio-5c-2` (`npm run tauri:dev`). Prepare a throwaway Journey
 `teste-exclusao` with one short conversation, and a folder `/private/tmp/teste-exclusao` holding a
@@ -129,9 +129,8 @@ file or two, set as its project path.
 3. With a turn running in `teste-exclusao`, open the same dialog. It refuses, saying an agent is
    working, and the button stays disabled.
 4. Tick the box. A warning says the files are deleted, not moved to the Trash, and the folder stays.
-5. Confirm. The tree no longer shows the Journey. The status line under the tree names Mirror's
-   backup (`backups/pre-journey-deletion-…`), the `deleted-journeys` folder and how many items left
-   the project folder. `/private/tmp/teste-exclusao` exists and is empty.
+5. Confirm. The tree no longer shows the Journey, and nothing is written under it (after the check:
+   a clean deletion is silent). `/private/tmp/teste-exclusao` exists and is empty.
 6. Restart the app. The Journey does not come back.
 7. Make a Journey whose project path is another Journey's folder, or a folder that holds one. Its box
    is disabled and says why.
@@ -140,7 +139,7 @@ file or two, set as its project path.
 
 ## Order
 
-A, B, C, D, accepted by the Navigator on 2026-11-05. Groups A, B and C are done (C validated 2026-11-06: CR099 and CR203 validated, CR098 absorbed). Group D (CR204) is built and awaits its check; it ships only after Core CR200 is released.
+A, B, C, D, accepted by the Navigator on 2026-11-05. Groups A, B and C are done (C validated 2026-11-06: CR099 and CR203 validated, CR098 absorbed). Group D (CR204) validated 2026-11-06; it ships only after Core CR200 is released and pinned.
 
 ## Finding, outside the Change Requests (2026-11-05)
 
