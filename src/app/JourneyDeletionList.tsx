@@ -20,8 +20,8 @@ export function JourneyDeletionList({ preview, error, nameOf, emptiesFolder, onE
     <div className="journey-deletion-list">
       {summary.goes.length > 0 || summary.extensions.length > 0 ? (
         <>
-          <p>Deleted from Mirror:</p>
-          <ul aria-label="Deleted from Mirror">
+          <p>Will be deleted from Mirror:</p>
+          <ul aria-label="Will be deleted from Mirror">
             {summary.goes.map((line) => <li key={line}>{line}</li>)}
             {summary.extensions.map((line) => <li key={line}>{line}</li>)}
           </ul>
@@ -31,8 +31,8 @@ export function JourneyDeletionList({ preview, error, nameOf, emptiesFolder, onE
       )}
       {summary.kept.length > 0 ? (
         <>
-          <p>Kept, no longer linked to this Journey's Conversations:</p>
-          <ul aria-label="Kept">
+          <p>Will be kept, no longer linked to this Journey's Conversations:</p>
+          <ul aria-label="Will be kept">
             {summary.kept.map((line) => <li key={line}>{line}</li>)}
           </ul>
         </>
@@ -53,7 +53,7 @@ export function JourneyDeletionList({ preview, error, nameOf, emptiesFolder, onE
           </span>
         </label>
       ) : (
-        <p>This Journey has no project folder. No file on disk is touched.</p>
+        <p>This Journey has no project folder. No file on disk will be touched.</p>
       )}
     </div>
   );

@@ -5777,8 +5777,14 @@ export function App({ model }: AppProps) {
       dispatchConversationExpansion({ type: "restore", journeyIds: [...reconciled.expandedConversationJourneyIds] });
       if (closeOnSuccess) setJourneyAdminDialog(null);
       setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
-      setJourneyRegistryRefreshState("succeeded");
-      setJourneyRegistryRefreshMessage(result.deletion && deletedJourneyName ? journeyDeletionOutcome(deletedJourneyName, result.deletion) : "Journey structure updated from Mirror.");
+      // CR204: a clean deletion says nothing; one that did not finish stays written until read.
+      const unfinished = result.deletion && deletedJourneyName ? journeyDeletionOutcome(deletedJourneyName, result.deletion) : undefined;
+      if (result.deletion && !unfinished) {
+        setJourneyRegistryRefreshState("idle"); setJourneyRegistryRefreshMessage(undefined);
+      } else {
+        setJourneyRegistryRefreshState(unfinished ? "failed" : "succeeded");
+        setJourneyRegistryRefreshMessage(unfinished ?? "Journey structure updated from Mirror.");
+      }
       return true;
     } catch (error) {
       if (isStaleSourceError(error)) {

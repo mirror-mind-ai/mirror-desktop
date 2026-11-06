@@ -172,7 +172,7 @@ export function journeyDeletionSummary(preview: JourneyDeletionPreview): Journey
     kept: lines(mirror.detached, DETACHED),
     extensions,
     nautilus: files > 0
-      ? `Nautilus's ${counted(files, ["file", "files"])} for this Journey (${joined(kinds)}) ${files === 1 ? "is" : "are"} moved to deleted-journeys in the app's data folder, not erased.`
+      ? `Nautilus's ${counted(files, ["file", "files"])} for this Journey (${joined(kinds)}) will be moved to deleted-journeys in the app's data folder, not erased.`
       : undefined,
     total: sum(mirror.records) + sum(mirror.contents) + mirror.extensions.reduce((total, row) => total + row.rows, 0),
   };
@@ -192,11 +192,12 @@ export function deleteJourneyButtonLabel(preview: JourneyDeletionPreview): strin
   return total > 0 ? `Delete Journey and ${counted(total, ["record", "records"])}` : "Delete Journey";
 }
 
-export function journeyDeletionOutcome(name: string, receipt: JourneyDeletionReceipt): string {
-  const parts = [`Deleted ${name}.`];
-  if (receipt.backup) parts.push(`Mirror's backup: ${receipt.backup}.`);
-  if (receipt.movedAside) parts.push(`Nautilus's files: ${receipt.movedAside}.`);
-  if (receipt.folder && receipt.folder.removed !== null) parts.push(`Emptied ${receipt.folder.path} (${counted(receipt.folder.removed, ["item", "items"])}).`);
-  if (receipt.problems.length > 0) parts.push(`Not finished: ${receipt.problems.join(" ")}`);
-  return parts.join(" ");
+/**
+ * What a deletion leaves to say once the dialog closes. A clean one says nothing: the Journey leaving
+ * the tree is the answer, and paths only crowd the sidebar. A step that did not finish is said, and
+ * stays until read.
+ */
+export function journeyDeletionOutcome(name: string, receipt: JourneyDeletionReceipt): string | undefined {
+  if (receipt.problems.length === 0) return undefined;
+  return `${name} was deleted from Mirror, but not everything finished: ${receipt.problems.join(" ")}`;
 }

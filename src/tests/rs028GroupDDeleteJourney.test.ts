@@ -83,9 +83,9 @@ describe("RS028 group D: delete a Journey after showing what will go (CR204)", (
   it("says Nautilus's own files are moved aside, not erased", () => {
     expect(journeyDeletionSummary(preview()).nautilus).toBeUndefined();
     expect(journeyDeletionSummary(preview({}, { nautilus: { thread: 1 } })).nautilus)
-      .toBe("Nautilus's 1 file for this Journey (its thread) is moved to deleted-journeys in the app's data folder, not erased.");
+      .toBe("Nautilus's 1 file for this Journey (its thread) will be moved to deleted-journeys in the app's data folder, not erased.");
     expect(journeyDeletionSummary(preview({}, { nautilus: { thread: 1, pi_session: 3, turn_journal: 1 } })).nautilus)
-      .toBe("Nautilus's 5 files for this Journey (its thread, its turn journal and 3 agent sessions) are moved to deleted-journeys in the app's data folder, not erased.");
+      .toBe("Nautilus's 5 files for this Journey (its thread, its turn journal and 3 agent sessions) will be moved to deleted-journeys in the app's data folder, not erased.");
   });
 
   it("refuses a Journey with child Journeys by name, then work in flight, and otherwise allows it", () => {
@@ -104,12 +104,20 @@ describe("RS028 group D: delete a Journey after showing what will go (CR204)", (
     expect(deleteJourneyButtonLabel(preview({ contents: { ...zeroContents, messages: 1200 } }))).toBe("Delete Journey and 1,200 records");
   });
 
-  it("closes with the backup, where Nautilus's files went, the folder, and any step that did not finish", () => {
+  it("says nothing after a clean deletion, no paths, and names only a step that did not finish", () => {
     expect(journeyDeletionOutcome("Atlas", { backup: "/h/backups/pre.db", movedAside: "/s/deleted-journeys/x-atlas", folder: { path: "/p", removed: 4 }, problems: [] }))
-      .toBe("Deleted Atlas. Mirror's backup: /h/backups/pre.db. Nautilus's files: /s/deleted-journeys/x-atlas. Emptied /p (4 items).");
-    expect(journeyDeletionOutcome("Atlas", { backup: "/b.db", movedAside: null, folder: null, problems: [] })).toBe("Deleted Atlas. Mirror's backup: /b.db.");
+      .toBeUndefined();
     expect(journeyDeletionOutcome("Atlas", { backup: "/b.db", movedAside: null, folder: { path: "/p", removed: null }, problems: ["2 item(s) could not be deleted."] }))
-      .toBe("Deleted Atlas. Mirror's backup: /b.db. Not finished: 2 item(s) could not be deleted.");
+      .toBe("Atlas was deleted from Mirror, but not everything finished: 2 item(s) could not be deleted.");
+  });
+
+  it("speaks of what the confirmation lists in the future, before anything is deleted", async () => {
+    // @ts-expect-error Vitest runs in Node; production code has no Node dependency.
+    const { readFileSync } = await import("node:fs");
+    const list = readFileSync(new URL("../app/JourneyDeletionList.tsx", import.meta.url), "utf8") as string;
+    expect(list).toContain("Will be deleted from Mirror:");
+    expect(list).toContain("Will be kept, no longer linked");
+    expect(list).not.toMatch(/>Deleted from Mirror|>Kept,/);
   });
 
   it("holds the changed-list sentence identical to the native one", async () => {
