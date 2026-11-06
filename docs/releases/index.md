@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.4.0-alpha.4 · Managing Journeys From the Tree](v0.4.0-alpha.4.md) · the tree hides inactive Journeys until asked, shows where each agent works, moves a Journey by dragging it, and deletes a Journey with its records after a list of what will go (RS028). Core `mirror-mind@0.40.0-next.1`. Intel only, not signed.
 - [v0.4.0-alpha.3 · Timing the Start of a Turn](v0.4.0-alpha.3.md) · no visible change; every turn's start is timed step by step, to find the wait of up to 40 s on long Conversations (CR194). Intel only, not signed.
 - [v0.4.0-alpha.2 — The Message Comes Back](v0.4.0-alpha.2.md) — a message cancelled in the first seconds returns to the composer again, and no persona-only answer is left behind (CR193). Intel only, not signed.
 - [v0.4.0-alpha.1 — Nautilus for Mirror](v0.4.0-alpha.1.md) — the first Nautilus for Mirror: a new app with its own name, identifier, data folder and channel, the Nautilus spiral as its icon, and a script that carries the 0.3 app's state across. Installed from its DMG beside Mirror Desktop TS. Intel only, not signed.
