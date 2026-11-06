@@ -1,6 +1,7 @@
 import {
   Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState,
   type CSSProperties,
+  type DragEvent as ReactDragEvent,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
@@ -8,6 +9,13 @@ import {
 import { homeDir } from "@tauri-apps/api/path";
 import { describeWorkingFolder, type JourneyWorkspacePreview } from "../domain/journeyWorkingFolder";
 import { openJourneyWorkspace, previewJourneyWorkspace } from "./journeyWorkspaceStorage";
+import {
+  dropZoneFromOffset,
+  eligibleParentJourneys,
+  planJourneyDrop,
+  type JourneyDropPlan,
+  type JourneyDropZone,
+} from "../domain/journeyDropTarget";
 import {
   journeyTreeAvailability,
   mutationTargetJourneyId,
@@ -743,6 +751,9 @@ export function App({ model }: AppProps) {
   const [journeyAdminMessage, setJourneyAdminMessage] = useState<string | undefined>();
   const [journeyAdminPendingRequest, setJourneyAdminPendingRequest] = useState<JourneyMutationRequest | null>(null);
   const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
+  /** CR203: the row under the pointer and what dropping there would do, read by the row and the line. */
+  const [journeyDropTarget, setJourneyDropTarget] = useState<{ journeyId: string | null; zone: JourneyDropZone; plan: JourneyDropPlan }>();
+  const [journeyDropMessage, setJourneyDropMessage] = useState<string>();
   // CR113: the visible text is owned by the Composer input, not by this root component. What the
   // root keeps is the current value, for the send and steering boundaries that read it, and
   // whether it is blank, for the controls whose enablement depends on that.
@@ -1307,6 +1318,13 @@ export function App({ model }: AppProps) {
   );
   const treeOperation = (operation: JourneyTreeOperation, targetJourneyId?: string) =>
     journeyTreeAvailability(operation, { targetJourneyId, registry: journeyRegistry, scope: runningJourneys });
+  /** CR203: what the row under the pointer should paint, so the gesture is visible before the drop. */
+  const journeyDropClass = (journeyId: string) => {
+    if (!journeyDropTarget || journeyDropTarget.journeyId !== journeyId) return "";
+    if (journeyDropTarget.plan.outcome === "refused") return "drop-refused";
+    if (journeyDropTarget.plan.outcome === "unchanged") return "";
+    return `drop-${journeyDropTarget.zone}`;
+  };
   const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime);
   const terminalStreamWarningKey = selectedRuntimeBusy
     ? undefined
@@ -5309,6 +5327,41 @@ export function App({ model }: AppProps) {
     }
   }
 
+  /**
+   * CR203: the drag reads where the pointer is inside the row, so one gesture reaches a child, a
+   * place among siblings and the root. The plan is kept on state because the row paints from it and
+   * the line below the tree reads the same sentence the drop will act on.
+   */
+  function aimJourneyDrop(event: ReactDragEvent<HTMLElement>, targetJourneyId: string | null, zone?: JourneyDropZone) {
+    if (!draggedJourneyId) return;
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const aimed = zone ?? dropZoneFromOffset(event.clientY - rect.top, rect.height);
+    const plan = planJourneyDrop({ draggedJourneyId, targetJourneyId, zone: aimed, registry: journeyRegistry });
+    setJourneyDropTarget({ journeyId: targetJourneyId, zone: aimed, plan });
+  }
+
+  function endJourneyDrag() {
+    setDraggedJourneyId(null);
+    setJourneyDropTarget(undefined);
+  }
+
+  function dropJourney(event: ReactDragEvent<HTMLElement>, targetJourneyId: string | null, zone?: JourneyDropZone) {
+    event.preventDefault();
+    if (!draggedJourneyId) return endJourneyDrag();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const aimed = zone ?? dropZoneFromOffset(event.clientY - rect.top, rect.height);
+    const plan = planJourneyDrop({ draggedJourneyId, targetJourneyId, zone: aimed, registry: journeyRegistry });
+    endJourneyDrag();
+    if (plan.outcome === "refused") {
+      setJourneyDropMessage(plan.reason);
+      return;
+    }
+    if (plan.outcome === "unchanged") return;
+    setJourneyDropMessage(undefined);
+    void executeJourneyMutation("move_journey", { journeyId: draggedJourneyId, parentId: plan.parentId, position: plan.position }, false, setJourneyDropMessage);
+  }
+
   function toggleCollapsedJourney(journeyId: string) {
     setCollapsedJourneyIds((current) => {
       const next = new Set(current);
@@ -5476,11 +5529,12 @@ export function App({ model }: AppProps) {
    * operations, identity then project path, so the first keeps the dialog open for the second,
    * where a failure must still be read.
    */
-  async function executeJourneyMutation(operation: "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey", payload: Record<string, unknown>, closeOnSuccess = true): Promise<boolean> {
+  async function executeJourneyMutation(operation: "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey", payload: Record<string, unknown>, closeOnSuccess = true, onFailure?: (message: string) => void): Promise<boolean> {
     const availability = treeOperation(treeOperationOfMutation(operation), mutationTargetJourneyId(operation, payload));
     if (!availability.allowed) {
       setJourneyAdminMessage(availability.reason);
       setJourneyAdminState("failed");
+      if (availability.reason) onFailure?.(availability.reason);
       return false;
     }
     setJourneyAdminState("saving"); setJourneyAdminMessage(availability.note);
@@ -5521,6 +5575,8 @@ export function App({ model }: AppProps) {
       }
       const message = journeyAdministrationError(error);
       setJourneyAdminState("failed"); setJourneyAdminMessage(message);
+      // CR203: a drag has no dialog to read, so it hands in where its own refusal should be said.
+      onFailure?.(message);
       return false;
     }
   }
@@ -6433,6 +6489,28 @@ export function App({ model }: AppProps) {
           </p>
         ) : null}
 
+        {draggedJourneyId && journeyListOrder === "tree" ? (
+          <div
+            className={`journey-root-drop-zone ${journeyDropTarget?.zone === "root" ? "is-aimed" : ""}`}
+            onDragOver={(event) => aimJourneyDrop(event, null, "root")}
+            onDrop={(event) => dropJourney(event, null, "root")}
+          >
+            Drop here to make it a root Journey
+          </div>
+        ) : null}
+        {draggedJourneyId && journeyDropTarget ? (
+          <p className={`journey-drop-hint ${journeyDropTarget.plan.outcome}`} role="status">
+            {journeyDropTarget.plan.outcome === "move"
+              ? journeyDropTarget.plan.description
+              : journeyDropTarget.plan.outcome === "refused"
+                ? journeyDropTarget.plan.reason
+                : "It is already there."}
+          </p>
+        ) : null}
+        {!draggedJourneyId && journeyDropMessage ? (
+          <p className="journey-drop-hint refused" role="alert">{journeyDropMessage}</p>
+        ) : null}
+
         <div ref={journeyListRef} className={`journey-list ${journeyListOrder === "tree" ? "tree-mode" : "card-mode"}`}>
           {visibleSidebarJourneys.length === 0 ? (
             <div className="journey-empty-state">
@@ -6490,7 +6568,7 @@ export function App({ model }: AppProps) {
             return (
               <Fragment key={journey.id}>
               <div
-                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${appearance?.kind === "custom" ? "has-custom-appearance" : ""} ${journey.id === selectedJourney ? "selected" : ""} ${journey.pinned ? "is-pinned" : ""} ${conversationsExpanded ? "conversations-expanded" : ""} ${journeyDimmed ? "is-inactive" : ""}`}
+                className={`journey-item ${journeyListOrder === "tree" ? "tree-node" : "card-node"} ${journey.depth > 0 ? "is-nested" : "is-root"} accent-${visual.accent} ${appearance?.kind === "custom" ? "has-custom-appearance" : ""} ${journey.id === selectedJourney ? "selected" : ""} ${journey.pinned ? "is-pinned" : ""} ${conversationsExpanded ? "conversations-expanded" : ""} ${journeyDimmed ? "is-inactive" : ""} ${journeyDropClass(journey.id)} ${draggedJourneyId === journey.id ? "is-dragging" : ""}`}
                 style={{ "--journey-depth": journeyListOrder === "tree" ? journey.depth : 0 } as CSSProperties & Record<"--journey-depth", number>}
                 role="button"
                 tabIndex={0}
@@ -6499,17 +6577,10 @@ export function App({ model }: AppProps) {
                 aria-haspopup="menu"
                 aria-expanded={journeyItemMenu?.journeyId === journey.id}
                 draggable={journeyListOrder === "tree" && treeOperation("drag", journey.id).allowed}
-                onDragStart={() => setDraggedJourneyId(journey.id)}
-                onDragOver={(event) => { if (draggedJourneyId && draggedJourneyId !== journey.id) event.preventDefault(); }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  if (draggedJourneyId && draggedJourneyId !== journey.id) {
-                    const position = journey.children?.length ?? 0;
-                    void executeJourneyMutation("move_journey", { journeyId: draggedJourneyId, parentId: journey.id, position });
-                  }
-                  setDraggedJourneyId(null);
-                }}
-                onDragEnd={() => setDraggedJourneyId(null)}
+                onDragStart={() => { setDraggedJourneyId(journey.id); setJourneyDropMessage(undefined); }}
+                onDragOver={(event) => aimJourneyDrop(event, journey.id)}
+                onDrop={(event) => dropJourney(event, journey.id)}
+                onDragEnd={endJourneyDrag}
                 onContextMenu={(event) => {
                   event.preventDefault(); event.stopPropagation();
                   openJourneyItemMenu(journey.id, event.currentTarget, event.clientX, event.clientY);
@@ -7801,7 +7872,7 @@ export function App({ model }: AppProps) {
                   setJourneyAdminPosition(appendJourneyPosition(journeyRegistry, parentId));
                 }}>
                   <option value="">Root</option>
-                  {flattenJourneyRegistry(journeyRegistry).filter((journey) => journey.id !== journeyAdminDialog.journeyId).map((journey) => (
+                  {eligibleParentJourneys(journeyRegistry, journeyAdminDialog.journeyId, flattenJourneyRegistry(journeyRegistry)).map((journey) => (
                     <option key={journey.id} value={journey.id}>{"—".repeat(journey.depth)} {journey.name}</option>
                   ))}
                 </select></label>
