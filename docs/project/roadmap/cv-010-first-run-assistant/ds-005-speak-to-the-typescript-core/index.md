@@ -4053,3 +4053,17 @@ moves from the released `mirror-mind@0.39.0` (`ca7295a4`) to a tarball packed fr
 used. No migration lies between the two; `lib/desktop.js` only adds names. Development runs it;
 a release cannot: the alpha preflight's `requireReleasedCore` refuses any pin without a release,
 so no Nautilus release leaves `main` until the Core is published and pinned by its release.
+
+### The Core's Release Train (2026-11-06, Navigator)
+
+So that every Core change Nautilus needs does not become a release every terminal user receives,
+the Core adopts a release train (`docs/process/versioning.md`, "The Release Train", Core branch
+`process/release-train`, `7fd9b8ff`): pull requests merge freely, stable releases leave in batches,
+and a change Nautilus needs sooner is published as a preview `X.Y.Z-next.N` under npm's `next`
+dist-tag, which no Mirror updater reads. Nautilus pins a preview exactly as a stable version (the
+tarball npm serves, its sha256 and the registry's sha512), and `requireReleasedCore` now accepts
+`X.Y.Z` or `X.Y.Z-next.N` whose `release` names it, and nothing else: no branch, no other
+prerelease. One rule stays with the release preparation: a preview that adds a migration must not
+reach a real home before Core's `stable` carries it, because the terminal's `mirror` opens the same
+home and would refuse it as `ahead`. CR200 has no migration; its first preview is expected to be
+`0.40.0-next.1`.

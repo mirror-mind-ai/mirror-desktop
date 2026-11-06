@@ -5,7 +5,7 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | RS028, depois RS027 |
-| **RS028 · Journey Management** | ✅ grupos A a D validados · falta publicar o Core (CR200) e fixá-lo no app |
+| **RS028 · Journey Management** | ✅ grupos A a D validados · falta a prévia do Core `0.40.0-next.1` (PR #55) fixada no app |
 | ↳　D · CR204 · Delete a Journey With Everything Under It | 🟡 captured · precisa do Core e de decisões |
 | **RS026 · After the 0.3 Cutover** | 🔄 ativa · 1 🟡 |
 | ↳　CR196 · Render a Table Whose First Header Cell Is Empty | 🟡 captured · causa achada: célula vazia no cabeçalho |
