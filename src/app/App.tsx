@@ -997,7 +997,9 @@ export function App({ model }: AppProps) {
   const [piClosedChapterCount, setPiClosedChapterCount] = useState(0);
   const [conversationActionBusy, setConversationActionBusy] = useState(false);
   const [conversationActionMessage, setConversationActionMessage] = useState<string>();
-  const [conversationCreateOpen, setConversationCreateOpen] = useState(false);
+  // CR207: the Journey the New button belongs to, which is not always the selected one: every
+  // open group has its own New. Undefined while the dialog is closed.
+  const [conversationCreateTarget, setConversationCreateTarget] = useState<{ journeyId: string; journeyName: string }>();
   const [conversationCreateDraft, setConversationCreateDraft] = useState("");
   const [conversationCreateError, setConversationCreateError] = useState<string>();
   const [mirrorRenameTarget, setMirrorRenameTarget] = useState<{
@@ -5051,15 +5053,21 @@ export function App({ model }: AppProps) {
     dispatchConversationSelection({ type: "select_root", journeyId: owner.journeyId });
   }
 
-  function requestBlankDesktopConversation() {
-    setConversationCreateDraft(nextDesktopConversationTitle(conversationCatalog));
+  function requestBlankDesktopConversation(journeyId: string = selectedJourney) {
+    const journeyName = findJourneyById(journeyRegistry, journeyId)?.name ?? journeyId;
+    setConversationCreateDraft(nextDesktopConversationTitle(journeyCatalogState(conversationCatalogs, journeyId).entries));
     setConversationCreateError(undefined);
-    setConversationCreateOpen(true);
+    setConversationCreateTarget({ journeyId, journeyName });
   }
 
   async function createBlankDesktopConversation() {
+    if (!conversationCreateTarget) return;
+    const target = {
+      ...conversationCreateTarget,
+      entries: journeyCatalogState(conversationCatalogs, conversationCreateTarget.journeyId).entries,
+    };
     const title = normalizeConversationTitle(conversationCreateDraft);
-    const validationError = validateConversationTitle(conversationCatalog, title);
+    const validationError = validateConversationTitle(target.entries, title);
     if (validationError || conversationActionBusy) {
       setConversationCreateError(validationError);
       return;
@@ -5069,13 +5077,15 @@ export function App({ model }: AppProps) {
     setConversationActionMessage("Creating dedicated Desktop authority…");
     try {
       const created = await createDesktopConversation({
-        journeyId: selectedJourney,
-        journeyName: selectedJourneyItem.name,
+        journeyId: target.journeyId,
+        journeyName: target.journeyName,
         title,
       });
-      setConversationCatalog((current) => [created, ...current]);
-      dispatchConversationSelection({ type: "select_desktop", journeyId: selectedJourney, conversationId: created.conversationId });
-      setConversationCreateOpen(false);
+      updateConversationCatalogFor(target.journeyId, (current) => [created, ...current]);
+      // Like choosing a conversation in a group, creating one there goes to it.
+      selectJourney(target.journeyId, "pointer");
+      dispatchConversationSelection({ type: "select_desktop", journeyId: target.journeyId, conversationId: created.conversationId });
+      setConversationCreateTarget(undefined);
       setConversationActionMessage(undefined);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -6926,6 +6936,7 @@ export function App({ model }: AppProps) {
                 <FocusedConversationSidebar
                   journeyId={journey.id}
                   journeyName={journey.name}
+                  depth={journeyListOrder === "tree" ? journey.depth : 0}
                   accent={visual.accent}
                   selected={journeyIsSelected ? selectedConversationSpace : undefined}
                   entries={journeyCatalog.entries}
@@ -6939,7 +6950,7 @@ export function App({ model }: AppProps) {
                   // scan is bounded by the registry's limit of four live leases.
                   work={deriveConversationWork(piInvocationOccupancy, journey.id)}
                   actionMessage={journeyIsSelected ? conversationActionMessage : undefined}
-                  onCreateConversation={requestBlankDesktopConversation}
+                  onCreateConversation={() => requestBlankDesktopConversation(journey.id)}
                   onSelectEntry={(entry) => {
                     // CR133: clicking a conversation is navigation by design, and is the one
                     // list gesture that may select a Journey. The disclosure no longer does.
@@ -7908,7 +7919,7 @@ export function App({ model }: AppProps) {
         </div>
       ) : null}
 
-      {conversationCreateOpen ? (
+      {conversationCreateTarget ? (
         <div className="settings-backdrop" role="presentation">
           <form
             className="settings-window journey-admin-dialog"
@@ -7918,8 +7929,8 @@ export function App({ model }: AppProps) {
             onSubmit={(event) => { event.preventDefault(); void createBlankDesktopConversation(); }}
           >
             <div className="settings-header">
-              <div><p className="eyebrow">Desktop Conversation</p><h2>New Conversation</h2></div>
-              <button type="button" onClick={() => setConversationCreateOpen(false)} disabled={conversationActionBusy}>×</button>
+              <div><p className="eyebrow">Desktop Conversation</p><h2>New Conversation in {conversationCreateTarget.journeyName}</h2></div>
+              <button type="button" onClick={() => setConversationCreateTarget(undefined)} disabled={conversationActionBusy}>×</button>
             </div>
             <label>
               Conversation title
@@ -7934,7 +7945,7 @@ export function App({ model }: AppProps) {
             <p className="journey-admin-summary">Edit the suggested unique title or accept it as shown. Creation invokes no model and sends no message.</p>
             {conversationCreateError ? <p className="settings-error" role="alert">{conversationCreateError}</p> : null}
             <div className="settings-actions">
-              <button type="button" onClick={() => setConversationCreateOpen(false)} disabled={conversationActionBusy}>Cancel</button>
+              <button type="button" onClick={() => setConversationCreateTarget(undefined)} disabled={conversationActionBusy}>Cancel</button>
               <button type="submit" disabled={conversationActionBusy || !conversationCreateDraft.trim()}>
                 {conversationActionBusy ? "Creating…" : "Create Conversation"}
               </button>

@@ -457,7 +457,7 @@ describe("CR137: the restore is wired where it cannot disagree with the transcri
 
   it("leaves CR134's route reaching a hidden conversation", () => {
     const start = appSource.indexOf("async function navigateToJourneyWorkOwner(owner: JourneyWorkOwner) {");
-    const end = appSource.indexOf("function requestBlankDesktopConversation()");
+    const end = appSource.indexOf("function requestBlankDesktopConversation(");
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const route = withoutComments(appSource.slice(start, end));

@@ -967,7 +967,7 @@ textarea {
 
 /* RS028 group B (CR202): the folder the agent works in, under the Journey's name. */
 .active-journey-folder {
-  color: #7f9095;
+  color: var(--text-muted);
   font-size: 0.68rem;
   letter-spacing: 0.01em;
   margin: 2px 0 0;
@@ -986,12 +986,23 @@ textarea {
   font: inherit;
   padding: 0;
   text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.22);
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
   text-underline-offset: 2px;
 }
 
-.active-journey-folder-path:hover { color: #d5e3e7; text-decoration-color: currentColor; }
+.active-journey-folder-path:hover { color: var(--text); text-decoration-color: currentColor; }
+/* CR209: the dark theme's amber is unreadable on a light surface. */
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .active-journey-folder.fallback { color: #9a5b13; }
 .active-journey-folder.fallback .active-journey-folder-path:hover { color: #f3cb9b; }
+.app-shell:is(
+  [data-application-theme="daylight"],
+  [data-application-theme="mist"],
+  [data-application-theme="parchment"]
+) .active-journey-folder.fallback .active-journey-folder-path:hover { color: #6f3f0b; }
 .active-journey-folder-path:focus-visible { outline: 1px solid currentColor; outline-offset: 2px; }
 
 /* RS028 group A: Collapse all, Expand all and the inactive filter, under the view switch. */
@@ -7342,7 +7353,7 @@ dd {
   [data-application-theme="daylight"],
   [data-application-theme="mist"],
   [data-application-theme="parchment"]
-) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .artifact-preview-layout-toggle, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .agentic-map-territory button, .message-copy-action, .focused-conversation-entry, .focused-conversation-create, .focused-conversation-more, .focused-conversation-kind-filter, .focused-conversation-hidden-toggle, .focused-conversation-reveal, .focused-conversation-reveal-all, .settings-sound-toggle, .settings-tone-choice)) {
+) :where(button:not(.secondary-button, .settings-button, .icon-button, .menu-button, .sidebar-action-button, .theme-choice, .journey-documentation-toggle, .journey-documentation-select, .artifact-preview-layout-toggle, .journey-tree-toggle, .journey-menu button, .journey-tree-context-menu button, .journey-item-context-menu button, .artifact-context-menu button, .settings-tab-list button, .agentic-map-territory button, .message-copy-action, .focused-conversation-entry, .focused-conversation-create, .focused-conversation-more, .active-journey-folder-path, .focused-conversation-kind-filter, .focused-conversation-hidden-toggle, .focused-conversation-reveal, .focused-conversation-reveal-all, .settings-sound-toggle, .settings-tone-choice)) {
   /* White ink belongs to a filled button. A transparent text button that opts out of the fill
      must opt out here too, or it is painted white on a white surface — which is exactly how the
      CR105 territory names disappeared on Daylight while their counts stayed readable.
@@ -9104,7 +9115,8 @@ body.is-resizing-sidebar .app-shell { transition: none; }
   border-bottom: 0;
   border-right: 0;
   border-radius: 0;
-  margin: 0 4px 4px 20px;
+  /* CR208: the same 16px per level the tree rows indent by, so a nested Journey's guide is its own. */
+  margin: 0 4px 4px calc(20px + (var(--journey-depth, 0) * 16px));
   padding: 5px 4px 7px 12px;
 }
 

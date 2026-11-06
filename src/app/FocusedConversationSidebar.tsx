@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import type { ConversationCatalogEntry, ConversationSpaceSelection } from "../domain/conversationSpaces";
 import {
   conversationVisibilityKey,
@@ -22,6 +22,8 @@ type Props = {
   journeyId: string;
   journeyName: string;
   accent?: string;
+  /** CR208: the Journey's depth in the tree, so its conversations sit under it. */
+  depth?: number;
   // CR133: several groups can be open at once, and only the selected Journey's group has a
   // selected entry. An absent selection means this group belongs to a Journey the Navigator
   // is looking at rather than working in.
@@ -157,6 +159,7 @@ export function FocusedConversationSidebar(props: Props) {
   return <section
     className={`focused-conversation-sidebar${props.accent ? ` accent-${props.accent}` : ""}${props.status === "loading" ? " is-loading" : ""}`}
     aria-label={`${props.journeyName} conversations`}
+    style={{ "--journey-depth": props.depth ?? 0 } as CSSProperties & Record<"--journey-depth", number>}
   >
     <div className="focused-conversation-heading">
       <span className="focused-conversation-heading-copy">
