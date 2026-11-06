@@ -325,6 +325,9 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR204](rs028-journey-management/cr204-delete-a-journey-with-everything-under-it.md) | RS028 | Delete a Journey With Everything Under It | done | @alissonvale | `main` (`a33a4575`, `cf9c8a70`), v0.4.0-alpha.4 |
 | — | [CR205](rs028-journey-management/cr205-make-the-deletion-list-legible-and-name-the-journey-in-the-title.md) | RS028 | Make the Deletion List Legible and Name the Journey in the Title | captured | — | — |
 | — | [CR206](rs016-ongoing-product-improvements-and-adjustments/cr206-work-only-with-conversations-nautilus-created.md) | RS016 | Work Only With Conversations Nautilus Created | in_progress | @alissonvale | `main` (`6aaf505b`) |
+| — | [CR207](rs016-ongoing-product-improvements-and-adjustments/cr207-create-a-conversation-in-the-journey-whose-new-was-pressed.md) | RS016 | Create a Conversation in the Journey Whose New Was Pressed | in_progress | @alissonvale | `main` (`75382d16`) |
+| — | [CR208](rs028-journey-management/cr208-align-a-nested-journeys-conversations-under-it.md) | RS028 | Align a Nested Journey's Conversations Under It | in_progress | @alissonvale | `main` (`75382d16`) |
+| — | [CR209](rs028-journey-management/cr209-make-the-working-folder-line-readable-on-light-themes.md) | RS028 | Make the Working Folder Line Readable on Light Themes | in_progress | @alissonvale | `main` (`75382d16`) |
 | 4 | [CR099](rs028-journey-management/cr099-allow-safe-editing-during-another-journeys-work.md) | RS028 | Allow Safe Editing During Another Journey's Work | done | @alissonvale | `main` (`03e38bbc`) |
 | 5 | [CR098](rs028-journey-management/cr098-allow-a-journey-to-be-reparented.md) | RS028 | Allow a Journey to Be Reparented | done | @alissonvale | absorbed by CR203 |
 | 6 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | done | @alissonvale | CV-010.DS-005 slice 4b |
