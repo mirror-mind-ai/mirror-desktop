@@ -6,6 +6,8 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { homeDir } from "@tauri-apps/api/path";
+import { describeWorkingFolder, type JourneyWorkspacePreview } from "../domain/journeyWorkingFolder";
+import { previewJourneyWorkspace } from "./journeyWorkspaceStorage";
 import { describeComposerModelSelection, visibleThinkingLabel } from "../agent/providerConfig";
 import { ambiguousBareModelNames, modelDisplayName } from "../domain/modelIdentity";
 import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamEvent, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
@@ -715,6 +717,8 @@ export function App({ model }: AppProps) {
   // CR201: the home, to abbreviate a Journey's folder in its tooltip. Unknown until read; the
   // tooltip shows the full path meanwhile.
   const [homeDirectory, setHomeDirectory] = useState<string | undefined>(undefined);
+  // CR202: the folder the selected Journey's next turn would run in, resolved natively.
+  const [journeyWorkspacePreview, setJourneyWorkspacePreview] = useState<JourneyWorkspacePreview | undefined>(undefined);
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [journeyTreeMenuOpen, setJourneyTreeMenuOpen] = useState(false);
   const [journeyRegistryRefreshState, setJourneyRegistryRefreshState] = useState<"idle" | "refreshing" | "succeeded" | "failed">("idle");
@@ -1260,6 +1264,7 @@ export function App({ model }: AppProps) {
     compacting: compactingJourneyId === selectedJourney,
     turnOutcome: journeyTurnOutcomes[selectedJourney],
   });
+  const workingFolder = describeWorkingFolder(journeyWorkspacePreview, homeDirectory);
   const {
     agentRun,
     isStreaming,
@@ -2730,6 +2735,20 @@ export function App({ model }: AppProps) {
       hideInactiveJourneys,
     });
   }, [journeyPreferences, journeyListOrder, sidebarCompact, lastWorkedAtByJourneyId, applicationTheme, journeyAppearanceById, voiceLanguage, expandedConversationJourneyIds, hiddenConversations, lastConversationSelection, hideMirrorHistory, turnCompletionSound, turnCompletionToneId, userDisplayName, extensions, collapsedJourneyIds, hideInactiveJourneys, registryLoaded, preferencesLoaded]);
+
+  /**
+   * CR202: the folder the selected Journey's next turn would run in. Re-read when the Journey
+   * changes, when the registry does (a Journey edit or Reload Journey tree) and when a turn ends,
+   * because a turn is what makes the folder matter and CR197's refresh may have corrected it.
+   */
+  useEffect(() => {
+    if (!selectedJourney || isStreaming) return;
+    let cancelled = false;
+    previewJourneyWorkspace(selectedJourney)
+      .then((preview) => { if (!cancelled) setJourneyWorkspacePreview(preview); })
+      .catch(() => { if (!cancelled) setJourneyWorkspacePreview(undefined); });
+    return () => { cancelled = true; };
+  }, [isStreaming, journeyRegistry, selectedJourney]);
 
   useEffect(() => {
     let cancelled = false;
@@ -6662,6 +6681,15 @@ export function App({ model }: AppProps) {
                       locus={selectedJourneyWork?.locus}
                     />
                   </div>
+                  {workingFolder ? (
+                    <p
+                      className={`active-journey-folder ${workingFolder.kind}`}
+                      title={workingFolder.detail ?? workingFolder.label}
+                    >
+                      {workingFolder.label}
+                      {workingFolder.detail ? <span className="active-journey-folder-note"> · this Journey's folder is unavailable</span> : null}
+                    </p>
+                  ) : null}
                   {operationalChatSelected && messages.length > 0 && selectedConversationEntry?.kind === "desktop_conversation" ? (
                     <div className="active-conversation-context" aria-label={`Active Desktop Conversation: ${selectedConversationEntry.title}`}>
                       <span>Desktop Conversation</span>

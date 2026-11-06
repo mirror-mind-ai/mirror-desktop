@@ -154,7 +154,9 @@ mod tests {
         // CR173 added `install_anthropic_provider`, async, its long work on a blocking thread: 104 → 105.
         // CR184 added `load_dedicated_journey_conversation_metadata`, serialised and off the main
         // thread: 105 → 106.
-        assert_eq!(v.len(), 106, "the command census changed; update SOURCES or this count");
+        // RS028 group B added `preview_journey_workspace`, serialised and off the main thread, a
+        // read of the folder the next turn would use: 106 → 107.
+        assert_eq!(v.len(), 107, "the command census changed; update SOURCES or this count");
         v
     }
 

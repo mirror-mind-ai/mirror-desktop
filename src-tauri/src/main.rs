@@ -2086,16 +2086,23 @@ fn publish_refreshed_journey_registry(app_data_dir: &Path, payload: &str) -> Res
     Ok(published)
 }
 
-#[tauri::command(async)]
-fn refresh_journey_registry(app: AppHandle) -> Result<String, String> {
-    let _serialized = crate::native_command_serialization::acquire();
-    let app_data_dir = crate::home_state::home_state_dir(&app).map_err(|error| error.to_string())?;
+/// The Journey tree read from Mirror and published over the app's cache. Takes no command guard,
+/// because CR197 calls it from the turn path, which runs off a command; the command below takes the
+/// guard as every converted command does.
+fn refresh_journey_registry_payload(app: &AppHandle) -> Result<String, String> {
+    let app_data_dir = crate::home_state::home_state_dir(app).map_err(|error| error.to_string())?;
     fs::create_dir_all(&app_data_dir).map_err(|error| error.to_string())?;
     // CV-010.DS-005 slice 2d-1: the tree comes from the Mirror host, and Desktop stamps the envelope.
-    let tree = mirror_host_bridge::request(&app, "readJourneyTree", json!({}))
+    let tree = mirror_host_bridge::request(app, "readJourneyTree", json!({}))
         .map_err(|error| format!("Could not refresh Journeys from Mirror: {error}"))?;
     let payload = mirror_host_bridge::registry_from_tree(&tree, &Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true))?;
     publish_refreshed_journey_registry(&app_data_dir, &payload)
+}
+
+#[tauri::command(async)]
+fn refresh_journey_registry(app: AppHandle) -> Result<String, String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    refresh_journey_registry_payload(&app)
 }
 
 /// CV-010.DS-005 slice 2d-1: bind this app to a 0.3 home.
@@ -3981,7 +3988,7 @@ async fn compact_pi_session(
         return Err("Provider command must not contain parent-directory traversal.".to_string());
     }
     let (_session_id, session_file) = pi_session_for_active_generation(&app, &journey_id, &thread_id)?;
-    let workspace = turn_workspace(&app, &journey_id, &active_runtime_channel()?)?.path;
+    let workspace = resolved_journey_workspace(&app, &journey_id, &active_runtime_channel()?, true)?.path;
     {
         // Claim the Journey while holding the registry lock, so a turn reserving
         // concurrently either sees the claim in its admission closure or is seen here.
@@ -7755,10 +7762,58 @@ fn pi_turn_command(program: &str, args: Vec<String>, profile: &RuntimeChannelPro
 
 /// CR176: the folder this Journey's agent works in: its registered project path, else
 /// `~/Mirror Journeys/<journey>`.
-fn turn_workspace(app: &AppHandle, journey_id: &str, profile: &RuntimeChannelProfile) -> Result<journey_workspace::JourneyWorkspace, String> {
-    let registered = registered_journey_root(app, journey_id).ok();
+/// RS028 group B: the folder a turn runs in, for the turn itself (`ensure`) and for the surface
+/// that shows it (CR202). One resolution, so what the person reads is what Pi receives.
+///
+/// CR197: the folder comes from the app's cached `journey-registry.json`, which a launch does not
+/// refresh, so a folder moved outside the app leaves the cache naming one that is gone. When the
+/// plan would fall back, the Mirror is asked once (measured at about 11 ms against the production
+/// tree, over the already-running host) and the plan is taken again. A turn whose registered folder
+/// exists never pays for that call.
+fn resolved_journey_workspace(
+    app: &AppHandle,
+    journey_id: &str,
+    profile: &RuntimeChannelProfile,
+    ensure: bool,
+) -> Result<journey_workspace::JourneyWorkspace, String> {
     let user_home = app.path().home_dir().map_err(|error| format!("Could not resolve your home folder: {error}"))?;
-    journey_workspace::resolve_journey_workspace(journey_id, registered.as_deref(), &profile.mirror_home, &user_home)
+    let plan_from_cache = |app: &AppHandle| {
+        let registered = registered_journey_root(app, journey_id).ok();
+        journey_workspace::plan_journey_workspace(journey_id, registered.as_deref(), &profile.mirror_home, &user_home)
+            .map(|plan| (plan, registered))
+    };
+    let (cached, cached_registered) = plan_from_cache(app)?;
+    let mut registered = cached_registered;
+    let plan = journey_workspace::plan_after_refresh(cached, || {
+        refresh_journey_registry_payload(app).ok()?;
+        let (refreshed, refreshed_registered) = plan_from_cache(app).ok()?;
+        registered = refreshed_registered;
+        Some(refreshed)
+    });
+    if ensure {
+        return journey_workspace::resolve_journey_workspace(journey_id, registered.as_deref(), &profile.mirror_home, &user_home);
+    }
+    Ok(journey_workspace::JourneyWorkspace { note: plan.note(), path: plan.path })
+}
+
+/// CR202: the folder the next turn in this Journey would run in, read without creating anything.
+#[tauri::command(async)]
+fn preview_journey_workspace(app: AppHandle, journey_id: String) -> Result<JourneyWorkspaceTransport, String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    let profile = active_runtime_channel()?;
+    let workspace = resolved_journey_workspace(&app, &journey_id, &profile, false)?;
+    Ok(JourneyWorkspaceTransport {
+        path: workspace.path.to_string_lossy().into_owned(),
+        note: workspace.note,
+    })
+}
+
+#[derive(Clone, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct JourneyWorkspaceTransport {
+    path: String,
+    /// Present only when the registered folder could not be used, in CR176's words.
+    note: Option<String>,
 }
 
 fn isolate_pi_command(mut command: Command, profile: &RuntimeChannelProfile) -> Command {
@@ -8267,7 +8322,7 @@ fn run_pi_process_unguarded(
         }
     };
     // CR176: the Journey's folder, the session anchored to it before Pi reads the header.
-    let workspace = match turn_workspace(&app, &run_authority.journey_id, &profile).and_then(|workspace| {
+    let workspace = match resolved_journey_workspace(&app, &run_authority.journey_id, &profile, true).and_then(|workspace| {
         if !config.safe_test_mode {
             journey_workspace::anchor_session_cwd(Path::new(&run_authority.pi_session_file), &workspace.path)?;
         }
@@ -10505,6 +10560,7 @@ fn main() {
             rename_mirror_conversation,
             load_journey_registry,
             refresh_journey_registry,
+            preview_journey_workspace,
             mutate_journey_registry,
             choose_project_directory,
             import_journey_custom_image,
@@ -15531,8 +15587,9 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         let source = production_source();
         let catalog = body_of(&source, "fn run_mirror_conversation_catalog(");
         assert!(catalog.contains("mirror_host_bridge::conversation_catalog("), "{catalog}");
-        let registry = body_of(&source, "fn refresh_journey_registry(");
-        assert!(registry.contains("mirror_host_bridge::request(&app, \"readJourneyTree\""), "{registry}");
+        // RS028 group B moved the host read into the helper the command and the turn path share.
+        let registry = body_of(&source, "fn refresh_journey_registry_payload(");
+        assert!(registry.contains("mirror_host_bridge::request(app, \"readJourneyTree\""), "{registry}");
         assert!(registry.contains("mirror_host_bridge::registry_from_tree("), "{registry}");
         for body in [&catalog, &registry] {
             assert!(!body.contains("\"uv\"") && !body.contains("\"python\""), "{body}");
@@ -15668,6 +15725,52 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
     }
 
     #[test]
+    fn a_turn_that_would_fall_back_asks_mirror_once_before_it_does() {
+        // CR197: the folder comes from the app's cached registry, which a launch does not refresh.
+        // When that cache names a folder that is gone, the Mirror is asked before falling back.
+        let source = production_source();
+        let resolve = body_of(&source, "fn resolved_journey_workspace(");
+        let plan = resolve.find("journey_workspace::plan_journey_workspace(").expect("plans from the cache first");
+        let refresh = resolve.find("refresh_journey_registry_payload(").expect("asks Mirror when the plan falls back");
+        assert!(plan < refresh, "the cache is read before Mirror is asked");
+        // Whether it asks, and how often, is decided by `plan_after_refresh`, which is tested by
+        // behaviour in `journey_workspace`; this only pins that the decision is not re-made here.
+        assert!(resolve.contains("journey_workspace::plan_after_refresh("), "{resolve}");
+        assert!(!resolve.contains("uses_registered_folder()"), "the retry rule lives in one place: {resolve}");
+        assert_eq!(resolve.matches("refresh_journey_registry_payload(").count(), 1, "{resolve}");
+
+        // The refresh is the same publication the Reload Journey tree command performs.
+        let command = body_of(&source, "fn refresh_journey_registry(");
+        assert!(command.contains("refresh_journey_registry_payload(&app)"), "{command}");
+        let payload = body_of(&source, "fn refresh_journey_registry_payload(");
+        assert!(payload.contains("mirror_host_bridge::request(app, \"readJourneyTree\""), "{payload}");
+        assert!(payload.contains("publish_refreshed_journey_registry("), "{payload}");
+        // The helper must not take the command guard: the turn path calls it off a command.
+        assert!(!payload.contains("native_command_serialization::acquire()"), "{payload}");
+        assert!(command.contains("native_command_serialization::acquire()"), "{command}");
+    }
+
+    #[test]
+    fn the_surface_reads_the_turns_own_folder_and_creates_nothing() {
+        // CR202: one resolution, two readers. A second derivation could disagree with the turn.
+        let source = production_source();
+        let preview = body_of(&source, "fn preview_journey_workspace(");
+        assert!(preview.contains("resolved_journey_workspace(&app, &journey_id, &profile, false)"), "{preview}");
+        assert!(!preview.contains("plan_journey_workspace("), "the preview must not plan on its own: {preview}");
+
+        let turn = body_of(&source, concat!("fn run_pi_process", "_unguarded("));
+        assert!(turn.contains("resolved_journey_workspace(&app, &run_authority.journey_id, &profile, true)"), "{turn}");
+        // A compaction spawns Pi in that folder too, so it must have it made, not merely named.
+        let compaction = body_of(&source, "fn compact_pi_session(");
+        assert!(compaction.contains("active_runtime_channel()?, true)"), "{compaction}");
+
+        // `ensure` is what separates them, and only the turn passes it.
+        let resolve = body_of(&source, "fn resolved_journey_workspace(");
+        assert!(resolve.contains("if ensure {"), "{resolve}");
+        assert!(resolve.contains("journey_workspace::resolve_journey_workspace("), "{resolve}");
+    }
+
+    #[test]
     fn a_mediated_turn_loads_no_mirror_skill_and_names_its_extensions() {
         let args = mediated_turn_flags(&[PathBuf::from("/x/ext/index.ts")]);
         // CR176: `--no-approve`, so a project's `.pi/` settings, skills and packages never load.
@@ -15681,7 +15784,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         let source = production_source();
         // Composed, so `run_loop_guard`'s census of this name does not count the test.
         let turn = body_of(&source, concat!("fn run_pi_process", "_unguarded("));
-        let resolve = turn.find("turn_workspace(").expect("the turn resolves its Journey's folder");
+        let resolve = turn.find("resolved_journey_workspace(").expect("the turn resolves its Journey's folder");
         let anchor = turn.find("anchor_session_cwd(").expect("the turn anchors its session");
         let spawn = turn.find("pi_turn_command(").expect("the turn builds its command");
         assert!(resolve < anchor && anchor < spawn);
@@ -15691,7 +15794,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         let anchor = compaction.find("anchor_session_cwd(").expect("the compaction anchors its session");
         assert!(anchor < compaction.find("pi_turn_command(&config.command, args, &profile, workspace)").expect("in the same folder"));
         let caller = body_of(&source, "fn compact_pi_session(");
-        assert!(caller.find("turn_workspace(").unwrap() < caller.find("in_flight.insert(").unwrap(), "resolved before the claim");
+        assert!(caller.find("resolved_journey_workspace(").unwrap() < caller.find("in_flight.insert(").unwrap(), "resolved before the claim");
 
         // Session provisioning and title suggestion trust no project folder either.
         let provision = body_of(&source, "fn provision_pi_session(");

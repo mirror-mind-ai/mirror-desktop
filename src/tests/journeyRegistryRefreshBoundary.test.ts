@@ -9,13 +9,15 @@ describe("Journey registry refresh boundary", () => {
     expect(storageSource).toContain('invoke<string>("refresh_journey_registry")');
     expect(tauriSource).toContain("fn refresh_journey_registry(app: AppHandle)");
     // CV-010.DS-005 slice 2d-1: the tree comes from the Mirror host; the retired dump is not called.
-    expect(tauriSource).toContain('mirror_host_bridge::request(&app, "readJourneyTree"');
+    // RS028 group B: through the helper the command and CR197's turn path share.
+    expect(tauriSource).toContain("fn refresh_journey_registry_payload(app: &AppHandle)");
+    expect(tauriSource).toContain('mirror_host_bridge::request(app, "readJourneyTree"');
     expect(tauriSource).toContain("mirror_host_bridge::registry_from_tree(");
     expect(tauriSource).not.toContain('"export-registry"');
     expect(tauriSource).toContain("Could not refresh Journeys from Mirror: {error}");
     expect(tauriSource).toContain("validate_journey_registry_payload");
     const refreshCommand = tauriSource.slice(
-      tauriSource.indexOf("fn refresh_journey_registry"),
+      tauriSource.indexOf("fn refresh_journey_registry_payload"),
       tauriSource.indexOf("fn choose_project_directory"),
     );
     expect(refreshCommand).not.toContain("journey_registry_contains_id");

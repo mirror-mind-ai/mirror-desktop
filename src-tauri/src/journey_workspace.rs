@@ -18,27 +18,100 @@ pub(crate) struct JourneyWorkspace {
     pub note: Option<String>,
 }
 
+/// RS028 group B: why a turn is not working in the Journey's registered folder. Carried as data
+/// rather than as a sentence, so the surface can phrase it (CR202) without parsing prose.
+#[derive(Debug, PartialEq, Clone)]
+pub(crate) struct WorkspaceFallback {
+    /// The registered folder that could not be used, or `None` when the Journey has none.
+    pub registered: Option<PathBuf>,
+    pub reason: &'static str,
+}
+
+/// RS028 group B: the folder a turn would run in, decided without creating anything. The turn and
+/// the surface both go through this, so what the person reads cannot disagree with what Pi receives.
+#[derive(Debug, PartialEq)]
+pub(crate) struct JourneyWorkspacePlan {
+    pub path: PathBuf,
+    pub fallback: Option<WorkspaceFallback>,
+}
+
+impl JourneyWorkspacePlan {
+    pub fn uses_registered_folder(&self) -> bool {
+        self.fallback.is_none()
+    }
+
+    /// The sentence CR176 emits for a refused registered folder. A Journey that simply has none is
+    /// working where it should, so it has nothing to say.
+    pub fn note(&self) -> Option<String> {
+        let fallback = self.fallback.as_ref()?;
+        let registered = fallback.registered.as_ref()?;
+        Some(format!(
+            "This Journey's folder {} {}, so the agent works in {} for this turn.",
+            registered.display(),
+            fallback.reason,
+            self.path.display()
+        ))
+    }
+}
+
+pub(crate) fn plan_journey_workspace(
+    journey_id: &str,
+    registered: Option<&Path>,
+    mirror_home: &Path,
+    user_home: &Path,
+) -> Result<JourneyWorkspacePlan, String> {
+    plain_folder_name(journey_id)?;
+    let neutral = planned_neutral_folder(journey_id, user_home)?;
+    let Some(registered) = registered else {
+        return Ok(JourneyWorkspacePlan {
+            path: neutral,
+            fallback: Some(WorkspaceFallback { registered: None, reason: "has no folder" }),
+        });
+    };
+    match usable_project_path(registered, mirror_home) {
+        Ok(path) => Ok(JourneyWorkspacePlan { path, fallback: None }),
+        Err(reason) => Ok(JourneyWorkspacePlan {
+            path: neutral,
+            fallback: Some(WorkspaceFallback { registered: Some(registered.to_path_buf()), reason }),
+        }),
+    }
+}
+
+/// CR197: which plan a turn uses when the cached one falls back.
+///
+/// The app's `journey-registry.json` is refreshed only by Reload Journey tree and by the Journey
+/// editor, so a folder moved outside the app leaves the cache naming one that is gone. When the
+/// cached plan would fall back, and only then, the caller is asked for a second plan taken from a
+/// registry just read from Mirror. The refreshed plan is adopted only if it actually uses the
+/// Journey's folder, so a Journey whose folder is really gone keeps the cached plan's own sentence.
+pub(crate) fn plan_after_refresh(
+    cached: JourneyWorkspacePlan,
+    refreshed: impl FnOnce() -> Option<JourneyWorkspacePlan>,
+) -> JourneyWorkspacePlan {
+    if cached.uses_registered_folder() {
+        return cached;
+    }
+    match refreshed() {
+        Some(plan) if plan.uses_registered_folder() => plan,
+        _ => cached,
+    }
+}
+
 pub(crate) fn resolve_journey_workspace(
     journey_id: &str,
     registered: Option<&Path>,
     mirror_home: &Path,
     user_home: &Path,
 ) -> Result<JourneyWorkspace, String> {
-    plain_folder_name(journey_id)?;
-    let Some(registered) = registered else {
-        return Ok(JourneyWorkspace { path: neutral_folder(journey_id, user_home)?, note: None });
+    let plan = plan_journey_workspace(journey_id, registered, mirror_home, user_home)?;
+    let note = plan.note();
+    let path = if plan.uses_registered_folder() {
+        plan.path
+    } else {
+        // Only the neutral folder is ever created, and only when a turn is about to use it.
+        neutral_folder(journey_id, user_home)?
     };
-    let refusal = match usable_project_path(registered, mirror_home) {
-        Ok(path) => return Ok(JourneyWorkspace { path, note: None }),
-        Err(refusal) => refusal,
-    };
-    let path = neutral_folder(journey_id, user_home)?;
-    let note = format!(
-        "This Journey's folder {} {refusal}, so the agent works in {} for this turn.",
-        registered.display(),
-        path.display()
-    );
-    Ok(JourneyWorkspace { path, note: Some(note) })
+    Ok(JourneyWorkspace { path, note })
 }
 
 fn plain_folder_name(journey_id: &str) -> Result<(), String> {
@@ -63,6 +136,12 @@ fn usable_project_path(registered: &Path, mirror_home: &Path) -> Result<PathBuf,
         return Err("is inside your Mirror home");
     }
     Ok(path)
+}
+
+/// `~/Mirror Journeys/<journey>` as a path, without touching the disk. A plan must not create the
+/// folder, so an unsafe level there is found when the turn runs, not when the surface reads.
+fn planned_neutral_folder(journey_id: &str, user_home: &Path) -> Result<PathBuf, String> {
+    Ok(user_home.join(NEUTRAL_FOLDER).join(journey_id))
 }
 
 /// `~/Mirror Journeys/<journey>`, made on first use; a link at either level is refused.
@@ -201,6 +280,130 @@ mod tests {
         fs::create_dir_all(l.user_home.join(NEUTRAL_FOLDER)).unwrap();
         std::os::unix::fs::symlink(&elsewhere, l.user_home.join(NEUTRAL_FOLDER).join("book")).unwrap();
         assert!(resolve_journey_workspace("book", None, &l.mirror_home, &l.user_home).is_err());
+    }
+
+    // RS028 group B (CR202, CR197): the plan the surface reads, taken without touching the disk.
+
+    #[test]
+    fn planning_a_registered_folder_says_it_will_be_used_and_creates_nothing() {
+        let l = layout("plan-project");
+        let plan = plan_journey_workspace("book", Some(&l.project), &l.mirror_home, &l.user_home).unwrap();
+        assert_eq!(plan.path, l.project);
+        assert_eq!(plan.fallback, None);
+        assert!(!l.user_home.join(NEUTRAL_FOLDER).exists(), "a plan never makes a folder");
+    }
+
+    #[test]
+    fn planning_without_a_registered_folder_names_the_neutral_one_without_making_it() {
+        let l = layout("plan-neutral");
+        let plan = plan_journey_workspace("vida-interior", None, &l.mirror_home, &l.user_home).unwrap();
+        assert_eq!(plan.path, l.user_home.join(NEUTRAL_FOLDER).join("vida-interior"));
+        assert_eq!(plan.fallback, Some(WorkspaceFallback { registered: None, reason: "has no folder" }));
+        assert!(!plan.path.exists(), "a plan never makes a folder");
+    }
+
+    #[test]
+    fn planning_a_missing_folder_names_it_and_the_reason_as_data_not_prose() {
+        let l = layout("plan-missing");
+        let missing = l.user_home.join("projects/gone");
+        let plan = plan_journey_workspace("book", Some(&missing), &l.mirror_home, &l.user_home).unwrap();
+        assert_eq!(plan.path, l.user_home.join(NEUTRAL_FOLDER).join("book"));
+        assert_eq!(plan.fallback, Some(WorkspaceFallback { registered: Some(missing), reason: "does not exist" }));
+    }
+
+    #[test]
+    fn planning_reports_every_refusal_the_turn_has() {
+        let l = layout("plan-refusals");
+        let inside = l.mirror_home.join("identity");
+        fs::create_dir_all(&inside).unwrap();
+        let file = l.user_home.join("projects/a-file");
+        fs::write(&file, "x").unwrap();
+        let cases = [
+            (inside, "is inside your Mirror home"),
+            (file, "is not a folder"),
+            (PathBuf::from("relative/path"), "is not an absolute path"),
+        ];
+        for (registered, reason) in cases {
+            let plan = plan_journey_workspace("book", Some(&registered), &l.mirror_home, &l.user_home).unwrap();
+            assert_eq!(plan.fallback.unwrap().reason, reason, "{}", registered.display());
+        }
+    }
+
+    #[test]
+    fn a_plan_and_the_turn_agree_on_the_folder_and_on_the_sentence() {
+        // CR202's acceptance: what the surface shows is what the turn uses, by construction.
+        let l = layout("plan-agrees");
+        let missing = l.user_home.join("projects/gone");
+        for registered in [Some(l.project.clone()), Some(missing), None] {
+            let plan = plan_journey_workspace("book", registered.as_deref(), &l.mirror_home, &l.user_home).unwrap();
+            let resolved = resolve_journey_workspace("book", registered.as_deref(), &l.mirror_home, &l.user_home).unwrap();
+            assert_eq!(plan.path, resolved.path, "{registered:?}");
+            assert_eq!(plan.note(), resolved.note, "{registered:?}");
+        }
+    }
+
+    #[test]
+    fn a_journey_id_that_cannot_name_a_folder_is_refused_by_the_plan_too() {
+        let l = layout("plan-ids");
+        for id in ["", ".", "..", "../escape", "a/b", ".hidden", "with\0nul"] {
+            assert!(plan_journey_workspace(id, None, &l.mirror_home, &l.user_home).is_err(), "{id:?}");
+        }
+    }
+
+    #[test]
+    fn a_plan_that_uses_the_journeys_folder_never_asks_mirror() {
+        // CR197: the refresh costs a host call, so a healthy turn must not pay for it.
+        let l = layout("refresh-healthy");
+        let cached = plan_journey_workspace("book", Some(&l.project), &l.mirror_home, &l.user_home).unwrap();
+        let mut asked = 0;
+        let plan = plan_after_refresh(cached, || { asked += 1; None });
+        assert_eq!(asked, 0, "a usable folder must not trigger a refresh");
+        assert_eq!(plan.path, l.project);
+    }
+
+    #[test]
+    fn a_plan_that_would_fall_back_asks_mirror_once_and_takes_the_folder_it_names() {
+        let l = layout("refresh-stale");
+        let gone = l.user_home.join("projects/moved-away");
+        let cached = plan_journey_workspace("book", Some(&gone), &l.mirror_home, &l.user_home).unwrap();
+        let mut asked = 0;
+        let plan = plan_after_refresh(cached, || {
+            asked += 1;
+            Some(plan_journey_workspace("book", Some(&l.project), &l.mirror_home, &l.user_home).unwrap())
+        });
+        assert_eq!(asked, 1, "exactly one refresh, so a missing folder cannot ask on a loop");
+        assert_eq!(plan.path, l.project, "the folder Mirror names is used");
+        assert_eq!(plan.fallback, None, "and nothing is said, because nothing went wrong");
+    }
+
+    #[test]
+    fn a_folder_that_is_gone_in_mirror_too_keeps_the_cached_sentence() {
+        let l = layout("refresh-really-gone");
+        let gone = l.user_home.join("projects/moved-away");
+        let cached = plan_journey_workspace("book", Some(&gone), &l.mirror_home, &l.user_home).unwrap();
+        for refreshed in [None, Some(None), Some(Some(()))] {
+            let mut asked = 0;
+            let cached = plan_journey_workspace("book", Some(&gone), &l.mirror_home, &l.user_home).unwrap();
+            let plan = plan_after_refresh(cached, || {
+                asked += 1;
+                match refreshed {
+                    // Mirror could not be read at all.
+                    None => None,
+                    // Mirror names the same missing folder.
+                    Some(None) => Some(plan_journey_workspace("book", Some(&gone), &l.mirror_home, &l.user_home).unwrap()),
+                    // Mirror names no folder for this Journey.
+                    Some(Some(())) => Some(plan_journey_workspace("book", None, &l.mirror_home, &l.user_home).unwrap()),
+                }
+            });
+            assert_eq!(asked, 1);
+            assert_eq!(plan.path, l.user_home.join(NEUTRAL_FOLDER).join("book"));
+            assert_eq!(
+                plan.fallback,
+                Some(WorkspaceFallback { registered: Some(gone.clone()), reason: "does not exist" }),
+                "the person must read about the folder they registered, not about the refresh",
+            );
+        }
+        assert_eq!(cached.fallback.unwrap().registered, Some(gone));
     }
 
     #[test]

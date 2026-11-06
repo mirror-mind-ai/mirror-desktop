@@ -947,6 +947,17 @@ textarea {
   .journey-admin-dialog .settings-grid.two-column { grid-template-columns: 1fr; }
 }
 
+/* RS028 group B (CR202): the folder the agent works in, under the Journey's name. */
+.active-journey-folder {
+  color: #7f9095;
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+  margin: 2px 0 0;
+}
+
+.active-journey-folder.fallback { color: #e8b57a; }
+.active-journey-folder .active-journey-folder-note { opacity: 0.85; }
+
 /* RS028 group A: Collapse all, Expand all and the inactive filter, under the view switch. */
 .journey-tree-tools {
   display: flex;
