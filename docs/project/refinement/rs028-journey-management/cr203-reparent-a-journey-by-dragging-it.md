@@ -2,7 +2,7 @@
 
 # CR203: Reparent a Journey by Dragging It
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `main` (`61a434cc`, `77b55a8a`, `710e3bab`, `ffd7dc4d`, `1e4cecb2`, `9df394ed`), RS028 group C
 **Group:** C, reshaping the tree
@@ -169,3 +169,9 @@ parent opened at the drop was shut again by the answer. It is now opened after t
 
 The seconds themselves are not reduced here. Whether the move needs the full tree reread is a
 question for the measurement, not for this CR.
+
+## Validation (2026-11-06)
+
+Validated by the Navigator after the fifth field report: "Boa, agora tá perfeito. Validado." The
+gesture, the stillness of the tree under the hand, cancellation and the Moving/Moved wait all
+passed in the development app bound to `ensaio-5c-2`.

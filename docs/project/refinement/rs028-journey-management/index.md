@@ -29,7 +29,7 @@ Related, already done: [CR100](../rs021-ux-pre-beta-evolution/cr100-make-journey
 | [CR202: Say Which Folder the Agent Is Working In](cr202-say-which-folder-the-agent-is-working-in.md) | B | done | validated 2026-11-06 |
 | [CR197: A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word](../rs026-after-the-0-3-cutover/cr197-a-moved-journey-folder-sends-the-turn-to-the-neutral-folder-without-a-word.md) | B | done | owned by RS026, delivered and validated here |
 | [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md) | C | done | validated 2026-11-06 |
-| [CR203: Reparent a Journey by Dragging It](cr203-reparent-a-journey-by-dragging-it.md) | C | in_progress | on `main`, check owed |
+| [CR203: Reparent a Journey by Dragging It](cr203-reparent-a-journey-by-dragging-it.md) | C | done | validated 2026-11-06, after five field reports |
 | [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md) | C | done | absorbed by CR203; the Move form's parent list fixed |
 | [CR204: Delete a Journey With Everything Under It](cr204-delete-a-journey-with-everything-under-it.md) | D | captured | needs a Core call; decided: records and optional folder go, children refuse |
 
@@ -79,7 +79,7 @@ CR202 and CR197, in the development app bound to `ensaio-5c-2`:
 6. Click the path. The folder opens in Finder. In a Journey that has never had a turn and has no
    project path, the click says the folder does not exist yet instead of doing nothing. (CR202)
 
-## Group C Check, part one (CR099)
+## Group C Check, part one (CR099, passed 2026-11-06)
 
 In the development app bound to `ensaio-5c-2`, with a long turn running in one Journey:
 
@@ -94,7 +94,7 @@ In the development app bound to `ensaio-5c-2`, with a long turn running in one J
    turn, and the running turn stays where it started. CR202's line still shows the old folder until
    the next turn.
 
-## Group C Check, part two (CR203)
+## Group C Check, part two (CR203, passed 2026-11-06)
 
 In the development app bound to `ensaio-5c-2`, in Tree view:
 
@@ -117,7 +117,7 @@ In the development app bound to `ensaio-5c-2`, in Tree view:
 
 ## Order
 
-A, B, C, D, accepted by the Navigator on 2026-11-05. Group A and group B are done. In group C, CR099 is validated and CR098 is closed as absorbed; CR203 is on `main` with its check owed.
+A, B, C, D, accepted by the Navigator on 2026-11-05. Groups A, B and C are done (C validated 2026-11-06: CR099 and CR203 validated, CR098 absorbed). Group D (CR204) is next and needs a Core call.
 
 ## Finding, outside the Change Requests (2026-11-05)
 
