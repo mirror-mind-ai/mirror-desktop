@@ -1,3 +1,7 @@
+// Windows: a windowed program, not a console one; without this the release build brings a
+// terminal window up beside the app. Debug builds keep the console for their logs.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod agent_settings;
 mod anthropic_provider;
 mod journey_workspace;
