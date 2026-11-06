@@ -2,7 +2,7 @@
 
 # CR202: Say Which Folder the Agent Is Working In
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `main` (`5b9151ec`, `7f2fbefe`), RS028 group B
 **Group:** B, where the agent works
@@ -40,7 +40,7 @@ delivered in the same group.
 
 ## Delivered (2026-11-06)
 
-On `main` in `5b9151ec`; the Group B Check is owed.
+On `main` in `5b9151ec` and `7f2fbefe`; the Group B Check passed on 2026-11-06.
 
 - `plan_journey_workspace` (`src-tauri/src/journey_workspace.rs`) decides the folder without
   creating anything, and `resolve_journey_workspace` is now that plan plus the one folder a turn is

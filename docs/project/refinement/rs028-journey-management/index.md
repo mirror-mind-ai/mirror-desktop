@@ -26,8 +26,8 @@ Related, already done: [CR100](../rs021-ux-pre-beta-evolution/cr100-make-journey
 | [CR199: Keep Inactive Journeys Out of the Tree Until Asked](cr199-keep-inactive-journeys-out-of-the-tree-until-asked.md) | A | done | validated 2026-11-05 |
 | [CR200: Collapse or Expand the Whole Tree at Once](cr200-collapse-or-expand-the-whole-tree-at-once.md) | A | done | validated 2026-11-05 |
 | [CR201: Show a Journey's Folder in Its Tooltip](cr201-show-a-journeys-folder-in-its-tooltip.md) | A | done | validated 2026-11-05; always shown |
-| [CR202: Say Which Folder the Agent Is Working In](cr202-say-which-folder-the-agent-is-working-in.md) | B | in_progress | on `main`, check owed |
-| [CR197: A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word](../rs026-after-the-0-3-cutover/cr197-a-moved-journey-folder-sends-the-turn-to-the-neutral-folder-without-a-word.md) | B | in_progress | owned by RS026, delivered here |
+| [CR202: Say Which Folder the Agent Is Working In](cr202-say-which-folder-the-agent-is-working-in.md) | B | done | validated 2026-11-06 |
+| [CR197: A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word](../rs026-after-the-0-3-cutover/cr197-a-moved-journey-folder-sends-the-turn-to-the-neutral-folder-without-a-word.md) | B | done | owned by RS026, delivered and validated here |
 | [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md) | C | captured | widened 2026-11-05 to every tree operation |
 | [CR203: Reparent a Journey by Dragging It](cr203-reparent-a-journey-by-dragging-it.md) | C | captured | drag exists but is gated and crude |
 | [CR098: Allow a Journey to Be Reparented](cr098-allow-a-journey-to-be-reparented.md) | C | captured | absorbed by CR203 |
@@ -61,7 +61,7 @@ CR199, CR200 and CR201, in the development app bound to `ensaio-5c-2`, in the Tr
 5. Hovering any Journey shows its folder on a second line, starting with `~`, or "No folder set".
    (CR201)
 
-## Group B Check
+## Group B Check (passed 2026-11-06)
 
 CR202 and CR197, in the development app bound to `ensaio-5c-2`:
 
@@ -81,7 +81,7 @@ CR202 and CR197, in the development app bound to `ensaio-5c-2`:
 
 ## Order
 
-A, B, C, D, accepted by the Navigator on 2026-11-05. Group A is done. Group B is on `main` with its check owed.
+A, B, C, D, accepted by the Navigator on 2026-11-05. Group A and group B are done. Group C is next.
 
 ## Finding, outside the Change Requests (2026-11-05)
 

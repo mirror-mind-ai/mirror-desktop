@@ -2,7 +2,7 @@
 
 # CR197: A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word
 
-**Status:** in_progress
+**Status:** done
 **Line:** 0.4 · Desktop
 
 ## Friction
@@ -48,7 +48,7 @@ on the screen, and it is a second defect this CR had recorded as absence of a no
 
 ## Outcome
 
-On `main` in `5b9151ec`, Group B Check owed.
+On `main` in `5b9151ec`, Group B Check passed on 2026-11-06.
 
 - The refresh: `plan_after_refresh` adopts a plan taken from a freshly read Mirror tree only when
   the cached plan falls back and the refreshed one does not, asking at most once. A turn whose
