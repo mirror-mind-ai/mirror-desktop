@@ -4,7 +4,7 @@
 
 **Status:** done
 **Driver:** Navigator
-**Delivery:** Core CR200 on branch `nautilus-core-requests` (`ac9a84da`); app `a33a4575`, `cf9c8a70`
+**Delivery:** Core CR200 in `mirror-mind@0.40.0-next.1` (`cc75c60f`); app `a33a4575`, `cf9c8a70`; pin `3a027684`
 **Group:** D, removing a subtree
 
 ## Friction
@@ -107,4 +107,11 @@ applied in `cf9c8a70`: the line under the tree after a deletion listed the backu
 moved-aside folder by full path, crowded the sidebar and vanished in three seconds, so a clean
 deletion now says nothing (the tree is the answer) and only an unfinished step is written, staying
 until read; and the confirmation's "Deleted from Mirror:" read as already done, so the list now says
-what **will be** deleted and kept. The CR ships when Core CR200 is released and pinned.
+what **will be** deleted and kept.
+
+## Release (2026-11-06)
+
+Core CR200 was published as the release train's first preview, `mirror-mind@0.40.0-next.1`
+(Core PR #57, `cc75c60f`, under npm's `next`; `latest` and `stable` stay `0.39.5`), and the app pins
+it by release in `3a027684`. The runtime was rematerialized; the suites and the real-host tests,
+Journey administration included, pass against it. The CR ships with the next Nautilus release.
