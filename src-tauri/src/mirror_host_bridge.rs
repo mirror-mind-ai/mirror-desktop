@@ -860,6 +860,7 @@ mod tests {
         assert!(rebind_response("j2", "conv-one-0001", &json!({"conversationId": "conv-one-0001", "journeyId": "j2"})).is_err());
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_created_home_is_named_for_its_user_inside_mirror_unless_another_folder_was_chosen() {
         let user_home = Path::new("/Users/ana");

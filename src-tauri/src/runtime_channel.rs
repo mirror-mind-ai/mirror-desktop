@@ -657,6 +657,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[test]
     fn diagnostic_contains_only_allowlisted_coordinates() {
         let profile = RuntimeChannelProfile::for_home(
@@ -722,6 +723,7 @@ mod tests {
         assert!(profile.runtime_command("uv").is_err());
     }
 
+    #[cfg(unix)]
     #[test]
     fn runs_pi_in_the_0_3_home_naming_only_that_home_to_mirror() {
         let profile = RuntimeChannelProfile::for_home(

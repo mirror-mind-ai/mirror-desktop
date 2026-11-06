@@ -540,6 +540,7 @@ mod tests {
     }
 
     /// A shell standing in for the helper: it prints a prompt, echoes what it is answered, and ends.
+    #[cfg(unix)]
     fn helper_playing(label: &str, script: &str) -> Command {
         let path = scratch(label).join("helper.sh");
         std::fs::write(&path, script).unwrap();
@@ -548,6 +549,7 @@ mod tests {
         command
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_sign_in_is_answered_opens_https_only_and_ends_once() {
         let _serial = SERIAL.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -576,6 +578,7 @@ case "$line" in *'"id":"p1"'*'"value":"typed"'*) echo '{"event":"done","provider
         assert!(LOGIN.lock().unwrap().is_none(), "the slot is free afterwards");
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_helper_that_stops_without_an_outcome_is_a_failure_and_cancel_ends_it() {
         let _serial = SERIAL.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -637,6 +640,7 @@ case "$line" in *'"id":"p1"'*'"value":"typed"'*) echo '{"event":"done","provider
         let _ = std::fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_disconnect_says_the_readiness_left_or_why_it_could_not() {
         let line = |text: &str| helper_playing("disconnect", &format!("printf '%s\\n' '{text}'\n"));

@@ -15437,6 +15437,7 @@ mod cr163_mirror_append_bound_tests {
     //! the real append path with a real child process standing in for `uv run`.
 
     use super::*;
+    #[cfg(unix)]
     use std::time::Instant;
 
     const USER_WORDS: &str = "cr163 private user words";
@@ -15455,6 +15456,7 @@ mod cr163_mirror_append_bound_tests {
         })
     }
 
+    #[cfg(unix)]
     fn receipt() -> String {
         json!({
             "schemaVersion":"1.0.0", "status":"accepted", "insertedCount":2, "existingCount":0,
@@ -15482,6 +15484,7 @@ mod cr163_mirror_append_bound_tests {
     /// CV-010.DS-005 slice 2d-2: the append now reaches Mirror through the host supervisor. A fake
     /// host in `sh` stands in for the real one, as `uv run` was stood in for before: it answers
     /// the handshake, keeps the request it was sent in `request.json`, then runs `body` with `$id`.
+    #[cfg(unix)]
     fn fake_host(directory: &Path, body: &str, deadline: Duration) -> mirror_host::MirrorHost {
         let script = directory.join("fake-host.sh");
         fs::write(&script, format!(
@@ -15499,6 +15502,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         mirror_host::MirrorHost::new(config)
     }
 
+    #[cfg(unix)]
     fn answer(result: &str) -> String {
         format!("printf '{{\"id\":%s,\"ok\":true,\"result\":%s}}\\n' \"$id\" '{result}'")
     }
@@ -15517,6 +15521,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert_eq!(MIRROR_APPEND_STDERR_TAIL_BYTES, 4_096);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_hung_append_returns_timed_out_and_records_its_stderr_but_never_the_messages() {
         let directory = scratch("hung");
@@ -15543,6 +15548,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert!(!raw.contains(USER_WORDS) && !raw.contains(ASSISTANT_WORDS), "message content leaked: {raw}");
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_successful_append_is_unchanged_and_records_nothing() {
         let directory = scratch("ok");
@@ -15553,6 +15559,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert!(!failures.exists(), "success must not write a failure record");
     }
 
+    #[cfg(unix)]
     #[test]
     fn the_host_receives_the_same_request_as_the_child_did() {
         let directory = scratch("request");
@@ -15568,6 +15575,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         }));
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_rejection_keeps_its_named_reason_and_is_recorded() {
         let directory = scratch("rejected");
@@ -15582,6 +15590,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert_eq!(records[0]["timedOut"], false);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_rejection_reason_outside_the_safe_alphabet_is_named_rejected() {
         let directory = scratch("unsafe-reason");
@@ -15591,6 +15600,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert_eq!(append_through(&mut host, &failures_at(&directory)).unwrap_err(), "mirror_append_rejected");
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_receipt_in_the_wrong_shape_is_refused_as_invalid() {
         let directory = scratch("wrong-shape");
@@ -15598,6 +15608,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert_eq!(append_through(&mut host, &failures_at(&directory)).unwrap_err(), "mirror_append_invalid_receipt");
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_home_the_host_refuses_is_named_unavailable_and_recorded() {
         let directory = scratch("home-refused");
@@ -15656,6 +15667,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert!(stored.ends_with("END"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_failure_record_that_cannot_be_written_does_not_change_the_result() {
         let directory = scratch("unwritable");
@@ -15668,6 +15680,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
     /// The defect was never the child alone; it was the wait holding the guard every native
     /// command shares. The guard itself is untouched (CR149): what must hold is that a hung
     /// append gives it back within the bound, through the host as it did through the child.
+    #[cfg(unix)]
     #[test]
     fn a_hung_append_releases_the_serialisation_guard_within_the_bound() {
         let directory = scratch("guard");
@@ -15810,6 +15823,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
 
     /// CV-010.DS-005 slice 2e: every Pi turn and compaction is built by one constructor, in the
     /// 0.3 home, with no Mirror variable, whatever the invocation mode.
+    #[cfg(unix)]
     #[test]
     fn every_pi_turn_is_built_isolated_in_the_0_3_home() {
         let source = production_source();

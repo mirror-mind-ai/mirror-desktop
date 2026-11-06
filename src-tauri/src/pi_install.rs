@@ -273,6 +273,7 @@ pub(crate) async fn install_anthropic_provider(app: AppHandle) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use crate::pi_toolchain::tests::LOCK;
     #[cfg(unix)]
     use crate::pi_toolchain::tests::installed;
@@ -281,6 +282,7 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
 
+    #[cfg(unix)]
     const ANTHROPIC_LOCK: &str = crate::anthropic_provider::tests::LOCK;
 
     /// A runtime whose `node` is a shell script playing the installer: it prints `lines`, and on

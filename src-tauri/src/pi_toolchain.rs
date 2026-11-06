@@ -104,15 +104,19 @@ pub(crate) fn resolve_app_pi(app_data_root: &Path, runtime_dir: &Path) -> Result
     Ok(AppPi { pi_bin, node_bin, package_dir })
 }
 
-#[cfg(test)]
+// Every test here builds a runtime whose `node` and `pi` are shell scripts
+// with an execute bit, which only POSIX can run; the module is Unix-only.
+#[cfg(all(test, unix))]
 pub(crate) mod tests {
     use super::*;
-    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
+    #[cfg(unix)]
     pub(crate) const LOCK: &str = "d36b5fc72875d574e2020de5df1a7012bec52201f675d3273ec437f923ce4bad";
+    #[cfg(unix)]
     const PACKAGE: &str = "@earendil-works/pi-coding-agent";
 
+    #[cfg(unix)]
     fn scratch(label: &str) -> PathBuf {
         let directory = std::env::temp_dir().join(format!("pi-toolchain-{label}-{}-{:?}", std::process::id(), std::thread::current().id()));
         let _ = fs::remove_dir_all(&directory);

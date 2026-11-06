@@ -77,6 +77,7 @@ mod tests {
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
+    #[cfg(unix)]
     fn scratch(label: &str) -> PathBuf {
         let path = std::env::temp_dir().join(format!("home-state-{label}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&path);
@@ -84,6 +85,7 @@ mod tests {
         path.canonicalize().unwrap()
     }
 
+    #[cfg(unix)]
     fn marked(parent: &Path, name: &str, home_id: &str) -> MarkedHome {
         let home = parent.join(name);
         fs::create_dir_all(home.join(".mirror-desktop")).unwrap();
