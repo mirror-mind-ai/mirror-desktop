@@ -20,7 +20,6 @@ describe("Journey item context menu", () => {
         journeyId="journey-one"
         x={24}
         y={48}
-        runtimeBusy={false}
         pinned={false}
         deleteDisabled={false}
         deleteTitle="Permanently delete this empty Journey."
@@ -46,13 +45,34 @@ describe("Journey item context menu", () => {
     expect(menuSource).toContain("onDelete(journeyId)");
   });
 
-  it("keeps local pinning available while administrative mutations are disabled", () => {
-    const html = renderToStaticMarkup(
+  /**
+   * CR099: the menu used to take an app-wide `runtimeBusy` and disable its four administrative
+   * items with it. Nothing here is disabled by a turn any more. Delete is the only item that can be
+   * refused, and the caller passes the reason as its title.
+   */
+  it("disables nothing but Delete, and only with a reason", () => {
+    const refused = renderToStaticMarkup(
       <JourneyItemContextMenu
         journeyId="journey-one"
         x={24}
         y={48}
-        runtimeBusy
+        pinned
+        deleteDisabled
+        deleteTitle="An agent is working in this Journey. Stop the turn before deleting it."
+        returnFocusTo={null}
+        {...handlers}
+      />,
+    );
+    expect(refused).toContain('role="menuitemcheckbox" aria-checked="true"');
+    expect(refused).toContain("Unpin Journey");
+    expect(refused).toContain("An agent is working in this Journey. Stop the turn before deleting it.");
+    expect(refused.match(/disabled=""/g)).toHaveLength(1);
+
+    const allowed = renderToStaticMarkup(
+      <JourneyItemContextMenu
+        journeyId="journey-one"
+        x={24}
+        y={48}
         pinned
         deleteDisabled={false}
         deleteTitle="Permanently delete this empty Journey."
@@ -60,10 +80,8 @@ describe("Journey item context menu", () => {
         {...handlers}
       />,
     );
-    expect(html).toContain('role="menuitemcheckbox" aria-checked="true"');
-    expect(html).toContain("Unpin Journey");
-    expect(html).not.toContain('role="menuitemcheckbox" aria-checked="true" disabled');
-    expect(html.match(/disabled=""/g)).toHaveLength(4);
+    expect(allowed.match(/disabled=""/g)).toBeNull();
+    expect(menuSource).not.toContain("runtimeBusy");
   });
 
   it("dismisses outside the menu and restores trigger focus on Escape", () => {
@@ -77,6 +95,9 @@ describe("Journey item context menu", () => {
     expect(appSource).toContain("openJourneyItemMenu(journey.id, event.currentTarget");
     expect(appSource).toContain('aria-haspopup="menu"');
     expect(appSource).not.toContain('journeyListOrder === "tree" && !runtimeBusy ? (event) =>');
+    // CR099: the tree asks per Journey, so the global flag no longer reaches these controls.
+    expect(appSource).toContain('treeOperation("drag", journey.id).allowed');
+    expect(appSource).toContain('treeOperation("delete", journeyItemMenu.journeyId)');
     expect(appSource).not.toContain('journeyListOrder === "tree" && (event.key === "ContextMenu"');
   });
 });

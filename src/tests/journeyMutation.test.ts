@@ -103,7 +103,8 @@ describe("Journey administration boundary", () => {
     expect(appSource).toContain("onCreate={openCreateJourney}");
     expect(appSource).toContain('event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")');
     expect(appSource).toContain('setJourneyAdminParent(parentId)');
-    expect(appSource).toContain('draggable={journeyListOrder === "tree" && !runtimeBusy}');
+    // CR099: drag is offered per Journey now, not withdrawn from the whole tree by one turn.
+    expect(appSource).toContain('draggable={journeyListOrder === "tree" && treeOperation("drag", journey.id).allowed}');
   });
 
   it("offers one prefilled Edit Journey form while keeping identity and hierarchy immutable", () => {
@@ -146,7 +147,8 @@ describe("Journey administration boundary", () => {
   it("offers guarded destructive deletion for leaves and replaces active selection safely", () => {
     expect(itemMenuSource).toContain("Delete Journey…");
     expect(appSource).toContain('role={journeyAdminDialog.mode === "delete" ? "alertdialog" : "dialog"}');
-    expect(appSource).toContain('deleteDisabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0}');
+    // CR099: children still refuse deletion, and a working agent in the subtree now refuses too.
+    expect(appSource).toContain('deleteDisabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 || !treeOperation("delete", journeyItemMenu.journeyId).allowed}');
     expect(appSource).not.toContain('journeyItemMenu.journeyId === selectedJourney ? "The active Journey cannot be deleted."');
     expect(appSource).toContain('executeJourneyMutation("delete_journey"');
     expect(appSource).toContain('replacementJourneyAfterDeletion(journeyRegistry, deletedJourneyId)');

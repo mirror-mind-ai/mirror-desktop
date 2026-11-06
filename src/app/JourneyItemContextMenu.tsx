@@ -4,7 +4,6 @@ type JourneyItemContextMenuProps = {
   journeyId: string;
   x: number;
   y: number;
-  runtimeBusy: boolean;
   pinned: boolean;
   deleteDisabled: boolean;
   deleteTitle: string;
@@ -21,7 +20,6 @@ export function JourneyItemContextMenu({
   journeyId,
   x,
   y,
-  runtimeBusy,
   pinned,
   deleteDisabled,
   deleteTitle,
@@ -80,14 +78,14 @@ export function JourneyItemContextMenu({
       >
         {pinned ? "Unpin Journey" : "Pin Journey"}
       </button>
-      <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => onEdit(journeyId)}>Edit Journey…</button>
-      <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => onCreate(journeyId)}>Create Journey…</button>
-      <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => onMove(journeyId)}>Move Journey…</button>
+      <button type="button" role="menuitem" onClick={() => onEdit(journeyId)}>Edit Journey…</button>
+      <button type="button" role="menuitem" onClick={() => onCreate(journeyId)}>Create Journey…</button>
+      <button type="button" role="menuitem" onClick={() => onMove(journeyId)}>Move Journey…</button>
       <button
         className="danger-menu-item"
         type="button"
         role="menuitem"
-        disabled={runtimeBusy || deleteDisabled}
+        disabled={deleteDisabled}
         title={deleteTitle}
         onClick={() => onDelete(journeyId)}
       >

@@ -8,6 +8,13 @@ import {
 import { homeDir } from "@tauri-apps/api/path";
 import { describeWorkingFolder, type JourneyWorkspacePreview } from "../domain/journeyWorkingFolder";
 import { openJourneyWorkspace, previewJourneyWorkspace } from "./journeyWorkspaceStorage";
+import {
+  journeyTreeAvailability,
+  mutationTargetJourneyId,
+  runningJourneyScope,
+  treeOperationOfMutation,
+  type JourneyTreeOperation,
+} from "../domain/journeyTreeAvailability";
 import { describeComposerModelSelection, visibleThinkingLabel } from "../agent/providerConfig";
 import { ambiguousBareModelNames, modelDisplayName } from "../domain/modelIdentity";
 import { mockPiAgentStream, reduceStreamedAssistantMessage, type AgentStreamEvent, type AgentStreamProvider, type TurnCorrelation } from "../agent/agentStream";
@@ -1281,6 +1288,25 @@ export function App({ model }: AppProps) {
   const runtimeBusy = Boolean(runStartReservation)
     || navigationPresentation.runtimeBusy
     || hasBlockingPiInvocationOccupancy(piInvocationOccupancy);
+  /**
+   * CR099: the same two sources `runtimeBusy` mixes, kept per Journey. `runtimeBusy` still guards
+   * what is genuinely app-wide (compaction, self-update, provider controls, file drop); the tree
+   * asks this instead, so one Journey's turn stops disabling the whole tree.
+   */
+  const runningJourneys = useMemo(
+    () => runningJourneyScope({
+      runtimeEntries: Object.fromEntries(
+        Object.values(journeyRuntimeState.entries).map((entry) => [entry.journeyId, isJourneyRuntimeActiveOrFinalizing(entry)]),
+      ),
+      nativeLeaseJourneyIds: piInvocationOccupancy.status === "known"
+        ? piInvocationOccupancy.entries.filter(isActivePiInvocationLease).map((entry) => entry.authority.journeyId)
+        : [],
+      occupancyKnown: piInvocationOccupancy.status === "known",
+    }),
+    [journeyRuntimeState, piInvocationOccupancy],
+  );
+  const treeOperation = (operation: JourneyTreeOperation, targetJourneyId?: string) =>
+    journeyTreeAvailability(operation, { targetJourneyId, registry: journeyRegistry, scope: runningJourneys });
   const selectedRuntimeBusy = isJourneyRuntimeActiveOrFinalizing(selectedRuntime);
   const terminalStreamWarningKey = selectedRuntimeBusy
     ? undefined
@@ -5223,7 +5249,7 @@ export function App({ model }: AppProps) {
   }
 
   async function reloadJourneyTree() {
-    if (runtimeBusy || journeyRegistryRefreshState === "refreshing") return;
+    if (!treeOperation("reload_tree").allowed || journeyRegistryRefreshState === "refreshing") return;
     setJourneyTreeMenuOpen(false);
     setJourneyRegistryRefreshState("refreshing");
     setJourneyRegistryRefreshMessage("Reloading Journeys from Mirror…");
@@ -5326,7 +5352,7 @@ export function App({ model }: AppProps) {
   }
 
   function openCreateJourney(parentId = "") {
-    if (runtimeBusy) return;
+    if (!treeOperation("create", parentId || undefined).allowed) return;
     setJourneyAdminDialog({ mode: "create", parentId: parentId || undefined });
     setJourneyAdminName(""); setJourneyAdminSlug(""); setJourneyAdminDescription("");
     setJourneyAdminParent(parentId); setJourneyAdminPosition(appendJourneyPosition(journeyRegistry, parentId));
@@ -5335,7 +5361,7 @@ export function App({ model }: AppProps) {
   }
 
   function openEditJourney(journeyId: string) {
-    if (runtimeBusy) return;
+    if (!treeOperation("edit", journeyId).allowed) return;
     const journey = findJourneyById(journeyRegistry, journeyId);
     if (!journey) return;
     setJourneyAdminDialog({ mode: "edit", journeyId });
@@ -5349,7 +5375,7 @@ export function App({ model }: AppProps) {
   }
 
   async function applyJourneySystemAppearance(journeyId: string, icon?: JourneySystemIconId) {
-    if (runtimeBusy || journeyAppearanceBusy) return;
+    if (!treeOperation("appearance", journeyId).allowed || journeyAppearanceBusy) return;
     if (icon && !journeyAppearanceById[journeyId] && Object.keys(journeyAppearanceById).length >= 256) {
       setJourneyAppearanceMessage("At most 256 Journey appearance choices can be retained on this device.");
       return;
@@ -5373,7 +5399,7 @@ export function App({ model }: AppProps) {
   }
 
   async function chooseJourneyCustomAppearance(journeyId: string) {
-    if (runtimeBusy || journeyAppearanceBusy) return;
+    if (!treeOperation("appearance", journeyId).allowed || journeyAppearanceBusy) return;
     const currentIsCustom = journeyAppearanceById[journeyId]?.kind === "custom";
     if (!journeyAppearanceById[journeyId] && Object.keys(journeyAppearanceById).length >= 256) {
       setJourneyAppearanceMessage("At most 256 Journey appearance choices can be retained on this device.");
@@ -5430,7 +5456,7 @@ export function App({ model }: AppProps) {
   }
 
   function openMoveJourney(journeyId: string) {
-    if (runtimeBusy) return;
+    if (!treeOperation("move", journeyId).allowed) return;
     const journey = findJourneyById(journeyRegistry, journeyId);
     setJourneyAdminDialog({ mode: "move", journeyId });
     setJourneyAdminParent(journey?.parentId ?? ""); setJourneyAdminPosition(journey?.siblingPosition ?? 0);
@@ -5438,7 +5464,7 @@ export function App({ model }: AppProps) {
   }
 
   function openDeleteJourney(journeyId: string) {
-    if (runtimeBusy) return;
+    if (!treeOperation("delete", journeyId).allowed) return;
     const journey = findJourneyById(journeyRegistry, journeyId);
     if (!journey || (journey.children?.length ?? 0) > 0) return;
     setJourneyAdminDialog({ mode: "delete", journeyId });
@@ -5451,8 +5477,13 @@ export function App({ model }: AppProps) {
    * where a failure must still be read.
    */
   async function executeJourneyMutation(operation: "create_journey" | "update_journey" | "set_project_path" | "clear_project_path" | "move_journey" | "delete_journey", payload: Record<string, unknown>, closeOnSuccess = true): Promise<boolean> {
-    if (runtimeBusy) return false;
-    setJourneyAdminState("saving"); setJourneyAdminMessage(undefined);
+    const availability = treeOperation(treeOperationOfMutation(operation), mutationTargetJourneyId(operation, payload));
+    if (!availability.allowed) {
+      setJourneyAdminMessage(availability.reason);
+      setJourneyAdminState("failed");
+      return false;
+    }
+    setJourneyAdminState("saving"); setJourneyAdminMessage(availability.note);
     try {
       const request = journeyAdminPendingRequest?.operation === operation && JSON.stringify(journeyAdminPendingRequest.payload) === JSON.stringify(payload)
         ? journeyAdminPendingRequest
@@ -6359,14 +6390,14 @@ export function App({ model }: AppProps) {
           </button>
           {journeyTreeMenuOpen ? (
             <div className="journey-tree-context-menu" role="menu" ref={journeyTreeMenuRef} aria-label="Journey tree options">
-              <button type="button" role="menuitem" disabled={runtimeBusy} onClick={() => openCreateJourney()}>
+              <button type="button" role="menuitem" disabled={!treeOperation("create").allowed} onClick={() => openCreateJourney()}>
                 <span aria-hidden="true">＋</span>
                 Create Journey…
               </button>
               <button
                 type="button"
                 role="menuitem"
-                disabled={runtimeBusy || journeyRegistryRefreshState === "refreshing"}
+                disabled={!treeOperation("reload_tree").allowed || journeyRegistryRefreshState === "refreshing"}
                 onClick={() => void reloadJourneyTree()}
               >
                 <span aria-hidden="true">↻</span>
@@ -6467,7 +6498,7 @@ export function App({ model }: AppProps) {
                 aria-label={`${journey.name}${journeyStateDescription ? `, ${journeyStateDescription}` : ""}`}
                 aria-haspopup="menu"
                 aria-expanded={journeyItemMenu?.journeyId === journey.id}
-                draggable={journeyListOrder === "tree" && !runtimeBusy}
+                draggable={journeyListOrder === "tree" && treeOperation("drag", journey.id).allowed}
                 onDragStart={() => setDraggedJourneyId(journey.id)}
                 onDragOver={(event) => { if (draggedJourneyId && draggedJourneyId !== journey.id) event.preventDefault(); }}
                 onDrop={(event) => {
@@ -6642,10 +6673,11 @@ export function App({ model }: AppProps) {
             journeyId={journeyItemMenu.journeyId}
             x={journeyItemMenu.x}
             y={journeyItemMenu.y}
-            runtimeBusy={runtimeBusy}
             pinned={journeyPreferences.pinnedJourneyIds.includes(journeyItemMenu.journeyId)}
-            deleteDisabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0}
-            deleteTitle={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 ? "Move or delete child Journeys first." : "Permanently delete this empty Journey."}
+            deleteDisabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 || !treeOperation("delete", journeyItemMenu.journeyId).allowed}
+            deleteTitle={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0
+              ? "Move or delete child Journeys first."
+              : treeOperation("delete", journeyItemMenu.journeyId).reason ?? "Permanently delete this empty Journey."}
             returnFocusTo={journeyItemMenuTriggerRef.current}
             onTogglePin={togglePinnedJourney}
             onEdit={openEditJourney}
@@ -6660,7 +6692,7 @@ export function App({ model }: AppProps) {
             className="sidebar-action-button"
             type="button"
             onClick={() => openCreateJourney(defaultNewJourneyParentId(journeyListOrder, pinnedOnly, selectedJourney))}
-            disabled={runtimeBusy}
+            disabled={!treeOperation("create").allowed}
             aria-label="Create new Journey"
             title="New Journey"
           >
@@ -7725,7 +7757,7 @@ export function App({ model }: AppProps) {
                     role="radio"
                     aria-checked={!journeyAppearanceById[journeyAdminDialog.journeyId]}
                     className={!journeyAppearanceById[journeyAdminDialog.journeyId] ? "selected" : ""}
-                    disabled={journeyAppearanceBusy || runtimeBusy}
+                    disabled={journeyAppearanceBusy || !treeOperation("appearance", journeyAdminDialog.journeyId).allowed}
                     onClick={() => void applyJourneySystemAppearance(journeyAdminDialog.journeyId!)}
                   >
                     <span aria-hidden="true">•</span><small>Default</small>
@@ -7736,7 +7768,7 @@ export function App({ model }: AppProps) {
                       role="radio"
                       aria-checked={isJourneySystemIconSelected(journeyAppearanceById, journeyAdminDialog.journeyId!, icon.id)}
                       className={isJourneySystemIconSelected(journeyAppearanceById, journeyAdminDialog.journeyId!, icon.id) ? "selected" : ""}
-                      disabled={journeyAppearanceBusy || runtimeBusy}
+                      disabled={journeyAppearanceBusy || !treeOperation("appearance", journeyAdminDialog.journeyId).allowed}
                       onClick={() => void applyJourneySystemAppearance(journeyAdminDialog.journeyId!, icon.id)}
                       key={icon.id}
                       aria-label={icon.label}
@@ -7753,7 +7785,7 @@ export function App({ model }: AppProps) {
                     fallbackGlyph={journeyVisual(journeyAdminDialog.journeyId).icon}
                     className="journey-appearance-preview"
                   />
-                  <button type="button" disabled={journeyAppearanceBusy || runtimeBusy} onClick={() => void chooseJourneyCustomAppearance(journeyAdminDialog.journeyId!)}>
+                  <button type="button" disabled={journeyAppearanceBusy || !treeOperation("appearance", journeyAdminDialog.journeyId).allowed} onClick={() => void chooseJourneyCustomAppearance(journeyAdminDialog.journeyId!)}>
                     {journeyAppearanceBusy ? "Importing…" : "Choose custom image…"}
                   </button>
                   <small>PNG, JPEG or WebP · up to 5 MiB · saved as a private 512px PNG.</small>

@@ -24,7 +24,8 @@ describe("Journey runtime integration guardrails", () => {
     expect(selection).toContain("if (journeyId === selectedJourney)");
     expect(selection).not.toContain("runtimeBusy");
     expect(selection).not.toContain("dispatchJourneyRuntime");
-    expect(appSource).toContain("draggable={journeyListOrder === \"tree\" && !runtimeBusy}");
+    // CR099: the drag is gated per Journey, so the aggregate flag is gone from this control.
+    expect(appSource).toContain("draggable={journeyListOrder === \"tree\" && treeOperation(\"drag\", journey.id).allowed}");
     // CR138: admission is asked about the selected workspace, not the selected Journey.
     expect(appSource).toContain("derivePiInvocationAdmission(piInvocationOccupancy, selectedWorkspace)");
     expect(appSource).toContain("|| invocationAdmissionBlocked || runStartReservationRef.current");
