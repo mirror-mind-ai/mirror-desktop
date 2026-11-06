@@ -10,6 +10,7 @@ Release notes are local preparation artifacts. Creating or editing them does not
 
 ## Releases
 
+- [v0.4.0-alpha.5 · Only the Conversations Made Here](v0.4.0-alpha.5.md) · conversations the Mirror Core created elsewhere are no longer offered (CR206); New creates in its own Journey (CR207); nested conversations align (CR208); the working folder line reads on light themes (CR209). Intel only, not signed.
 - [v0.4.0-alpha.4 · Managing Journeys From the Tree](v0.4.0-alpha.4.md) · the tree hides inactive Journeys until asked, shows where each agent works, moves a Journey by dragging it, and deletes a Journey with its records after a list of what will go (RS028). Core `mirror-mind@0.40.0-next.1`. Intel only, not signed.
 - [v0.4.0-alpha.3 · Timing the Start of a Turn](v0.4.0-alpha.3.md) · no visible change; every turn's start is timed step by step, to find the wait of up to 40 s on long Conversations (CR194). Intel only, not signed.
 - [v0.4.0-alpha.2 — The Message Comes Back](v0.4.0-alpha.2.md) — a message cancelled in the first seconds returns to the composer again, and no persona-only answer is left behind (CR193). Intel only, not signed.
