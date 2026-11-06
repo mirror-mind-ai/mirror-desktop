@@ -81,6 +81,9 @@ const CALLS = {
   setJourneyProjectPath: (d, p) => d.setJourneyProjectPath(p.dbPath, p.request),
   moveJourney: (d, p) => d.moveJourney(p.dbPath, p.request),
   deleteJourney: (d, p) => d.deleteJourney(p.dbPath, p.request),
+  // RS028 / CR204: what deleting a Journey takes, then the deletion of exactly that, behind a backup.
+  previewJourneyDeletion: (d, p) => d.previewJourneyDeletion(p.dbPath, p.request),
+  deleteJourneyWithRecords: (d, p) => d.deleteJourneyWithRecords(p.dbPath, p.request),
 };
 export const HOST_METHODS = Object.keys(CALLS);
 

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { parseJourneyDeletionPreview, type JourneyDeletionPreview } from "../domain/journeyDeletion";
 import type { JourneyMutationRequest, JourneyMutationResult } from "../domain/journeyMutation";
 
 export async function chooseProjectDirectory(): Promise<string | undefined> {
@@ -12,4 +13,9 @@ export async function mutateJourneyRegistry(activeJourneyId: string, request: Jo
     replacementJourneyId,
   });
   return JSON.parse(payload) as JourneyMutationResult;
+}
+
+/** RS028 / CR204: what deleting the Journey takes, from Mirror and from Nautilus. Writes nothing. */
+export async function previewJourneyDeletion(journeyId: string): Promise<JourneyDeletionPreview> {
+  return parseJourneyDeletionPreview(await invoke<string>("preview_journey_deletion", { journeyId }));
 }

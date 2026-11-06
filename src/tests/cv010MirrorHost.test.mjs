@@ -67,6 +67,7 @@ describe("the Mirror host", () => {
       "readJourneyTree", "listJourneyConversations", "inspectConversation",
       "deliverMirrorContext", "forgetMirrorContext", "learnFromConversations",
       "addJourney", "updateJourney", "setJourneyProjectPath", "moveJourney", "deleteJourney",
+      "previewJourneyDeletion", "deleteJourneyWithRecords",
     ]);
     host.child.stdin.end();
     expect(await host.exited).toBe(0);

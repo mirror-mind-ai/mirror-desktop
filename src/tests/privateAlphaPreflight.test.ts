@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 // @ts-expect-error The source-built preflight is a Node module outside the frontend graph.
-import { canonicalRepository, checkMirrorHost, parseArguments, sanitizeOrigin, supportsMinimumMacOS } from "../../scripts/private_alpha_preflight.mjs";
+import { canonicalRepository, checkMirrorHost, parseArguments, requireReleasedCore, sanitizeOrigin, supportsMinimumMacOS } from "../../scripts/private_alpha_preflight.mjs";
 // @ts-expect-error The pin script is a Node module outside the frontend graph.
 import { readPin } from "../../scripts/mirror_host_pin.mjs";
 import preflightSource from "../../scripts/private_alpha_preflight.mjs?raw";
@@ -89,6 +89,14 @@ describe("private alpha preflight", () => {
     expect(() => checkMirrorHost({ root, platform, probe: with_((a) => { a.handshake.desktopApiVersion = 2; }) })).toThrow(/handshake/);
     expect(() => checkMirrorHost({ root, platform, probe: with_((a) => { a.refusal = { id: 1, ok: true } as never; }) })).toThrow(/marker/);
     expect(() => checkMirrorHost({ root, platform, probe: with_((a) => { a.refusal.error.reason = "invalid_home"; }) })).toThrow(/marker/);
+  });
+
+  it("refuses to release with a Core pinned from an unreleased branch", () => {
+    const core = { package: "mirror-mind", version: "0.39.5", commit: "a".repeat(40) };
+    expect(() => requireReleasedCore({ core: { ...core, release: "v0.39.5" } })).not.toThrow();
+    expect(() => requireReleasedCore({ core: { ...core, branch: "nautilus-core-requests" } })).toThrow(/branch nautilus-core-requests \(aaaaaaaa\), which is not released/);
+    expect(() => requireReleasedCore({ core: { ...core, release: "v0.39.5", branch: "x" } })).toThrow(/not released/);
+    expect(preflightSource).toContain("requireReleasedCore(readPin(repositoryRoot));");
   });
 
   it("blocks a missing or stale runtime before starting anything", () => {

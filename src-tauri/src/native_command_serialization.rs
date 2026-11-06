@@ -157,7 +157,9 @@ mod tests {
         // RS028 group B added `preview_journey_workspace`, serialised and off the main thread, a
         // read of the folder the next turn would use: 106 → 107. Then `open_journey_workspace`,
         // the same read followed by one spawn of the file manager: 107 → 108.
-        assert_eq!(v.len(), 108, "the command census changed; update SOURCES or this count");
+        // RS028 group D (CR204) added `preview_journey_deletion`, serialised and off the main thread,
+        // a read of Mirror's preview and of the Journey's files: 108 → 109.
+        assert_eq!(v.len(), 109, "the command census changed; update SOURCES or this count");
         v
     }
 

@@ -91,7 +91,7 @@ describe("Journey administration boundary", () => {
       tauriSource.indexOf("fn load_journey_registry"),
     );
     expect(mutationCommand).toContain("mirror_host_bridge::journey_call(&request)?");
-    expect(mutationCommand).toContain("mirror_host_bridge::request_journey(&app, method, call)?");
+    expect(mutationCommand).toContain("mirror_host_bridge::request_journey(&app, method, call).map_err(");
     expect(mutationCommand).toContain("publish_refreshed_journey_registry(&state_dir, &registry)?");
     expect(mutationCommand).not.toMatch(/"mutate"|"uv"|not_carried/);
     expect(tauriSource).toContain("publish_refreshed_journey_registry");

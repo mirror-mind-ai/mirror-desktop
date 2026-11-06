@@ -105,6 +105,17 @@ export function checkMirrorHost({ root = repositoryRoot, platform = hostPlatform
   };
 }
 
+/**
+ * RS028 / CR204: development may pin a Core branch whose change is not released yet (the app's
+ * Journey deletion needs Core CR200). A release never ships one: the Core must be published first
+ * and the pin moved to that version.
+ */
+export function requireReleasedCore(pin) {
+  if (!pin.core.release || pin.core.branch !== undefined) {
+    throw new Error(`The pinned core is ${pin.core.package} ${pin.core.version} from branch ${pin.core.branch ?? "unknown"} (${pin.core.commit.slice(0, 8)}), which is not released. Publish the Core and pin its release before releasing Nautilus.`);
+  }
+}
+
 function capture(command, args, options = {}) {
   const result = spawnSync(command, args, { cwd: repositoryRoot, encoding: "utf8", ...options });
   if (result.error || result.status !== 0) {
@@ -150,6 +161,7 @@ export function runPreflight() {
   };
   if (parseVersion(tools.node)[0] < 20) throw new Error("Node.js 20 or newer is required.");
   const runtime = checkMirrorHost();
+  requireReleasedCore(readPin(repositoryRoot));
   return {
     schemaVersion: "1.0.0", status: "ready",
     sourceRevision: capture("git", ["rev-parse", "HEAD"]),

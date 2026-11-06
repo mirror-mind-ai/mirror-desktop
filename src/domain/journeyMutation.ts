@@ -1,3 +1,4 @@
+import type { JourneyDeletionReceipt } from "./journeyDeletion";
 import { findJourneyById, type JourneyRegistry } from "./journeyRegistry";
 
 /**
@@ -14,7 +15,8 @@ export type JourneyMutationRequest = {
   operation: JourneyMutationOperation;
   payload: Record<string, unknown>;
 };
-export type JourneyMutationResult = { registry: JourneyRegistry };
+/** A deletion (RS028 / CR204) also answers with its backup and what Nautilus did after Mirror. */
+export type JourneyMutationResult = { registry: JourneyRegistry; deletion?: JourneyDeletionReceipt };
 
 /** The statuses Mirror accepts, as Python's `_validate_status` names them. */
 export const JOURNEY_STATUSES = ["active", "paused", "completed", "planned"] as const;

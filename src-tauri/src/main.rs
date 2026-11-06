@@ -3,6 +3,7 @@ mod anthropic_provider;
 mod journey_workspace;
 mod home_state;
 mod journey_appearance;
+mod journey_deletion;
 mod mirror_home;
 mod mirror_host;
 mod mirror_host_bridge;
@@ -2243,19 +2244,22 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
     // CV24.DS8), where 0.2 spawned Python's `journey mutate`. The guards around it are 0.2's.
     let request: Value = serde_json::from_str(&request_json).map_err(|_| "Journey mutation request is malformed.".to_string())?;
     let (method, call) = mirror_host_bridge::journey_call(&request)?;
-    let delete_target = if method == "deleteJourney" {
+    // RS028 / CR204: Nautilus's own files for the Journey no longer refuse its deletion; they are
+    // moved aside after Mirror deletes its records. What still refuses is work in flight.
+    let deletion = if method == "deleteJourneyWithRecords" {
         let journey_id = call.get("journeyId").and_then(Value::as_str)
             .ok_or_else(|| "Journey deletion target is missing.".to_string())?;
-        let thread_path = journey_thread_path(&app, journey_id)?;
-        let state_dir = crate::home_state::home_state_dir(&app).map_err(|error| error.to_string())?;
-        let generation_dir = state_dir.join("dedicated-journey-conversations").join(sanitize_journey_id(journey_id)?);
-        if thread_path.exists() || generation_dir.exists() {
-            return Err("Journey cannot be deleted because dedicated conversation history exists.".to_string());
+        let context = journey_deletion_context(&app, journey_id)?;
+        if let Some(refusal) = context.refusal() {
+            return Err(refusal);
         }
-        Some(journey_id.to_string())
+        let asked = request.pointer("/payload/deleteProjectFolder").and_then(Value::as_bool).unwrap_or(false);
+        let folder = journey_deletion::folder_to_empty(context.folder.as_ref(), asked)?;
+        Some((journey_id.to_string(), context, folder))
     } else {
         None
     };
+    let delete_target = deletion.as_ref().map(|(journey_id, _, _)| journey_id.clone());
     let publication_journey_id = if delete_target.as_deref() == Some(active_journey_id.as_str()) {
         let replacement = replacement_journey_id.as_deref().ok_or_else(|| "Deleting the active Journey requires an explicit replacement Journey.".to_string())?;
         if replacement == active_journey_id {
@@ -2265,7 +2269,11 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
     } else {
         active_journey_id.clone()
     };
-    let result = mirror_host_bridge::request_journey(&app, method, call)?;
+    let result = mirror_host_bridge::request_journey(&app, method, call).map_err(|error| match deletion {
+        Some(_) => journey_deletion::deletion_refusal(error, mirror_host_bridge::JOURNEY_STALE_MESSAGE),
+        None => error,
+    })?;
+    let deletion_receipt = deletion.map(|(journey_id, context, folder)| finish_journey_deletion(&journey_id, &context, folder.as_deref(), &result));
     let tree = result.get("tree").ok_or_else(|| "Mirror answered a Journey change without the Journey tree.".to_string())?;
     let registry = mirror_host_bridge::registry_from_tree(tree, &Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true))?;
     let parsed: Value = serde_json::from_str(&registry).map_err(|error| error.to_string())?;
@@ -2275,7 +2283,100 @@ fn mutate_journey_registry(app: AppHandle, active_journey_id: String, request_js
     let state_dir = crate::home_state::home_state_dir(&app).map_err(|error| error.to_string())?;
     fs::create_dir_all(&state_dir).map_err(|error| error.to_string())?;
     publish_refreshed_journey_registry(&state_dir, &registry)?;
-    Ok(json!({ "registry": parsed }).to_string())
+    match deletion_receipt {
+        Some(receipt) => Ok(json!({ "registry": parsed, "deletion": receipt }).to_string()),
+        None => Ok(json!({ "registry": parsed }).to_string()),
+    }
+}
+
+/// RS028 / CR204: what Nautilus knows about a Journey's deletion that Mirror does not.
+struct JourneyDeletionContext {
+    state_dir: PathBuf,
+    entries: Vec<journey_deletion::JourneyStateEntry>,
+    /// Why work in flight stands in the way, if it does.
+    busy: Option<String>,
+    /// The Journey's project folder and, when its contents must not be deleted, why.
+    folder: Option<(String, Option<String>)>,
+}
+
+impl JourneyDeletionContext {
+    fn refusal(&self) -> Option<String> {
+        self.busy.clone()
+    }
+}
+
+fn journey_deletion_context(app: &AppHandle, journey_id: &str) -> Result<JourneyDeletionContext, String> {
+    let journey_id = sanitize_journey_id(journey_id)?;
+    let state_dir = crate::home_state::home_state_dir(app).map_err(|error| error.to_string())?;
+    let entries = journey_deletion::journey_state_entries(&state_dir, &journey_id)?;
+    let busy = journey_deletion_busy(app, &journey_id);
+    let tree = mirror_host_bridge::request(app, "readJourneyTree", json!({}))?;
+    let paths = journey_deletion::project_paths(&tree["roots"]);
+    let folder = paths.iter().find(|(id, _)| id == &journey_id).map(|(_, path)| {
+        let others: Vec<String> = paths.iter().filter(|(id, _)| id != &journey_id).map(|(_, path)| path.clone()).collect();
+        let home = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".to_string()));
+        let mut guarded = vec![state_dir.clone()];
+        // The app's data folder, `<root>/homes/<home id>` above the state folder.
+        if let Some(root) = state_dir.ancestors().nth(2) { guarded.push(root.to_path_buf()); }
+        if let Ok(mirror) = mirror_host_bridge::active_home(app) { guarded.push(mirror.home_path); }
+        (path.clone(), journey_deletion::project_folder_refusal(path, &home, &guarded, &others))
+    });
+    Ok(JourneyDeletionContext { state_dir, entries, busy, folder })
+}
+
+/// A turn, compaction or thread operation in the Journey, or a turn not yet written into Mirror.
+/// A lock that cannot be read counts as busy, as `desktop_is_busy_with` counts it.
+fn journey_deletion_busy(app: &AppHandle, journey_id: &str) -> Option<String> {
+    let running = (|| {
+        let registry = app.state::<PiProcessState>().registry.lock().ok()?.inspect();
+        let compacting = app.state::<CompactionState>().in_flight.lock().ok()?.contains(journey_id);
+        let provisioning = app.state::<JourneyProvisioningState>().active.lock().ok()?.contains(journey_id);
+        Some(registry.entries.iter().any(|entry| entry.authority.journey_id == journey_id) || compacting || provisioning)
+    })();
+    let pending = (|| {
+        let outbox_state = app.state::<MirrorAppendOutboxState>();
+        let _guard = outbox_state.lock.lock().ok()?;
+        let outbox = read_mirror_append_outbox(&mirror_append_outbox_path(app).ok()?).ok()?;
+        Some(outbox.get("items").and_then(Value::as_array).into_iter().flatten()
+            .filter(|item| item.get("journeyId").and_then(Value::as_str) == Some(journey_id)).count())
+    })();
+    journey_deletion::work_in_flight(running, pending)
+}
+
+/// After Mirror deleted its records: move Nautilus's files aside, then empty the project folder
+/// when the person asked. Neither undoes Mirror's deletion; a failure is reported, not thrown.
+fn finish_journey_deletion(journey_id: &str, context: &JourneyDeletionContext, folder: Option<&Path>, result: &Value) -> Value {
+    let stamp = Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
+    let mut problems = Vec::new();
+    let quarantine = match journey_deletion::quarantine_journey_state(&context.state_dir, journey_id, &stamp, &context.entries) {
+        Ok(path) => path.map(|path| path.display().to_string()),
+        Err(problem) => { problems.push(problem); None }
+    };
+    let folder_outcome = folder.map(|folder| match journey_deletion::delete_folder_contents(folder) {
+        Ok(removed) => json!({ "path": folder.display().to_string(), "removed": removed }),
+        Err(problem) => { problems.push(problem); json!({ "path": folder.display().to_string(), "removed": null }) }
+    });
+    json!({
+        "backup": result.pointer("/backup/path").cloned().unwrap_or(Value::Null),
+        "movedAside": quarantine,
+        "folder": folder_outcome,
+        "problems": problems,
+    })
+}
+
+/// RS028 / CR204: everything deleting `journey_id` would take, for the confirmation to list.
+#[tauri::command(async)]
+fn preview_journey_deletion(app: AppHandle, journey_id: String) -> Result<String, String> {
+    let _serialized = crate::native_command_serialization::acquire();
+    let journey_id = sanitize_journey_id(&journey_id)?;
+    let mirror = mirror_host_bridge::request_journey(&app, "previewJourneyDeletion", json!({ "journeyId": journey_id }))?;
+    let context = journey_deletion_context(&app, &journey_id)?;
+    Ok(json!({
+        "mirror": mirror,
+        "nautilus": journey_deletion::journey_state_counts(&context.entries),
+        "busy": context.busy,
+        "folder": context.folder.as_ref().map(|(path, refusal)| json!({ "path": path, "refusal": refusal })),
+    }).to_string())
 }
 
 #[tauri::command(async)]
@@ -10589,6 +10690,7 @@ fn main() {
             preview_journey_workspace,
             open_journey_workspace,
             mutate_journey_registry,
+            preview_journey_deletion,
             choose_project_directory,
             import_journey_custom_image,
             load_journey_custom_image,

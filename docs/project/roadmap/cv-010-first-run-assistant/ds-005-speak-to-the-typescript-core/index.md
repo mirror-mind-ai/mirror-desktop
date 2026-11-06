@@ -4043,3 +4043,13 @@ What closing the window changes, and what it does not:
   "Owed at the End of Phase 5" above; the rehearsal homes and `/private/tmp` leftovers; and the
   machine-local `~/.pi/agent/AGENTS.md`, which still says to leave those paths untouched "until the
   Navigator closes the window back".
+
+## The Pin on a Core Branch Again, for RS028 Group D (2026-11-06)
+
+Journey deletion with its records (RS028 / CR204) needs Core CR200, which is not released. The pin
+moves from the released `mirror-mind@0.39.0` (`ca7295a4`) to a tarball packed from Core branch
+`nautilus-core-requests` at `ac9a84dacf6062448a6074a08ed6bdfa7681beec`
+(`vendor/mirror-host/mirror-mind-0.39.5-ac9a84da.tgz`, sha256 `e43344cf…`), the shape slice 4b
+used. No migration lies between the two; `lib/desktop.js` only adds names. Development runs it;
+a release cannot: the alpha preflight's `requireReleasedCore` refuses any pin without a release,
+so no Nautilus release leaves `main` until the Core is published and pinned by its release.

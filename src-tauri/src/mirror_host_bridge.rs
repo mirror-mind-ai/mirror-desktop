@@ -361,7 +361,9 @@ pub(crate) fn journey_call(request: &Value) -> Result<(&'static str, Value), Str
         Some("set_project_path") => ("setJourneyProjectPath", &["journeyId", "projectPath"], &["journeyId", "projectPath"]),
         Some("clear_project_path") => ("setJourneyProjectPath", &["journeyId"], &["journeyId"]),
         Some("move_journey") => ("moveJourney", &["journeyId", "parentId", "position"], &["journeyId", "position"]),
-        Some("delete_journey") => ("deleteJourney", &["journeyId"], &["journeyId"]),
+        // CR204: a deletion acts on the exact preview the person confirmed, named by its digest.
+        // `deleteProjectFolder` is the app's own step and never reaches Mirror.
+        Some("delete_journey") => ("deleteJourneyWithRecords", &["journeyId", "expectedDigest", "deleteProjectFolder"], &["journeyId", "expectedDigest"]),
         _ => return Err(malformed()),
     };
     if payload.keys().any(|key| !allowed.contains(&key.as_str())) || required.iter().any(|key| !payload.contains_key(*key)) {
@@ -374,6 +376,14 @@ pub(crate) fn journey_call(request: &Value) -> Result<(&'static str, Value), Str
     if method == "moveJourney" && !call.contains_key("parentId") {
         call.insert("parentId".into(), Value::Null);
     }
+    if method == "deleteJourneyWithRecords" {
+        if call.get("expectedDigest").and_then(Value::as_str).is_none_or(str::is_empty)
+            || call.get("deleteProjectFolder").is_some_and(|value| !value.is_boolean())
+        {
+            return Err(malformed());
+        }
+        call.remove("deleteProjectFolder");
+    }
     Ok((method, Value::Object(call)))
 }
 
@@ -382,6 +392,12 @@ pub(crate) fn describe_journey_refusal(error: MirrorHostError) -> String {
     let MirrorHostError::Rejected { name, reason, .. } = &error else { return describe(error) };
     if name != "JourneyCallRejectedError" {
         return describe(error);
+    }
+    if let Some(children) = reason.strip_prefix("journey_has_children:") {
+        return format!("Move or delete its child Journeys first: {}.", children.replace(',', ", "));
+    }
+    if let Some(table) = reason.strip_prefix("extension_rows_held:") {
+        return format!("An extension's table {table} still points at this Journey, so Mirror deleted nothing.");
     }
     if let Some(classes) = reason.strip_prefix("journey_not_empty:") {
         return format!("Journey cannot be deleted because protected records remain: {}.", classes.replace('_', " ").replace(',', ", "));
@@ -397,6 +413,7 @@ pub(crate) fn describe_journey_refusal(error: MirrorHostError) -> String {
         "unknown_parent" => "The selected parent Journey no longer exists.".to_string(),
         "invalid_parent" => "A Journey cannot be moved under itself or one of its own Journeys.".to_string(),
         "invalid_position" => "Journey position is invalid for the selected parent.".to_string(),
+        "backup_failed" => "Mirror could not take a backup it could verify, so it deleted nothing.".to_string(),
         _ => "Mirror refused the Journey change.".to_string(),
     }
 }
@@ -706,7 +723,9 @@ mod tests {
             ("set_project_path", json!({"journeyId": "work", "projectPath": "/p"}), "setJourneyProjectPath", json!({"journeyId": "work", "projectPath": "/p"})),
             ("clear_project_path", json!({"journeyId": "work"}), "setJourneyProjectPath", json!({"journeyId": "work", "projectPath": null})),
             ("move_journey", json!({"journeyId": "work", "position": 1}), "moveJourney", json!({"journeyId": "work", "parentId": null, "position": 1})),
-            ("delete_journey", json!({"journeyId": "work"}), "deleteJourney", json!({"journeyId": "work"})),
+            ("delete_journey", json!({"journeyId": "work", "expectedDigest": "abc"}), "deleteJourneyWithRecords", json!({"journeyId": "work", "expectedDigest": "abc"})),
+            ("delete_journey", json!({"journeyId": "work", "expectedDigest": "abc", "deleteProjectFolder": true}), "deleteJourneyWithRecords",
+             json!({"journeyId": "work", "expectedDigest": "abc"})),
         ];
         for (operation, payload, method, call) in cases {
             assert_eq!(journey_call(&journey_request(operation, payload)).unwrap(), (method, call), "{operation}");
@@ -720,7 +739,11 @@ mod tests {
             journey_request("update_journey", json!({"journeyId": "work", "name": "W"})),
             journey_request("update_journey", json!({"journeyId": "work", "expectedUpdatedAt": "t", "slug": "renamed"})),
             journey_request("clear_project_path", json!({"journeyId": "work", "projectPath": "/p"})),
-            journey_request("delete_journey", json!({"journeyId": "work", "force": true})),
+            journey_request("delete_journey", json!({"journeyId": "work", "expectedDigest": "abc", "force": true})),
+            journey_request("delete_journey", json!({"journeyId": "work"})),
+            journey_request("delete_journey", json!({"journeyId": "work", "expectedDigest": ""})),
+            journey_request("delete_journey", json!({"journeyId": "work", "expectedDigest": 7})),
+            journey_request("delete_journey", json!({"journeyId": "work", "expectedDigest": "abc", "deleteProjectFolder": "yes"})),
             journey_request("rename_journey", json!({"journeyId": "work"})),
             json!({"schemaVersion": "other", "operation": "delete_journey", "payload": {"journeyId": "work"}}),
             json!({"schemaVersion": JOURNEY_MUTATION_SCHEMA, "expectedSourceVersion": "x", "operation": "delete_journey", "payload": {"journeyId": "work"}}),
@@ -739,6 +762,12 @@ mod tests {
             describe_journey_refusal(refused("journey_not_empty:conversations,runtime_sessions")),
             "Journey cannot be deleted because protected records remain: conversations, runtime sessions."
         );
+        assert_eq!(describe_journey_refusal(refused("journey_has_children:a,b")), "Move or delete its child Journeys first: a, b.");
+        assert_eq!(
+            describe_journey_refusal(refused("extension_rows_held:ext_maestro_runtime_state")),
+            "An extension's table ext_maestro_runtime_state still points at this Journey, so Mirror deleted nothing."
+        );
+        assert_eq!(describe_journey_refusal(refused("backup_failed")), "Mirror could not take a backup it could verify, so it deleted nothing.");
         for reason in ["unknown_journey", "invalid_or_duplicate_slug", "invalid_name", "invalid_description", "invalid_status",
                        "invalid_path", "unknown_parent", "invalid_parent", "invalid_position", "something_new"] {
             let sentence = describe_journey_refusal(refused(reason));
@@ -793,10 +822,23 @@ mod tests {
         let seeded = registry["roots"][0]["id"].as_str().unwrap().to_string();
         let moved = send("move_journey", json!({"journeyId": "escrita", "parentId": seeded, "position": 0})).unwrap();
         assert!(tree_contains(&moved["tree"]["roots"][0]["children"], "escrita"));
-        assert_eq!(send("delete_journey", json!({"journeyId": seeded})).unwrap_err(),
-            "Journey cannot be deleted because protected records remain: child journeys.");
-        let deleted = send("delete_journey", json!({"journeyId": "escrita"})).unwrap();
+        // CR204: a deletion acts on its preview's digest, refuses a parent naming its children,
+        // and answers with the tree and the backup it took first.
+        let mut preview = |journey: &str| host.request_for_home(&home, "previewJourneyDeletion", json!({"request": {"journeyId": journey}})).unwrap();
+        let parent_preview = preview(&seeded);
+        let escrita_preview = preview("escrita");
+        assert_eq!(parent_preview["children"], json!(["escrita"]));
+        let digest = |preview: &Value| preview["digest"].as_str().unwrap().to_string();
+        let mut send = |operation: &str, payload: Value| {
+            let (method, call) = journey_call(&journey_request(operation, payload)).unwrap();
+            host.request_for_home(&home, method, json!({"request": call})).map_err(describe_journey_refusal)
+        };
+        assert_eq!(send("delete_journey", json!({"journeyId": seeded, "expectedDigest": digest(&parent_preview)})).unwrap_err(),
+            "Move or delete its child Journeys first: escrita.");
+        assert_eq!(send("delete_journey", json!({"journeyId": "escrita", "expectedDigest": "0".repeat(64)})).unwrap_err(), JOURNEY_STALE_MESSAGE);
+        let deleted = send("delete_journey", json!({"journeyId": "escrita", "expectedDigest": digest(&escrita_preview), "deleteProjectFolder": false})).unwrap();
         assert!(!tree_contains(&deleted["tree"]["roots"], "escrita"));
+        assert!(std::path::Path::new(deleted["backup"]["path"].as_str().unwrap()).is_file());
         let _ = std::fs::remove_dir_all(&parent);
     }
 

@@ -915,6 +915,24 @@ textarea {
   gap: 10px;
 }
 
+/* RS028 / CR204: what Delete Journey takes, listed before the person confirms. */
+.journey-deletion-list {
+  display: grid;
+  gap: 6px;
+  max-height: 40vh;
+  overflow: auto;
+  color: #b9cbd0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.journey-deletion-list p { margin: 0; }
+.journey-deletion-list ul { margin: 0; padding-left: 18px; }
+.journey-deletion-loading { margin: 0; color: var(--text-muted); font-size: 0.78rem; }
+.journey-deletion-folder { display: flex; gap: 8px; align-items: flex-start; }
+.journey-deletion-folder input { width: auto; margin: 2px 0 0; padding: 0; }
+.journey-deletion-folder span { overflow-wrap: anywhere; }
+.journey-deletion-folder small { display: block; margin-top: 3px; color: var(--text-muted); }
+
 .journey-path-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .journey-path-picker button { padding: 7px 12px; border-radius: 8px; }
 .journey-admin-summary {

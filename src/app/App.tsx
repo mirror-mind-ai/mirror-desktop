@@ -400,7 +400,9 @@ import {
 } from "./turnJournal";
 import { listPiModels, loadAgentSettings, saveAgentSettings, type PiModelCatalogEntry } from "./agentSettingsStorage";
 import { loadJourneyRegistry, refreshJourneyRegistry } from "./journeyRegistryStorage";
-import { chooseProjectDirectory, mutateJourneyRegistry } from "./journeyMutationStorage";
+import { chooseProjectDirectory, mutateJourneyRegistry, previewJourneyDeletion } from "./journeyMutationStorage";
+import { JourneyDeletionList } from "./JourneyDeletionList";
+import { childJourneysRefusal, deleteJourneyButtonLabel, JOURNEY_DELETION_CHANGED, journeyDeletionOutcome, journeyDeletionRefusal, journeyDeletionSummary, type JourneyDeletionPreview } from "../domain/journeyDeletion";
 import {
   createMissionExtractionPacket,
   createUserConversationMessage,
@@ -763,6 +765,11 @@ export function App({ model }: AppProps) {
   const [journeyAdminStatus, setJourneyAdminStatus] = useState("");
   const [journeyAdminState, setJourneyAdminState] = useState<"idle" | "saving" | "failed">("idle");
   const [journeyAdminMessage, setJourneyAdminMessage] = useState<string | undefined>();
+  // RS028 / CR204: what the open Delete Journey confirmation lists, and the folder box, off by default.
+  const [journeyDeletionPreview, setJourneyDeletionPreview] = useState<JourneyDeletionPreview | null>(null);
+  const [journeyDeletionPreviewError, setJourneyDeletionPreviewError] = useState<string | undefined>();
+  const [journeyDeletionEmptiesFolder, setJourneyDeletionEmptiesFolder] = useState(false);
+  const journeyDeletionPreviewRequestRef = useRef(0);
   const [journeyAdminPendingRequest, setJourneyAdminPendingRequest] = useState<JourneyMutationRequest | null>(null);
   const [draggedJourneyId, setDraggedJourneyId] = useState<string | null>(null);
   const journeyDragRef = useRef<{
@@ -5707,6 +5714,24 @@ export function App({ model }: AppProps) {
     if (!journey || (journey.children?.length ?? 0) > 0) return;
     setJourneyAdminDialog({ mode: "delete", journeyId });
     setJourneyAdminMessage(undefined); setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null); setJourneyItemMenu(null);
+    setJourneyDeletionEmptiesFolder(false);
+    void loadJourneyDeletionPreview(journeyId);
+  }
+
+  /** CR204: ask Mirror and Nautilus what deleting the Journey takes; the confirmation shows only that. */
+  async function loadJourneyDeletionPreview(journeyId: string) {
+    const request = ++journeyDeletionPreviewRequestRef.current;
+    setJourneyDeletionPreview(null); setJourneyDeletionPreviewError(undefined);
+    try {
+      const preview = await previewJourneyDeletion(journeyId);
+      // A list asked for an earlier dialog never reaches this one.
+      if (request !== journeyDeletionPreviewRequestRef.current) return;
+      if (preview.mirror.journeyId !== journeyId) throw new Error("Mirror listed another Journey than the one being deleted.");
+      setJourneyDeletionPreview(preview);
+      if (!preview.folder || preview.folder.refusal) setJourneyDeletionEmptiesFolder(false);
+    } catch (error) {
+      if (request === journeyDeletionPreviewRequestRef.current) setJourneyDeletionPreviewError(journeyAdministrationError(error));
+    }
   }
 
   /**
@@ -5732,6 +5757,7 @@ export function App({ model }: AppProps) {
       const replacementJourneyId = deletedJourneyId === selectedJourney ? replacementJourneyAfterDeletion(journeyRegistry, deletedJourneyId) : undefined;
       if (deletedJourneyId === selectedJourney && !replacementJourneyId) throw new Error("The only remaining Journey cannot be deleted.");
       const selectedAfterMutation = replacementJourneyId ?? selectedJourney;
+      const deletedJourneyName = deletedJourneyId ? findJourneyById(journeyRegistry, deletedJourneyId)?.name ?? deletedJourneyId : undefined;
       const result = await mutateJourneyRegistry(selectedJourney, request, replacementJourneyId);
       const reconciled = reconcileReloadedJourneyState(result.registry, {
         selectedJourneyId: selectedAfterMutation, pinnedJourneyIds: journeyPreferences.pinnedJourneyIds,
@@ -5751,7 +5777,8 @@ export function App({ model }: AppProps) {
       dispatchConversationExpansion({ type: "restore", journeyIds: [...reconciled.expandedConversationJourneyIds] });
       if (closeOnSuccess) setJourneyAdminDialog(null);
       setJourneyAdminState("idle"); setJourneyAdminPendingRequest(null);
-      setJourneyRegistryRefreshState("succeeded"); setJourneyRegistryRefreshMessage("Journey structure updated from Mirror.");
+      setJourneyRegistryRefreshState("succeeded");
+      setJourneyRegistryRefreshMessage(result.deletion && deletedJourneyName ? journeyDeletionOutcome(deletedJourneyName, result.deletion) : "Journey structure updated from Mirror.");
       return true;
     } catch (error) {
       if (isStaleSourceError(error)) {
@@ -5862,7 +5889,17 @@ export function App({ model }: AppProps) {
     } else if (journeyAdminDialog.mode === "move") {
       await executeJourneyMutation("move_journey", { journeyId: journeyAdminDialog.journeyId, parentId: journeyAdminParent || null, position: journeyAdminPosition });
     } else {
-      await executeJourneyMutation("delete_journey", { journeyId: journeyAdminDialog.journeyId });
+      const journeyId = journeyAdminDialog.journeyId;
+      const preview = journeyDeletionPreview;
+      if (!journeyId || !preview || journeyDeletionRefusal(preview, (id) => findJourneyById(journeyRegistry, id)?.name ?? id)) return;
+      const emptiesFolder = journeyDeletionEmptiesFolder && Boolean(preview.folder) && !preview.folder?.refusal;
+      await executeJourneyMutation("delete_journey", { journeyId, expectedDigest: preview.mirror.digest, deleteProjectFolder: emptiesFolder }, true, (message) => {
+        // What the list showed changed in Mirror: show the new list, and the box goes back off.
+        if (message === JOURNEY_DELETION_CHANGED) {
+          setJourneyDeletionEmptiesFolder(false);
+          void loadJourneyDeletionPreview(journeyId);
+        }
+      });
     }
   }
 
@@ -6944,9 +6981,8 @@ export function App({ model }: AppProps) {
             y={journeyItemMenu.y}
             pinned={journeyPreferences.pinnedJourneyIds.includes(journeyItemMenu.journeyId)}
             deleteDisabled={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0 || !treeOperation("delete", journeyItemMenu.journeyId).allowed}
-            deleteTitle={(findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children?.length ?? 0) > 0
-              ? "Move or delete child Journeys first."
-              : treeOperation("delete", journeyItemMenu.journeyId).reason ?? "Permanently delete this empty Journey."}
+            deleteTitle={childJourneysRefusal((findJourneyById(journeyRegistry, journeyItemMenu.journeyId)?.children ?? []).map((child) => child.name))
+              ?? treeOperation("delete", journeyItemMenu.journeyId).reason ?? "Delete this Journey and everything that belongs to it, after a list of what will go."}
             returnFocusTo={journeyItemMenuTriggerRef.current}
             onTogglePin={togglePinnedJourney}
             onEdit={openEditJourney}
@@ -8088,12 +8124,22 @@ export function App({ model }: AppProps) {
               {journeyAdminDialog.mode === "create" ? `Create ${journeyAdminSlug || "this Journey"} under ${journeyAdminParent || "Root"}. It will be appended after the existing Journeys. No repository or conversation will be created.` :
                 journeyAdminDialog.mode === "edit" ? `Save the changes to ${journeyAdminDialog.journeyId} in Mirror. Its id, place in the tree and Conversations remain unchanged.` :
                   journeyAdminDialog.mode === "move" ? `Move ${journeyAdminDialog.journeyId} under ${journeyAdminParent || "Root"} at position ${journeyAdminPosition}.` :
-                    `Permanently delete ${findJourneyById(journeyRegistry, journeyAdminDialog.journeyId ?? "")?.name ?? journeyAdminDialog.journeyId}. Project files, repositories and protected history will not be deleted.${journeyAdminDialog.journeyId === selectedJourney ? ` The active Journey will change to ${findJourneyById(journeyRegistry, replacementJourneyAfterDeletion(journeyRegistry, journeyAdminDialog.journeyId ?? "") ?? "")?.name ?? "another Journey"}.` : ""}`}
+                    `Permanently delete ${findJourneyById(journeyRegistry, journeyAdminDialog.journeyId ?? "")?.name ?? journeyAdminDialog.journeyId} and everything that belongs to it. Mirror takes a backup first.${journeyAdminDialog.journeyId === selectedJourney ? ` The active Journey will change to ${findJourneyById(journeyRegistry, replacementJourneyAfterDeletion(journeyRegistry, journeyAdminDialog.journeyId ?? "") ?? "")?.name ?? "another Journey"}.` : ""}`}
             </div>
+            {journeyAdminDialog.mode === "delete" ? (
+              <JourneyDeletionList
+                preview={journeyDeletionPreview}
+                error={journeyDeletionPreviewError}
+                nameOf={(id) => findJourneyById(journeyRegistry, id)?.name ?? id}
+                emptiesFolder={journeyDeletionEmptiesFolder}
+                onEmptiesFolderChange={setJourneyDeletionEmptiesFolder}
+                disabled={journeyAdminState === "saving"}
+              />
+            ) : null}
             {journeyAdminMessage ? <p className="settings-error" role="alert">{journeyAdminMessage}</p> : null}
             <div className="settings-actions">
               <button type="button" onClick={() => setJourneyAdminDialog(null)} disabled={journeyAdminState === "saving" || journeyAppearanceBusy}>Cancel</button>
-              <button className={journeyAdminDialog.mode === "delete" ? "danger-button" : ""} type="submit" disabled={journeyAdminState === "saving" || journeyAppearanceBusy}>{journeyAdminState === "saving" ? "Verifying…" : journeyAdminDialog.mode === "delete" ? "Delete Journey" : journeyAdminDialog.mode === "edit" ? "Save changes" : "Confirm"}</button>
+              <button className={journeyAdminDialog.mode === "delete" ? "danger-button" : ""} type="submit" disabled={journeyAdminState === "saving" || journeyAppearanceBusy || (journeyAdminDialog.mode === "delete" && (!journeyDeletionPreview || Boolean(journeyDeletionRefusal(journeyDeletionPreview, (id) => findJourneyById(journeyRegistry, id)?.name ?? id))))}>{journeyAdminState === "saving" ? (journeyAdminDialog.mode === "delete" ? "Deleting…" : "Verifying…") : journeyAdminDialog.mode === "delete" ? (journeyDeletionPreview ? deleteJourneyButtonLabel(journeyDeletionPreview) : "Delete Journey") : journeyAdminDialog.mode === "edit" ? "Save changes" : "Confirm"}</button>
             </div>
           </form>
         </div>
