@@ -23,9 +23,9 @@ Related, already done: [CR100](../rs021-ux-pre-beta-evolution/cr100-make-journey
 
 | CR | Group | Status | Note |
 |----|-------|--------|------|
-| [CR199: Keep Inactive Journeys Out of the Tree Until Asked](cr199-keep-inactive-journeys-out-of-the-tree-until-asked.md) | A | in_progress | on `main`, check owed |
-| [CR200: Collapse or Expand the Whole Tree at Once](cr200-collapse-or-expand-the-whole-tree-at-once.md) | A | in_progress | on `main`, check owed |
-| [CR201: Show a Journey's Folder in Its Tooltip](cr201-show-a-journeys-folder-in-its-tooltip.md) | A | in_progress | on `main`, check owed; always shown |
+| [CR199: Keep Inactive Journeys Out of the Tree Until Asked](cr199-keep-inactive-journeys-out-of-the-tree-until-asked.md) | A | done | validated 2026-11-05 |
+| [CR200: Collapse or Expand the Whole Tree at Once](cr200-collapse-or-expand-the-whole-tree-at-once.md) | A | done | validated 2026-11-05 |
+| [CR201: Show a Journey's Folder in Its Tooltip](cr201-show-a-journeys-folder-in-its-tooltip.md) | A | done | validated 2026-11-05; always shown |
 | [CR202: Say Which Folder the Agent Is Working In](cr202-say-which-folder-the-agent-is-working-in.md) | B | captured | needs one native read |
 | [CR197: A Moved Journey Folder Sends the Turn to the Neutral Folder Without a Word](../rs026-after-the-0-3-cutover/cr197-a-moved-journey-folder-sends-the-turn-to-the-neutral-folder-without-a-word.md) | B | captured | owned by RS026, delivered here |
 | [CR099: Allow Safe Editing During Another Journey's Work](cr099-allow-safe-editing-during-another-journeys-work.md) | C | captured | widened 2026-11-05 to every tree operation |
@@ -48,7 +48,8 @@ Each group is built, checked and validated together, in the development app boun
 
 ## Group A Check
 
-CR199, CR200 and CR201, in the development app bound to `ensaio-5c-2`, in the Tree view:
+CR199, CR200 and CR201, in the development app bound to `ensaio-5c-2`, in the Tree view.
+**Passed, and the group was validated by the Navigator on 2026-11-05.**
 
 1. Completed, paused and planned Journeys are gone, and a button under the view switch reads
    "Show N inactive". An inactive Journey that holds an active child is still there, dimmed. (CR199)
@@ -62,4 +63,13 @@ CR199, CR200 and CR201, in the development app bound to `ensaio-5c-2`, in the Tr
 
 ## Order
 
-A, B, C, D, accepted by the Navigator on 2026-11-05. Group A is in progress.
+A, B, C, D, accepted by the Navigator on 2026-11-05. Group A is done. Group B is next.
+
+## Finding, outside the Change Requests (2026-11-05)
+
+The first development build after the folder move failed before any of this code ran:
+`cargo` had kept 46 generated files in `src-tauri/target/debug` naming the repository's old path, so
+the build script looked for Tauri's generated permissions under `.../mirror-mind-ai/mirror-desktop/`.
+`cargo clean --profile dev` fixed it. The release profile is expected to carry the same stale paths
+and will need the same treatment on its first build. This belongs to the Nautilus reorganization
+(CV-013.DS-007), not to Journey Management, and is recorded here because this is where it surfaced.

@@ -2,7 +2,7 @@
 
 # CR201: Show a Journey's Folder in Its Tooltip
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `main` (`21ffb4b8`), RS028 group A
 **Group:** A, reading the tree
@@ -35,7 +35,8 @@ Read only. No path is checked on disk by this CR.
 
 ## Delivered (2026-11-05)
 
-On `main` in `21ffb4b8`; the development check is owed (RS028, Group A Check).
+On `main` in `21ffb4b8`. The Group A Check passed in the development app and the Navigator validated the group on
+2026-11-05.
 
 - `journeyItemTitle` keeps the name and agent state on the first line and puts the folder on the
   second, abbreviated with `~` from the home Tauri reports, or "No folder set".

@@ -2,7 +2,7 @@
 
 # CR199: Keep Inactive Journeys Out of the Tree Until Asked
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `main` (`21ffb4b8`), RS028 group A
 **Group:** A, reading the tree
@@ -39,7 +39,8 @@ Presentation only. No new status, no write to Mirror, no change to which statuse
 
 ## Delivered (2026-11-05)
 
-On `main` in `21ffb4b8`; the development check is owed (RS028, Group A Check).
+On `main` in `21ffb4b8`. The Group A Check passed in the development app and the Navigator validated the group on
+2026-11-05.
 
 - `filterInactiveJourneyTree` (`src/domain/journeyRegistry.ts`) hides a Journey only when it and
   everything below it is inactive. An inactive Journey that holds an active child, or that is the

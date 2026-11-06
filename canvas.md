@@ -5,10 +5,7 @@
 | Item | Estado |
 | --- | --- |
 | **Fila até o lançamento** | RS028, depois RS027 |
-| **RS028 · Journey Management** | 🔄 ativa · 3 🔵 · 5 🟡 · grupo A no `main`, checagem pendente |
-| ↳　A · CR199 · Keep Inactive Journeys Out of the Tree Until Asked | 🔵 in_progress · no `main`, falta a checagem do grupo A |
-| ↳　A · CR200 · Collapse or Expand the Whole Tree at Once | 🔵 in_progress · no `main`, falta a checagem do grupo A |
-| ↳　A · CR201 · Show a Journey's Folder in Its Tooltip | 🔵 in_progress · no `main`, falta a checagem do grupo A |
+| **RS028 · Journey Management** | 🔄 ativa · 5 🟡 · grupo A validado · grupo B em curso |
 | ↳　B · CR202 · Say Which Folder the Agent Is Working In | 🟡 captured · com a CR197 |
 | ↳　C · CR099 · Allow Safe Editing During Another Journey's Work | 🟡 captured · ampliada: nenhuma operação da árvore barrada por turno |
 | ↳　C · CR203 · Reparent a Journey by Dragging It | 🟡 captured · absorve a CR098 |

@@ -317,9 +317,9 @@ Open work is ordered intentionally. Terminal history follows open work.
 | 1 | [CR112](rs021-ux-pre-beta-evolution/cr112-host-a-journey-s-declared-workflow.md) | RS021 | Host a Canvas the Journey's Agent Draws | done | @alissonvale | `refinement/rs021-cr112-host-journey-workflow` |
 | 2 | [CR105](rs021-ux-pre-beta-evolution/cr105-transform-the-artifact-tab-into-an-agentic-map.md) | RS021 | Transform the Artifact Tab into the Context Surface | done | @alissonvale | `refinement/rs021-cr105-agentic-map` |
 
-| — | [CR199](rs028-journey-management/cr199-keep-inactive-journeys-out-of-the-tree-until-asked.md) | RS028 | Keep Inactive Journeys Out of the Tree Until Asked | in_progress | @alissonvale | `main` (`21ffb4b8`) |
-| — | [CR200](rs028-journey-management/cr200-collapse-or-expand-the-whole-tree-at-once.md) | RS028 | Collapse or Expand the Whole Tree at Once | in_progress | @alissonvale | `main` (`21ffb4b8`) |
-| — | [CR201](rs028-journey-management/cr201-show-a-journeys-folder-in-its-tooltip.md) | RS028 | Show a Journey's Folder in Its Tooltip | in_progress | @alissonvale | `main` (`21ffb4b8`) |
+| — | [CR199](rs028-journey-management/cr199-keep-inactive-journeys-out-of-the-tree-until-asked.md) | RS028 | Keep Inactive Journeys Out of the Tree Until Asked | done | @alissonvale | `main` (`21ffb4b8`) |
+| — | [CR200](rs028-journey-management/cr200-collapse-or-expand-the-whole-tree-at-once.md) | RS028 | Collapse or Expand the Whole Tree at Once | done | @alissonvale | `main` (`21ffb4b8`) |
+| — | [CR201](rs028-journey-management/cr201-show-a-journeys-folder-in-its-tooltip.md) | RS028 | Show a Journey's Folder in Its Tooltip | done | @alissonvale | `main` (`21ffb4b8`) |
 | — | [CR202](rs028-journey-management/cr202-say-which-folder-the-agent-is-working-in.md) | RS028 | Say Which Folder the Agent Is Working In | captured | — | — |
 | — | [CR203](rs028-journey-management/cr203-reparent-a-journey-by-dragging-it.md) | RS028 | Reparent a Journey by Dragging It | captured | — | — |
 | — | [CR204](rs028-journey-management/cr204-delete-a-journey-with-everything-under-it.md) | RS028 | Delete a Journey With Everything Under It | captured | — | — |

@@ -2,7 +2,7 @@
 
 # CR200: Collapse or Expand the Whole Tree at Once
 
-**Status:** in_progress
+**Status:** done
 **Driver:** @alissonvale
 **Delivery:** `main` (`21ffb4b8`), RS028 group A
 **Group:** A, reading the tree
@@ -35,7 +35,8 @@ Tree view only. No change to conversation-list disclosure inside a Journey.
 
 ## Delivered (2026-11-05)
 
-On `main` in `21ffb4b8`; the development check is owed (RS028, Group A Check).
+On `main` in `21ffb4b8`. The Group A Check passed in the development app and the Navigator validated the group on
+2026-11-05.
 
 - Collapse all and Expand all sit in the tree tools row under the view switch.
 - Collapse all keeps the selected Journey's ancestors open, so the selection stays on screen; its own
