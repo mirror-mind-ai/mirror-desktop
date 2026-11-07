@@ -25,7 +25,8 @@
 | ↳　CR094 · Mirror Mode Activation Rebinds a Desktop Conversation's Journey | ⏸️ parked |
 | ↳　CR170 · Pass the Invocation Directory to the Core Explicitly | ⏸️ parked |
 | ↳　CR189 · Route the Persona by What the Turn Is About | ⏸️ parked |
-| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa · CR206 e CR207 em produção (alpha.5) · 1 ⏸️ |
+| **RS016 · Ongoing Product Improvements and Adjustments** | 🔄 ativa · CR206 e CR207 em produção (alpha.5) · 1 🔵 · 1 ⏸️ |
+| ↳　CR210 · Count a New Conversation's First Turns | 🔵 in_progress · construída · aguarda checagem |
 | ↳　CR156 · Simplify the Context Map | ⏸️ parked · vai para a CV-012 |
 
 ## Roadmap

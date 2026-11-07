@@ -328,6 +328,7 @@ Open work is ordered intentionally. Terminal history follows open work.
 | — | [CR207](rs016-ongoing-product-improvements-and-adjustments/cr207-create-a-conversation-in-the-journey-whose-new-was-pressed.md) | RS016 | Create a Conversation in the Journey Whose New Was Pressed | done | @alissonvale | `main` (`75382d16`) |
 | — | [CR208](rs028-journey-management/cr208-align-a-nested-journeys-conversations-under-it.md) | RS028 | Align a Nested Journey's Conversations Under It | done | @alissonvale | `main` (`75382d16`) |
 | — | [CR209](rs028-journey-management/cr209-make-the-working-folder-line-readable-on-light-themes.md) | RS028 | Make the Working Folder Line Readable on Light Themes | done | @alissonvale | `main` (`75382d16`) |
+| — | [CR210](rs016-ongoing-product-improvements-and-adjustments/cr210-count-a-new-conversations-first-turns.md) | RS016 | Count a New Conversation's First Turns | in_progress | @alissonvale | `main` (`66b289cb`) |
 | 4 | [CR099](rs028-journey-management/cr099-allow-safe-editing-during-another-journeys-work.md) | RS028 | Allow Safe Editing During Another Journey's Work | done | @alissonvale | `main` (`03e38bbc`) |
 | 5 | [CR098](rs028-journey-management/cr098-allow-a-journey-to-be-reparented.md) | RS028 | Allow a Journey to Be Reparented | done | @alissonvale | absorbed by CR203 |
 | 6 | [CR100](rs021-ux-pre-beta-evolution/cr100-make-journey-image-updates-supported.md) | RS021 | Make Journey Image Updates Supported | done | @alissonvale | CV-010.DS-005 slice 4b |
