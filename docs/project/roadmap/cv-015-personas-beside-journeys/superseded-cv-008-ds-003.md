@@ -1,8 +1,9 @@
-[< CV-008](../index.md)
+[< CV-015](index.md)
 
-# CV-008.DS-003 - Persona Conversation Spaces
+# CV-008.DS-003 - Persona Conversation Spaces (superseded)
 
-**Status:** 🟡 Planned
+**Status:** ⚪ Superseded on 2026-11-07 by [CV-015 Personas Beside Journeys](index.md). Kept as
+provenance; its premises are reviewed there.
 
 ## Outcome
 
@@ -14,7 +15,7 @@ Personas are currently lenses selected inside broader Journey context. Some conv
 
 ## Delivery Sequence
 
-The Navigator approved delivery after [CV-008.DS-004 — Multiple Conversations per Journey](../ds-004-multiple-conversations-per-journey/index.md). DS-004 first establishes conversation identity, exact resumption, unified Mirror history, working-copy import and bounded segment loading. This story can then make a persona an alternate first-class route into that shared conversation substrate instead of encoding a temporary one-conversation-per-persona assumption.
+The Navigator approved delivery after [CV-008.DS-004 — Multiple Conversations per Journey](../cv-008-conversation-spaces/ds-004-multiple-conversations-per-journey/index.md). DS-004 first establishes conversation identity, exact resumption, unified Mirror history, working-copy import and bounded segment loading. This story can then make a persona an alternate first-class route into that shared conversation substrate instead of encoding a temporary one-conversation-per-persona assumption.
 
 ## Candidate Scope
 

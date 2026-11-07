@@ -12,9 +12,9 @@ person installs and turns on or off.
 ## The Canonical Set (Navigator, 2026-11-03)
 
 1. **Journey management**, which exists today.
-2. **Persona management**, a new structure, together with
-   [CV-008.DS-003 Persona Conversation Spaces](../cv-008-conversation-spaces/ds-003-persona-conversation-spaces/index.md).
-3. **Conversations** in the scope of a Journey (exists today) and of a persona (CV-008.DS-003).
+2. **Persona management**, a new structure, now
+   [CV-015 Personas Beside Journeys](../cv-015-personas-beside-journeys/index.md) (until 2026-11-07, CV-008.DS-003).
+3. **Conversations** in the scope of a Journey (exists today) and of a persona (CV-015).
 
 Everything else is an extension.
 
@@ -38,7 +38,7 @@ Tactical and Strategic altitudes added by the Navigator, 2026-11-03):
 - Where extensions come from, how they are installed, updated and turned on or off, and per what
   (the app, a home, a Journey).
 - What persona management needs from the Core, which owns personas.
-- Order against CV-008.DS-003, which the canonical set depends on, and against CV-013, the rename.
+- Order against CV-015, which the canonical set depends on, and against CV-013, the rename.
 
 ## Delivery Stories
 

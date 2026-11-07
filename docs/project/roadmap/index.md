@@ -32,6 +32,7 @@ The transfer record is [Nautilus Harness to Mirror Desktop Transfer](../history/
 | [CV-012](cv-012-a-canonical-core-and-extensions/index.md) | A Canonical Core and Extensions | The app ships a minimal canonical set (Journey management, persona management, conversations by Journey and by persona); everything else, starting with the Context Map and the Agent Canvas, is an extension the person turns on or off | 🟡 Candidate |
 | [CV-013](cv-013-nautilus-for-mirror/index.md) | Nautilus for Mirror | The app is renamed from Mirror Desktop to Nautilus for Mirror, one front end among others for the Mirror Core | ✅ Done |
 | [CV-014](cv-014-a-demonstration-video/index.md) | A Demonstration Video | A short narrated video shows a new person what Nautilus does, recorded by the agent from a script in the real interface and reviewed by the Navigator before publication | 🟡 Candidate |
+| [CV-015](cv-015-personas-beside-journeys/index.md) | Personas Beside Journeys | A persona is a first-class place beside the Journeys: in Recent, Pinned, Tree and search, with its own image, created from "+", and opening a continuous conversation, specific conversations, a Field and a Canvas, as a Journey does | 🟡 Candidate |
 
 ## Delivery Arc — Operable Agent Cockpit
 
@@ -107,7 +108,7 @@ CV-001 through CV-007 formed the completed Mirror Desktop baseline. CV-007 has s
 
 CV-009, Trusted macOS Distribution, is the other planned horizon. It closes a trust boundary the completed release and self-update work does not establish: that macOS recognizes the bundle as software signed by its accountable publisher. It is independent of CV-008 and neither is selected.
 
-CV-008, Conversation Spaces, is the planned product horizon translated from an accepted `mirror-desktop` exploration and subsequent explicit Navigator additions. It contains six independent Delivery Stories covering Steering, expanded cross-Journey concurrency, persona conversation spaces, multiple conversations per Journey, voice prompt composition and Conversation search with turn navigation. No Delivery Story is active or selected in either CV-007 or CV-008, and code order does not commit implementation priority, release intent, concurrency capacity, transcription provider or storage migration.
+CV-008, Conversation Spaces, is the planned product horizon translated from an accepted `mirror-desktop` exploration and subsequent explicit Navigator additions. It contains five independent Delivery Stories covering Steering, expanded cross-Journey concurrency, multiple conversations per Journey, voice prompt composition and Conversation search with turn navigation. No Delivery Story is active or selected in either CV-007 or CV-008, and code order does not commit implementation priority, release intent, concurrency capacity, transcription provider or storage migration.
 
 ## Delivery Arc - Versioned macOS Release
 
@@ -133,7 +134,6 @@ The codes identify the six accepted product demands. Current approved sequence a
 | [CV-008.DS-001](cv-008-conversation-spaces/ds-001-steering-during-active-turns/index.md) | Steering During Active Turns | Navigator can submit an additional message to the exact running turn and correct the agent's course without cancelling and silently restarting it | ✅ Done |
 | [CV-008.DS-002](cv-008-conversation-spaces/ds-002-expanded-concurrent-journey-turns/index.md) | Expanded Concurrent Journey Turns | Mirror Desktop admits more simultaneous turns across independent Journeys through a bounded observable policy without cross-run leakage | ✅ Done |
 | [CV-008.DS-004](cv-008-conversation-spaces/ds-004-multiple-conversations-per-journey/index.md) | Multiple Conversations per Journey | Navigator keeps the existing Journey-level workspace, explicitly focuses one Journey to browse additional Conversations, and can organize Mirror history or continue it through an agent handoff without a Mirror core update | ✅ Done |
-| [CV-008.DS-003](cv-008-conversation-spaces/ds-003-persona-conversation-spaces/index.md) | Persona Conversation Spaces | Navigator can address a persona as a first-class sidebar destination backed by a stable Mirror Desktop-managed internal Journey | 🟡 Planned |
 | [CV-008.DS-005](cv-008-conversation-spaces/ds-005-voice-prompt-composition/index.md) | Voice Prompt Composition | Navigator can record a spoken prompt and place its transcription into the active composer for review and explicit sending | ✅ Done |
 | [CV-008.DS-006](cv-008-conversation-spaces/ds-006-conversation-search-and-turn-navigation/index.md) | Conversation Search and Turn Navigation | Navigator can find text in the active Conversation and jump among recognizable turns without manually traversing the full transcript | ✅ Done |
 

@@ -36,7 +36,8 @@
 | **CV-011 · Embedded Pi** | 🟡 Candidate · depois do lançamento, após a CV-009 |
 | **CV-012 · A Canonical Core and Extensions** | 🟡 Candidate · extensões depois do lançamento |
 | **CV-014 · A Demonstration Video** | 🟡 Candidate · 7 DS · DS-001 é um protótipo de poucos segundos de ponta a ponta |
-| **CV-008 · Conversation Spaces** | 🟡 Planned |
+| **CV-015 · Personas Beside Journeys** | 🟡 Candidate · de volta ao design · DS-001 é o desenho no papel |
+| **CV-008 · Conversation Spaces** | 🟢 5 de 5 DS entregues · DS-003 saiu para a CV-015 · fechamento aguarda o Navigator |
 | ↳　DS-003 · Persona Conversation Spaces | 🟡 Planned |
 | **CV-009 · Trusted macOS Distribution** | 🟡 Planned · aguarda a Apple |
 | ↳　DS-001 · Software Zen Publisher and Credential Custody | 🟡 Planned |
