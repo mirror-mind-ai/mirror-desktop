@@ -47,11 +47,11 @@ describe("Claude in Model providers", () => {
     expect(failed).toContain(">Try again</button>");
   });
 
-  it("once installed, is listed as connected with the Claude sign-in on this Mac, and is no longer offered", () => {
+  it("once installed, is listed as connected with the Claude sign-in on this computer, and is no longer offered", () => {
     const html = renderToStaticMarkup(<ModelProvidersPanel providers={[deepseek, mistral]} state="ready" claude={claude(true)} {...handlers()} />);
     const list = html.slice(html.indexOf("<ul"), html.indexOf("</ul>"));
     expect(list).toContain("Claude · through Claude Code");
-    expect(list).toContain("Connected · Claude sign-in on this Mac");
+    expect(list).toContain("Connected · Claude sign-in on this computer");
     expect(html.slice(html.indexOf("Connect another provider"))).not.toContain("Claude · through Claude Code");
     // It counts as a connection when the last Pi sign-in is about to go.
     expect(disconnectWarning(deepseek, [deepseek], true)).not.toContain("only connected provider");

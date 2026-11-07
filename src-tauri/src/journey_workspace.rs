@@ -184,7 +184,7 @@ pub(crate) fn anchor_session_cwd(session_file: &Path, workspace: &Path) -> Resul
     let permissions = fs::metadata(session_file).map_err(|error| error.to_string())?.permissions();
     fs::write(&temporary, &next)
         .and_then(|_| fs::set_permissions(&temporary, permissions))
-        .and_then(|_| fs::File::open(&temporary)?.sync_all())
+        .and_then(|_| crate::platform::sync_file(&temporary))
         .and_then(|_| fs::rename(&temporary, session_file))
         .map_err(|error| {
             let _ = fs::remove_file(&temporary);
@@ -196,6 +196,7 @@ pub(crate) fn anchor_session_cwd(session_file: &Path, workspace: &Path) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
     fn scratch(label: &str) -> PathBuf {
@@ -269,6 +270,7 @@ mod tests {
         assert!(!l.user_home.join(NEUTRAL_FOLDER).join("a/b").exists());
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_linked_neutral_folder_is_refused() {
         let l = layout("link");
@@ -406,6 +408,7 @@ mod tests {
         assert_eq!(cached.fallback.unwrap().registered, Some(gone));
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_session_is_anchored_to_the_workspace_and_nothing_else_changes() {
         let l = layout("anchor");

@@ -51,8 +51,7 @@ impl MarkedHome {
         if metadata.file_type().is_symlink() || !metadata.is_dir() {
             return Err(format!("{} is not a marked 0.3 home: it is a symlink or not a directory.", path.display()));
         }
-        let canonical = path
-            .canonicalize()
+        let canonical = crate::platform::canonicalize(path)
             .map_err(|error| format!("Could not resolve {}: {error}", path.display()))?;
         if canonical != path {
             return Err(format!("{} passes through a symlink; name the home by its real path.", path.display()));
@@ -105,12 +104,11 @@ pub(crate) fn bound_home_id_for_switch(app_data_root: &Path) -> Option<String> {
 
 pub(crate) fn persist_home_binding(app_data_root: &Path, home: &MarkedHome) -> Result<(), String> {
     use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
     let target = app_data_root.join(HOME_BINDING_FILE_NAME);
     let staging = app_data_root.join(format!("{HOME_BINDING_FILE_NAME}.{}.staging", std::process::id()));
     let body = serde_json::to_vec_pretty(&serde_json::json!({"schemaVersion": HOME_BINDING_SCHEMA, "homePath": home.home_path}))
         .map_err(|error| error.to_string())?;
-    let written = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&staging)
+    let written = crate::platform::create_private_file(&staging)
         .and_then(|mut file| file.write_all(&body).and_then(|()| file.sync_all()))
         .and_then(|()| fs::rename(&staging, &target));
     if written.is_err() {
@@ -138,6 +136,7 @@ fn parse_marker(value: &Value) -> Option<HomeMarker> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
     fn scratch(name: &str) -> PathBuf {
@@ -149,7 +148,7 @@ mod tests {
         ));
         let _ = fs::remove_dir_all(&directory);
         fs::create_dir_all(&directory).unwrap();
-        directory.canonicalize().unwrap()
+        crate::platform::canonicalize(&directory).unwrap()
     }
 
     fn marked(parent: &Path, name: &str, marker: &str) -> PathBuf {
@@ -212,6 +211,7 @@ mod tests {
         assert!(MarkedHome::open(&oversized).is_err());
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_relative_symlinked_or_missing_home_is_refused() {
         let parent = scratch("paths");
@@ -242,6 +242,7 @@ mod tests {
         assert!(MarkedHome::open(&home).unwrap_err().contains("not a marked 0.3 home"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn the_binding_round_trips_owner_only_and_names_only_the_home() {
         let parent = scratch("binding");
@@ -279,6 +280,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_symlinked_binding_file_is_refused() {
         let parent = scratch("binding-link");

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { listAudioInputs, type AudioInputDevice } from "./voiceCapture";
 import {
   describeInstallProgress,
   describeVoiceModel,
@@ -214,6 +216,49 @@ export function VoiceLanguagePicker({ language, disabled, onChange }: VoiceLangu
   );
 }
 
+type VoiceInputPickerProps = {
+  inputDeviceId: string | undefined;
+  disabled: boolean;
+  onChange: (inputDeviceId: string | undefined) => void;
+};
+
+/**
+ * Which microphone records. The system default is the first choice and the one most people keep;
+ * the list is what the browser enumerates, named only once the microphone has been allowed, which
+ * the first recording does. A chosen device that is gone falls back to the default at recording
+ * time (`startVoiceCapture`), so a stale choice never records nothing.
+ */
+export function VoiceInputPicker({ inputDeviceId, disabled, onChange }: VoiceInputPickerProps) {
+  const [devices, setDevices] = useState<AudioInputDevice[]>([]);
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    void listAudioInputs().then((found) => { if (!cancelled) setDevices(found); }).catch(() => { if (!cancelled) setDevices([]); });
+    return () => { cancelled = true; };
+  }, [refresh]);
+  const named = devices.filter((device) => device.label);
+  const chosenKnown = inputDeviceId === undefined || devices.some((device) => device.deviceId === inputDeviceId);
+  return (
+    <label className="voice-model-picker">
+      <span>Microphone</span>
+      <select value={inputDeviceId ?? ""} disabled={disabled} onChange={(event) => onChange(event.target.value || undefined)} onFocus={() => setRefresh((n) => n + 1)}>
+        <option value="">System default</option>
+        {named.map((device) => (
+          <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
+        ))}
+        {!chosenKnown ? <option value={inputDeviceId}>Chosen microphone (not connected now)</option> : null}
+      </select>
+      <small>
+        {named.length > 0
+          ? "Recording uses this microphone. If it is unplugged, the system default is used instead."
+          : devices.length > 0
+            ? "Microphones are named after the first recording allows the microphone. Record once, then choose here."
+            : "No microphone was found."}
+      </small>
+    </label>
+  );
+}
+
 type VoiceSettingsPanelProps = {
   status: VoiceComponentStatus | undefined;
   installing: boolean;
@@ -227,11 +272,14 @@ type VoiceSettingsPanelProps = {
   language: VoiceLanguage;
   onModelChange: (modelId: string) => void;
   onLanguageChange: (language: VoiceLanguage) => void;
+  /** The microphone picker; absent (as in older callers and tests) means the system default, unpicked. */
+  inputDeviceId?: string;
+  onInputDeviceChange?: (inputDeviceId: string | undefined) => void;
   onInstall: () => void;
   onRemove: () => void;
 };
 
-export function VoiceSettingsPanel({ status, installing, removing, progress, error, sessionActive, catalog, catalogLoading, modelId, language, onModelChange, onLanguageChange, onInstall, onRemove }: VoiceSettingsPanelProps) {
+export function VoiceSettingsPanel({ status, installing, removing, progress, error, sessionActive, catalog, catalogLoading, modelId, language, inputDeviceId, onModelChange, onLanguageChange, onInputDeviceChange, onInstall, onRemove }: VoiceSettingsPanelProps) {
   const busy = installing || removing || sessionActive;
   const installed = status?.modelId;
   const selected = modelId ?? catalog?.defaultModel;
@@ -259,6 +307,9 @@ export function VoiceSettingsPanel({ status, installing, removing, progress, err
       ) : null}
       {status?.state === "ready" ? (
         <VoiceLanguagePicker language={language} disabled={sessionActive} onChange={onLanguageChange} />
+      ) : null}
+      {status?.state === "ready" && onInputDeviceChange ? (
+        <VoiceInputPicker inputDeviceId={inputDeviceId} disabled={sessionActive} onChange={onInputDeviceChange} />
       ) : null}
       {switching ? (
         <p className="provider-note">Switching models downloads the new one and replaces the installed model. The engine is kept.</p>

@@ -1,0 +1,58 @@
+# Windows: the native crate's tests and a bundled NSIS build, on every push to main and every
+# pull request. The frontend's vitest suite is not run here: on Windows it has pre-existing
+# failures in tests that assume /usr/bin/tar, symlinks and POSIX permission bits (none in
+# production code), so running it would only paint the job red for the wrong reason.
+name: Windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: cargo test + NSIS build
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Type-check and build the frontend
+        run: npm run build
+
+      - name: Native tests
+        working-directory: src-tauri
+        run: cargo test --locked
+
+      - name: Lay out the Mirror host runtime for win-x64
+        run: node scripts/mirror_host_pin.mjs materialize
+
+      - name: Bundle the development channel (NSIS)
+        run: npm run tauri:build:dev -- --bundles nsis
+
+      - name: Keep the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: nautilus-dev-windows-x64-setup
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 7

@@ -94,7 +94,7 @@ impl MirrorHostConfig {
     /// A laid-out runtime directory: `node/bin/node`, `host.mjs` and `node_modules`.
     pub fn for_runtime(runtime_dir: PathBuf) -> Self {
         Self {
-            node_bin: runtime_dir.join("node").join("bin").join("node"),
+            node_bin: crate::platform::runtime_node_bin(&runtime_dir),
             host_script: runtime_dir.join("host.mjs"),
             host_dir: runtime_dir,
             handshake_timeout: Duration::from_secs(10),
@@ -321,6 +321,7 @@ impl MirrorHost {
 
     fn start(&mut self) -> Result<RunningHost, MirrorHostError> {
         let mut command = Command::new(&self.config.node_bin);
+        crate::platform::without_console(&mut command);
         command
             .arg(&self.config.host_script)
             .current_dir(&self.config.host_dir)
@@ -328,6 +329,7 @@ impl MirrorHost {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        crate::platform::system_environment(&mut command);
         #[cfg(unix)]
         {
             use std::os::unix::process::CommandExt;
@@ -438,7 +440,7 @@ mod tests {
         ));
         let _ = fs::remove_dir_all(&directory);
         fs::create_dir_all(&directory).unwrap();
-        directory.canonicalize().unwrap()
+        crate::platform::canonicalize(&directory).unwrap()
     }
 
     const READY: &str = r#"{"type":"ready","hostProtocol":1,"desktopApiVersion":1,"coreVersion":"0.37.0","node":"vtest","methods":[]}"#;
@@ -485,10 +487,12 @@ done"#
         }
     }
 
+    #[cfg(unix)]
     fn alive(pid: i32) -> bool {
         unsafe { libc::kill(pid, 0) == 0 }
     }
 
+    #[cfg(unix)]
     fn gone_within(pid: i32, within: Duration) -> bool {
         let started = Instant::now();
         while started.elapsed() < within {
@@ -500,6 +504,7 @@ done"#
         !alive(pid)
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_request_is_answered_by_the_host_it_started_after_the_handshake() {
         let directory = scratch("answer");
@@ -510,6 +515,7 @@ done"#
         assert_eq!(host.handshake().unwrap()["coreVersion"], "0.37.0");
     }
 
+    #[cfg(unix)]
     #[test]
     fn the_host_sees_no_environment_and_runs_in_its_own_directory() {
         let directory = scratch("environment");
@@ -523,6 +529,7 @@ done"#
         assert!(std::env::var_os("HOME").is_some());
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_refusal_is_named_and_the_host_keeps_serving() {
         let directory = scratch("refusal");
@@ -539,6 +546,7 @@ done"#
         assert_eq!(host.starts(), 1);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_hung_request_kills_the_host_group_at_its_deadline_and_the_next_request_restarts() {
         let directory = scratch("hang");
@@ -554,6 +562,7 @@ done"#
         assert_eq!(host.starts(), 2);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_host_that_dies_reports_its_stderr_and_is_replaced() {
         let directory = scratch("die");
@@ -566,6 +575,7 @@ done"#
         assert_eq!(host.starts(), 2);
     }
 
+    #[cfg(unix)]
     #[test]
     fn an_answer_to_another_request_or_an_oversized_line_is_a_protocol_error_that_kills_the_host() {
         let directory = scratch("protocol");
@@ -583,6 +593,7 @@ done"#
         assert_eq!(host.starts(), 3);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_host_with_the_wrong_handshake_is_refused_and_killed() {
         for (name, handshake) in [
@@ -600,6 +611,7 @@ done"#
         }
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_silent_host_is_refused_at_the_handshake_deadline() {
         let directory = scratch("silent");
@@ -612,6 +624,7 @@ done"#
         assert!(host.pid().is_none());
     }
 
+    #[cfg(unix)]
     #[test]
     fn consecutive_failures_back_off_then_stop_starting_hosts_until_reset() {
         let directory = scratch("failing");
@@ -643,6 +656,7 @@ done"#
         MirrorHost::new(settings).request("ping", serde_json::json!({})).unwrap_err()
     }
 
+    #[cfg(unix)]
     #[test]
     fn dropping_the_supervisor_kills_its_host() {
         let directory = scratch("drop");
@@ -664,6 +678,7 @@ done"#
         crate::mirror_home::MarkedHome::open(&home).unwrap()
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_home_request_carries_the_marked_home_database_and_nothing_the_caller_named() {
         let directory = scratch("for-home");

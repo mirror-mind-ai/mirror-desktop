@@ -9,7 +9,7 @@
 //!
 //! CR173: `install_anthropic_provider` runs the same installer for the Desktop's own Anthropic
 //! provider (`--kind anthropic`), on demand: the provider's source and lockfile from the runtime,
-//! this Mac's Claude Code from the registry. Its events are `anthropic-install-progress`.
+//! this computer's Claude Code from the registry. Its events are `anthropic-install-progress`.
 
 use crate::pi_toolchain::{install_dir, pinned_pi, resolve_app_pi, PI_DIRECTORY};
 use serde::Serialize;
@@ -17,7 +17,6 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
-use std::os::unix::fs::DirBuilderExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -93,7 +92,7 @@ pub(crate) fn describe_anthropic_install_failure(reason: &str, log: &Path) -> St
         "check_failed" => {
             "Claude Code was downloaded but did not start, so it was not installed. Try again; if it fails again, reinstall Nautilus.".to_string()
         }
-        "platform_unsupported" => "Claude models are not available for this Mac in this version of Nautilus.".to_string(),
+        "platform_unsupported" => "Claude models are not available for this computer in this version of Nautilus.".to_string(),
         "lockfile_mismatch" | "lockfile_invalid" | "invalid_target" | "usage" | "source_mismatch" => {
             "This copy of Nautilus cannot install Claude Code. Reinstall the app.".to_string()
         }
@@ -123,9 +122,7 @@ fn private_root(root: &Path) -> Result<(), String> {
     match std::fs::symlink_metadata(root) {
         Ok(metadata) if metadata.is_dir() => Ok(()),
         Ok(_) => Err(format!("{} is not a folder Nautilus made.", root.display())),
-        Err(_) => std::fs::DirBuilder::new()
-            .mode(0o700)
-            .create(root)
+        Err(_) => crate::platform::create_private_dir(root)
             .map_err(|error| format!("Could not create {}: {error}", root.display())),
     }
 }
@@ -141,14 +138,18 @@ fn run_installer(
     mut progress: impl FnMut(PiInstallProgress),
 ) -> Result<(), String> {
     let log = root.join("install.log");
-    let mut child = Command::new(runtime_dir.join("node").join("bin").join("node"))
+    let mut command = Command::new(crate::platform::runtime_node_bin(runtime_dir));
+    crate::platform::without_console(&mut command);
+    command
         .arg(installer)
         .args(args)
         .env_clear()
         .current_dir(root)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    crate::platform::system_environment(&mut command);
+    let mut child = command
         .spawn()
         .map_err(|error| format!("Could not start the installer: {error}"))?;
     let mut stderr = child.stderr.take().expect("piped");
@@ -276,15 +277,21 @@ pub(crate) async fn install_anthropic_provider(app: AppHandle) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pi_toolchain::tests::{installed, LOCK};
+    #[cfg(unix)]
+    use crate::pi_toolchain::tests::LOCK;
+    #[cfg(unix)]
+    use crate::pi_toolchain::tests::installed;
     use std::fs;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
 
+    #[cfg(unix)]
     const ANTHROPIC_LOCK: &str = crate::anthropic_provider::tests::LOCK;
 
     /// A runtime whose `node` is a shell script playing the installer: it prints `lines`, and on
     /// success lays out the install the toolchain test builds.
+    #[cfg(unix)]
     fn runtime_playing(label: &str, lines: &str, exit: i32) -> (PathBuf, PathBuf, PathBuf) {
         let (base, runtime, app_data) = installed(label);
         let done = app_data.join("pi");
@@ -311,6 +318,7 @@ mod tests {
         (base, runtime, app_data)
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_finished_install_reports_its_progress_and_resolves() {
         let lines = [
@@ -339,6 +347,7 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_stopped_install_says_what_to_do() {
         let (base, runtime, app_data) = runtime_playing("stopped", r#"{"event":"failed","reason":"download_failed","message":"HTTP 503"}"#, 1);
@@ -361,6 +370,7 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn an_installer_or_lockfile_the_receipt_does_not_name_is_not_run() {
         for file in ["pi-install.mjs", "pi/package-lock.json"] {
@@ -397,6 +407,7 @@ mod tests {
 
     /// CR173: a runtime pinning the Anthropic provider, whose `node` plays the installer: it
     /// records its arguments, prints `lines`, and on success lays out a finished install.
+    #[cfg(unix)]
     fn anthropic_runtime_playing(label: &str, lines: &str, exit: i32) -> (PathBuf, PathBuf, PathBuf) {
         let (base, runtime, app_data) = crate::anthropic_provider::tests::installed(label);
         fs::rename(app_data.join("anthropic"), base.join("finished-install")).unwrap();
@@ -424,6 +435,7 @@ mod tests {
         (base, runtime, app_data)
     }
 
+    #[cfg(unix)]
     #[test]
     fn the_anthropic_provider_is_installed_from_the_runtimes_pin() {
         let lines = [
@@ -457,14 +469,16 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_stopped_anthropic_install_says_what_to_do_in_its_own_words() {
         let (base, runtime, app_data) = anthropic_runtime_playing("anthropic-stopped", r#"{"event":"failed","reason":"platform_unsupported"}"#, 1);
         let error = run_anthropic_install(&app_data, &runtime, |_| {}).unwrap_err();
-        assert!(error.contains("Claude models") && error.contains("this Mac"), "{error}");
+        assert!(error.contains("Claude models") && error.contains("this computer"), "{error}");
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn an_anthropic_installer_lockfile_or_source_the_runtime_does_not_hold_is_not_run() {
         for (file, change) in [("pi-install.mjs", Some("changed")), ("anthropic/package-lock.json", Some("changed")), ("anthropic/provider/src/index.ts", None)] {
@@ -492,13 +506,11 @@ mod tests {
         run_install(&app_data, &runtime, |step| last = Some(step)).unwrap();
         assert_eq!(last, Some(PiInstallProgress { phase: "check", done: 1, total: 1 }));
         let pi = resolve_app_pi(&app_data, &runtime).unwrap();
-        let version = Command::new(&pi.pi_bin)
-            .arg("--version")
-            .env_clear()
-            .env("HOME", &app_data)
-            .env("PATH", pi.node_bin.parent().unwrap())
-            .output()
-            .unwrap();
+        let mut version = crate::platform::pi_command(&pi.pi_bin, &pi.node_bin);
+        version.arg("--version").env_clear().env("PATH", pi.node_bin.parent().unwrap());
+        crate::platform::home_environment(&mut version, &app_data);
+        crate::platform::system_environment(&mut version);
+        let version = version.output().unwrap();
         assert_eq!(String::from_utf8_lossy(&version.stdout).trim(), "1.4.0");
         let mut entries: Vec<_> = fs::read_dir(app_data.join("pi")).unwrap().map(|entry| entry.unwrap().file_name().into_string().unwrap()).collect();
         entries.sort();

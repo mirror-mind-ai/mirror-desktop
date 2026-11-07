@@ -616,11 +616,18 @@ mod tests {
         let profile =
             RuntimeChannelProfile::for_home(RuntimeChannel::User, &test_root("catalog-command"));
         let command = pi_model_catalog_command(&profile).unwrap();
-        assert_eq!(command.get_program(), OsStr::new("/trusted/pi"));
-        assert_eq!(
-            command.get_args().collect::<Vec<_>>(),
-            vec![OsStr::new("--list-models")]
-        );
+        // On Windows the carried Node runs cli.js, so the file is the first argument
+        // (`platform::pi_command`); the flags follow either way.
+        #[cfg(not(windows))]
+        {
+            assert_eq!(command.get_program(), OsStr::new("/trusted/pi"));
+            assert_eq!(command.get_args().collect::<Vec<_>>(), vec![OsStr::new("--list-models")]);
+        }
+        #[cfg(windows)]
+        {
+            assert_eq!(command.get_program(), OsStr::new("/trusted/node"));
+            assert_eq!(command.get_args().collect::<Vec<_>>(), vec![OsStr::new("/trusted/pi"), OsStr::new("--list-models")]);
+        }
         assert_eq!(
             command
                 .get_envs()

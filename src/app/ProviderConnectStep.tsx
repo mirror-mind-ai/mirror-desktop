@@ -115,7 +115,7 @@ export function ProviderConnectStep({ providers, login, message, onSignIn, onAns
     <>
       <p className="eyebrow">Nautilus for Mirror</p>
       <h1>Connect a model provider</h1>
-      <p>Your Mirror talks to a model through a provider. Sign in with a subscription you have, or use an API key. Pi keeps the sign-in on this Mac; Nautilus keeps no copy.</p>
+      <p>Your Mirror talks to a model through a provider. Sign in with a subscription you have, or use an API key. Pi keeps the sign-in on this computer; Nautilus keeps no copy.</p>
       {connected.length > 0 ? <p className="provider-note">Connected: {connected.join(", ")}.</p> : null}
       {message ? <p className={connected.length > 0 && message.startsWith("Connected") ? "provider-note" : "provider-error"} role="alert">{message}</p> : null}
       <div className="runtime-onboarding-form">

@@ -319,6 +319,7 @@ mod tests {
         fs::remove_dir_all(state).unwrap();
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_project_folder_may_be_emptied_only_when_it_holds_nothing_it_must_not() {
         let root = temp("folder");
@@ -355,6 +356,7 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
 
+    #[cfg(unix)]
     #[test]
     fn emptying_a_folder_keeps_it_and_never_follows_a_link_out() {
         let root = temp("empty");

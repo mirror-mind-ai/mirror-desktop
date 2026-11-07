@@ -20,7 +20,11 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
 pub(crate) const PI_LOGIN_EVENT: &str = "pi-login-event";
-const STATUS_DEADLINE: Duration = Duration::from_secs(20);
+// A minute, not twenty seconds: the status loads Pi's runtime module, and on a modest Windows
+// machine right after an install or a relaunch, with the antivirus reading the files, twenty
+// seconds was exceeded (battery U2 on the pt-BR VM; 25 s on a laptop). The screen says what it
+// is waiting for meanwhile, and the person can still cancel by leaving setup.
+const STATUS_DEADLINE: Duration = Duration::from_secs(60);
 const LOGIN_DEADLINE: Duration = Duration::from_secs(15 * 60);
 const CANCEL_GRACE: Duration = Duration::from_secs(3);
 const OUTPUT_LIMIT: u64 = 1024 * 1024;
@@ -111,15 +115,17 @@ pub(crate) fn auth_script(runtime_dir: &Path) -> Result<PathBuf, String> {
 /// nothing else from the app's environment.
 pub(crate) fn helper_command(pi: &AppPi, script: &Path, home: &Path, cwd: &Path, args: &[&str]) -> Command {
     let mut command = Command::new(&pi.node_bin);
+    crate::platform::without_console(&mut command);
     command
         .arg(script)
         .args(args)
         .arg("--pi")
         .arg(&pi.package_dir)
         .env_clear()
-        .env("HOME", home)
         .env("PATH", pi.node_bin.parent().unwrap_or(Path::new("/usr/bin")))
         .current_dir(cwd);
+    crate::platform::home_environment(&mut command, home);
+    crate::platform::system_environment(&mut command);
     command
 }
 
@@ -390,7 +396,7 @@ fn pi_auth_context(app: &AppHandle) -> Result<(AppPi, PathBuf, PathBuf, PathBuf)
     let runtime_dir = crate::mirror_host_bridge::current_runtime_dir()?;
     let pi = resolve_app_pi(&app_data_root, &runtime_dir)?;
     let script = auth_script(&runtime_dir)?;
-    let home = std::env::var_os("HOME").map(PathBuf::from).ok_or_else(|| "Could not resolve your home folder.".to_string())?;
+    let home = crate::platform::home_directory().ok_or_else(|| "Could not resolve your home folder.".to_string())?;
     Ok((pi, script, home, app_data_root))
 }
 
@@ -540,6 +546,7 @@ mod tests {
     }
 
     /// A shell standing in for the helper: it prints a prompt, echoes what it is answered, and ends.
+    #[cfg(unix)]
     fn helper_playing(label: &str, script: &str) -> Command {
         let path = scratch(label).join("helper.sh");
         std::fs::write(&path, script).unwrap();
@@ -548,6 +555,7 @@ mod tests {
         command
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_sign_in_is_answered_opens_https_only_and_ends_once() {
         let _serial = SERIAL.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -576,6 +584,7 @@ case "$line" in *'"id":"p1"'*'"value":"typed"'*) echo '{"event":"done","provider
         assert!(LOGIN.lock().unwrap().is_none(), "the slot is free afterwards");
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_helper_that_stops_without_an_outcome_is_a_failure_and_cancel_ends_it() {
         let _serial = SERIAL.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -637,6 +646,7 @@ case "$line" in *'"id":"p1"'*'"value":"typed"'*) echo '{"event":"done","provider
         let _ = std::fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_disconnect_says_the_readiness_left_or_why_it_could_not() {
         let line = |text: &str| helper_playing("disconnect", &format!("printf '%s\\n' '{text}'\n"));
@@ -677,7 +687,12 @@ case "$line" in *'"id":"p1"'*'"value":"typed"'*) echo '{"event":"done","provider
         let envs: Vec<_> = command.get_envs().map(|(key, value)| (key.to_string_lossy().into_owned(), value.map(|v| v.to_string_lossy().into_owned()))).collect();
         assert!(envs.contains(&("HOME".into(), Some("/Users/ana".into()))));
         assert!(envs.contains(&("PATH".into(), Some("/app/runtime/node/bin".into()))));
-        assert_eq!(envs.len(), 2);
+        // HOME and PATH, and on Windows the two the OS itself needs (`platform::system_environment`).
+        // On Windows USERPROFILE is the HOME Node reads there (`platform::home_environment`).
+        #[cfg(windows)]
+        assert!(envs.contains(&("USERPROFILE".into(), Some("/Users/ana".into()))));
+        let ours: Vec<_> = envs.iter().filter(|(key, _)| !matches!(key.as_str(), "SYSTEMROOT" | "SYSTEMDRIVE" | "USERPROFILE")).collect();
+        assert_eq!(ours.len(), 2);
         let source = include_str!("pi_auth.rs");
         let body = &source[source.find("pub(crate) fn helper_command(").unwrap()..];
         assert!(body[..body.find("\n}\n").unwrap()].contains(".env_clear()"));

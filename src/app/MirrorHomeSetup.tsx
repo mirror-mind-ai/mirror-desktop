@@ -40,7 +40,7 @@ export function MirrorHomeSetup({ binding, error, brokenHome, onCreate, onChoose
     <>
       <p className="eyebrow">Nautilus for Mirror</p>
       <h1>Create your Mirror</h1>
-      <p>Your Mirror keeps your Journeys, Conversations and memory in one folder on this Mac. Nothing outside it is written.</p>
+      <p>Your Mirror keeps your Journeys, Conversations and memory in one folder on this computer. Nothing outside it is written.</p>
       {brokenHome ? <p className="provider-note">The Mirror home this app opened before can no longer be opened: {brokenHome} Create a new one, or open another.</p> : null}
       <form
         className="runtime-onboarding-form"

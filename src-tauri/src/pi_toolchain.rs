@@ -65,14 +65,13 @@ pub(crate) fn install_dir(app_data_root: &Path, pinned: &PinnedPi) -> PathBuf {
 }
 
 fn executable_file(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+    crate::platform::executable_file(path)
 }
 
 /// The installed Pi, when its install receipt is the pinned one; `PI_NOT_INSTALLED` otherwise.
 pub(crate) fn resolve_app_pi(app_data_root: &Path, runtime_dir: &Path) -> Result<AppPi, String> {
     let pinned = pinned_pi(runtime_dir)?;
-    let node_bin = runtime_dir.join("node").join("bin").join("node");
+    let node_bin = crate::platform::runtime_node_bin(runtime_dir);
     if !executable_file(&node_bin) {
         return Err(crate::mirror_host_bridge::RUNTIME_MISSING.to_string());
     }
@@ -95,31 +94,37 @@ pub(crate) fn resolve_app_pi(app_data_root: &Path, runtime_dir: &Path) -> Result
     if !executable_file(&pi_bin) {
         return Err(PI_NOT_INSTALLED.to_string());
     }
-    let pi_bin = pi_bin.canonicalize().map_err(|_| PI_NOT_INSTALLED.to_string())?;
-    let directory = directory.canonicalize().map_err(|_| PI_NOT_INSTALLED.to_string())?;
+    let pi_bin = crate::platform::canonicalize(&pi_bin).map_err(|_| PI_NOT_INSTALLED.to_string())?;
+    let directory = crate::platform::canonicalize(&directory).map_err(|_| PI_NOT_INSTALLED.to_string())?;
     if !pi_bin.starts_with(&directory) {
         return Err(PI_NOT_INSTALLED.to_string());
     }
-    let node_bin = node_bin.canonicalize().map_err(|_| crate::mirror_host_bridge::RUNTIME_MISSING.to_string())?;
-    let package_dir = package_dir.canonicalize().map_err(|_| PI_NOT_INSTALLED.to_string())?;
+    let node_bin = crate::platform::canonicalize(&node_bin).map_err(|_| crate::mirror_host_bridge::RUNTIME_MISSING.to_string())?;
+    let package_dir = crate::platform::canonicalize(&package_dir).map_err(|_| PI_NOT_INSTALLED.to_string())?;
     Ok(AppPi { pi_bin, node_bin, package_dir })
 }
 
-#[cfg(test)]
+// Every test here builds a runtime whose `node` and `pi` are shell scripts
+// with an execute bit, which only POSIX can run; the module is Unix-only.
+#[cfg(all(test, unix))]
 pub(crate) mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
 
+    #[cfg(unix)]
     pub(crate) const LOCK: &str = "d36b5fc72875d574e2020de5df1a7012bec52201f675d3273ec437f923ce4bad";
+    #[cfg(unix)]
     const PACKAGE: &str = "@earendil-works/pi-coding-agent";
 
+    #[cfg(unix)]
     fn scratch(label: &str) -> PathBuf {
         let directory = std::env::temp_dir().join(format!("pi-toolchain-{label}-{}-{:?}", std::process::id(), std::thread::current().id()));
         let _ = fs::remove_dir_all(&directory);
         fs::create_dir_all(&directory).unwrap();
-        directory.canonicalize().unwrap()
+        crate::platform::canonicalize(&directory).unwrap()
     }
 
+    #[cfg(unix)]
     fn executable(path: &Path) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, "#!/bin/sh\n").unwrap();
@@ -127,6 +132,7 @@ pub(crate) mod tests {
     }
 
     /// A runtime pinning Pi 1.4.0, and an app data folder with that Pi installed.
+    #[cfg(unix)]
     pub(crate) fn installed(label: &str) -> (PathBuf, PathBuf, PathBuf) {
         let base = scratch(label);
         let runtime = base.join("runtime");
@@ -147,6 +153,7 @@ pub(crate) mod tests {
         (base, runtime, app_data)
     }
 
+    #[cfg(unix)]
     #[test]
     fn the_installed_pin_runs_with_the_carried_node() {
         let (base, runtime, app_data) = installed("resolved");
@@ -161,6 +168,7 @@ pub(crate) mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn anything_but_the_pinned_install_is_not_installed() {
         let (base, runtime, app_data) = installed("refused");
@@ -202,6 +210,7 @@ pub(crate) mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_runtime_that_pins_no_pi_or_has_no_node_is_damaged() {
         let (base, runtime, app_data) = installed("damaged");

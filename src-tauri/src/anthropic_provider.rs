@@ -77,8 +77,8 @@ pub(crate) fn resolve_app_anthropic(app_data_root: &Path, runtime_dir: &Path) ->
     if !fs::symlink_metadata(&entry).is_ok_and(|metadata| metadata.is_file()) {
         return Err(not_installed());
     }
-    let entry = entry.canonicalize().map_err(|_| not_installed())?;
-    let directory = directory.canonicalize().map_err(|_| not_installed())?;
+    let entry = crate::platform::canonicalize(&entry).map_err(|_| not_installed())?;
+    let directory = crate::platform::canonicalize(&directory).map_err(|_| not_installed())?;
     if !entry.starts_with(&directory) {
         return Err(not_installed());
     }
@@ -96,7 +96,7 @@ pub(crate) mod tests {
         let directory = std::env::temp_dir().join(format!("anthropic-provider-{label}-{}-{:?}", std::process::id(), std::thread::current().id()));
         let _ = fs::remove_dir_all(&directory);
         fs::create_dir_all(&directory).unwrap();
-        directory.canonicalize().unwrap()
+        crate::platform::canonicalize(&directory).unwrap()
     }
 
     /// A runtime pinning the provider, and an app data folder with it installed.
@@ -136,6 +136,7 @@ pub(crate) mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 
+    #[cfg(unix)]
     #[test]
     fn anything_but_the_pinned_install_is_not_installed() {
         let (base, runtime, app_data) = installed("refused");

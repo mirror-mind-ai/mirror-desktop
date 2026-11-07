@@ -23,8 +23,14 @@
     ],
     "createUpdaterArtifacts": false,
     "icon": [
-      "icons/eval/icon.png"
+      "icons/eval/icon.png",
+      "icons/eval/icon.ico"
     ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/eval/icon.ico"
+      }
+    },
     "macOS": {
       "bundleName": "Nautilus Eval"
     }

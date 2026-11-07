@@ -19,7 +19,29 @@ export type VoiceCaptureOptions = {
   /** Called when the duration limit stops the recording automatically. */
   onLimitReached?: () => void;
   mediaDevices?: Pick<MediaDevices, "getUserMedia">;
+  /** The microphone to record from (a deviceId from `listAudioInputs`); the system default when unset. */
+  inputDeviceId?: string;
 };
+
+export type AudioInputDevice = { deviceId: string; label: string };
+
+/**
+ * The microphones the browser can offer. Labels are empty until the microphone has been allowed
+ * once; the picker says so rather than listing nameless entries. Windows exposes the system's
+ * "default" and "communications" aliases as devices of their own, so a person with a webcam and a
+ * laptop array sees both roles and the devices behind them.
+ */
+export async function listAudioInputs(scope: { mediaDevices?: Pick<MediaDevices, "enumerateDevices"> } = navigator): Promise<AudioInputDevice[]> {
+  if (typeof scope.mediaDevices?.enumerateDevices !== "function") return [];
+  const devices = await scope.mediaDevices.enumerateDevices();
+  return devices
+    .filter((device) => device.kind === "audioinput" && device.deviceId)
+    .map((device) => ({ deviceId: device.deviceId, label: device.label }));
+}
+
+function audioConstraints(inputDeviceId: string | undefined): MediaStreamConstraints {
+  return { audio: inputDeviceId ? { deviceId: { exact: inputDeviceId } } : true, video: false };
+}
 
 export function microphoneCaptureSupported(scope: { mediaDevices?: Pick<MediaDevices, "getUserMedia"> } = navigator): boolean {
   return typeof scope.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder !== "undefined";
@@ -42,9 +64,20 @@ export async function startVoiceCapture(options: VoiceCaptureOptions = {}): Prom
   if (!microphoneCaptureSupported({ mediaDevices })) throw new Error("voice_capture_unsupported");
   let stream: MediaStream;
   try {
-    stream = await mediaDevices.getUserMedia({ audio: true, video: false });
+    stream = await mediaDevices.getUserMedia(audioConstraints(options.inputDeviceId));
   } catch (error) {
-    throw new Error(classifyMicrophoneError(error));
+    // A chosen microphone that is unplugged now should not silence the person: the default is
+    // tried once, and only a failure of that is reported.
+    const name = error instanceof Error ? error.name : "";
+    if (options.inputDeviceId && (name === "OverconstrainedError" || name === "NotFoundError" || name === "NotReadableError")) {
+      try {
+        stream = await mediaDevices.getUserMedia(audioConstraints(undefined));
+      } catch (fallbackError) {
+        throw new Error(classifyMicrophoneError(fallbackError));
+      }
+    } else {
+      throw new Error(classifyMicrophoneError(error));
+    }
   }
   const mimeType = preferredMimeType();
   const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
