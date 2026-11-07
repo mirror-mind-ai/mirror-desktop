@@ -43,12 +43,33 @@ export function personaSpeaker(
 }
 
 export function stripMessageSpeakerSignature(content: string): string {
-  return content
+  return withoutStandaloneSignatureLines(content
     .replace(personaSignaturePattern, "")
     .replace(embeddedCertifiedPersonaPattern, "")
-    .replace(trailingPersonaSignaturePattern, "")
+    .replace(trailingPersonaSignaturePattern, ""))
     .trimStart()
     .trimEnd();
+}
+
+// CR211: two text blocks written in a row reach the surface as one comment, and when the second
+// opens with the signature it sits between them. A line that is only `◇ <persona-id>` is a
+// signature wherever it is, except inside a code block, which shows what was written.
+const standaloneSignatureLine = /^[ \t]*◇[ \t]*[a-z0-9]+(?:-[a-z0-9]+)*[ \t]*$/;
+
+function withoutStandaloneSignatureLines(content: string): string {
+  if (!content.includes("◇")) return content;
+  let inCode = false;
+  const kept: string[] = [];
+  for (const line of content.split("\n")) {
+    if (/^[ \t]*(?:```|~~~)/.test(line)) inCode = !inCode;
+    if (!inCode && standaloneSignatureLine.test(line)) {
+      // The blank line that separated it from the next paragraph goes with it.
+      if (kept.at(-1) === "") kept.pop();
+      continue;
+    }
+    kept.push(line);
+  }
+  return kept.join("\n");
 }
 
 export function withCertifiedPersona(content: string, persona: string): string {
