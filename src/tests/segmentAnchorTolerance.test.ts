@@ -68,6 +68,26 @@ function manifestOf(anchors: readonly (string | undefined)[]): ConversationSegme
 
 const turnIdsOf = (conversation: JourneyConversation) => conversation.reconciliation.turns.map((turn) => turn.turnId);
 
+// CR210: a new Conversation's first settlement raced the chapter index. The display asked for the
+// manifest when streaming stopped, before the turn was committed to the ledger, so the only Segment
+// was written with no anchor; every later settlement then published it empty and the catalog read
+// "Not started" for good (production, 2026-11-07).
+describe("CR210: a Conversation that was never compacted owns all of its turns", () => {
+  it("gives a lone unanchored Segment the whole ledger", () => {
+    const conversation = conversationWithTurns([1, 2]);
+    const projections = partitionConversationBySegments(conversation, manifestOf([undefined]));
+    expect(projections.map((projection) => projection.segmentId)).toEqual(["segment-1"]);
+    expect(turnIdsOf(projections[0]!.conversation)).toEqual(["turn-1", "turn-2"]);
+    expect(projections[0]!.conversation.messages).toHaveLength(4);
+  });
+
+  it("leaves an unanchored current Segment after a compaction as it was", () => {
+    const conversation = conversationWithTurns([1, 2]);
+    const projections = partitionConversationBySegments(conversation, manifestOf(["turn-1", undefined]));
+    expect(projections.map((projection) => turnIdsOf(projection.conversation))).toEqual([["turn-1", "turn-2"], []]);
+  });
+});
+
 describe("CR118: a Segment anchored outside the ledger it can see", () => {
   it("partitions the production shape instead of throwing, whatever the anchor's position", () => {
     // Segments 1-3 lost their anchors when the ledger shrank; 4 and 5 still name a turn that is gone;

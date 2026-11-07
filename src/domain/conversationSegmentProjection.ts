@@ -42,6 +42,10 @@ export function partitionConversationBySegments(
     const anchor = anchors[index];
     starts[index] = anchor === undefined || anchor < 0 ? (starts[index + 1] ?? turns.length) : anchor;
   }
+  // CR210: a session never compacted has one Segment, and every turn is its own. Its anchor can be
+  // missing only because the manifest was derived before the first turn reached the ledger, which
+  // is a race, not an empty chapter; reading it as one published the Conversation empty for good.
+  if (manifest.segments.length === 1 && anchors[0] === undefined) starts[0] = 0;
   const availableStarts = starts.slice(cut);
   if (!availableStarts.length
     || availableStarts.some((start, index, available) => index > 0 && start < available[index - 1]!)) {
