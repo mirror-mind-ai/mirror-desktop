@@ -10623,6 +10623,16 @@ fn main() {
         return;
     }
     tauri::Builder::default()
+        // First, so a second launch is answered before anything else is set up: the running app
+        // comes to the front, the newcomer exits. macOS does this itself; Windows opened a second
+        // window on the same home (battery U19), two hosts on one database.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_process::init())
         .menu(desktop_menu_with_owned_quit)

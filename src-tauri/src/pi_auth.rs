@@ -20,7 +20,11 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
 pub(crate) const PI_LOGIN_EVENT: &str = "pi-login-event";
-const STATUS_DEADLINE: Duration = Duration::from_secs(20);
+// A minute, not twenty seconds: the status loads Pi's runtime module, and on a modest Windows
+// machine right after an install or a relaunch, with the antivirus reading the files, twenty
+// seconds was exceeded (battery U2 on the pt-BR VM; 25 s on a laptop). The screen says what it
+// is waiting for meanwhile, and the person can still cancel by leaving setup.
+const STATUS_DEADLINE: Duration = Duration::from_secs(60);
 const LOGIN_DEADLINE: Duration = Duration::from_secs(15 * 60);
 const CANCEL_GRACE: Duration = Duration::from_secs(3);
 const OUTPUT_LIMIT: u64 = 1024 * 1024;
