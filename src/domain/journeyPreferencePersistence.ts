@@ -36,6 +36,10 @@ export type PersistedJourneyPreferences = {
     applicationTheme: ApplicationTheme;
     journeyAppearanceById: JourneyAppearanceById;
     voiceLanguage: VoiceLanguage;
+    // The microphone chosen in Settings, a browser deviceId; absent means the system default.
+    // A laptop docked with a webcam has two microphones and the system's default is often the
+    // wrong one, which recorded silence.
+    voiceInputDeviceId?: string;
     // CR133: which Journeys have their conversation disclosure open. Expansion is structural
     // visibility the Navigator chose, so it has to survive a relaunch; before this it was
     // runtime-only state and every reload started collapsed.
@@ -88,6 +92,7 @@ export const defaultJourneyPreferenceState: JourneyPreferenceState = {
   applicationTheme: "channel",
   journeyAppearanceById: {},
   voiceLanguage: defaultVoiceLanguage,
+  voiceInputDeviceId: undefined,
   expandedConversationJourneyIds: [],
   hiddenConversationIdsByJourneyId: EMPTY_HIDDEN_CONVERSATIONS,
   lastConversationSelectionByJourneyId: EMPTY_CONVERSATION_SELECTION_MEMORY,
@@ -176,6 +181,9 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
     ? defaultVoiceLanguage
     : parseVoiceLanguage(preferences.voiceLanguage);
   if (!voiceLanguage) return undefined;
+  const voiceInputDeviceId = typeof preferences.voiceInputDeviceId === "string" && preferences.voiceInputDeviceId.length > 0 && preferences.voiceInputDeviceId.length <= 256
+    ? preferences.voiceInputDeviceId
+    : undefined;
   if (!pinnedJourneyIds || !recentJourneyIds || !journeyListOrder || typeof sidebarCompact !== "boolean" || !lastWorkedAtByJourneyId || !applicationTheme || !journeyAppearanceById) {
     return undefined;
   }
@@ -200,6 +208,7 @@ export function parsePersistedJourneyPreferences(value: unknown): PersistedJourn
       applicationTheme,
       journeyAppearanceById,
       voiceLanguage,
+      voiceInputDeviceId,
       expandedConversationJourneyIds,
       hiddenConversationIdsByJourneyId,
       lastConversationSelectionByJourneyId,
@@ -235,6 +244,7 @@ export function sanitizeJourneyPreferenceState(
     applicationTheme: preferences.applicationTheme,
     journeyAppearanceById: sanitizeJourneyAppearanceById(preferences.journeyAppearanceById, registry),
     voiceLanguage: preferences.voiceLanguage,
+    voiceInputDeviceId: preferences.voiceInputDeviceId,
     expandedConversationJourneyIds: uniqueExistingJourneyIds(preferences.expandedConversationJourneyIds, registry),
     hiddenConversationIdsByJourneyId: sanitizeHiddenConversations(preferences.hiddenConversationIdsByJourneyId, registry),
     lastConversationSelectionByJourneyId: sanitizeConversationSelectionMemory(preferences.lastConversationSelectionByJourneyId, registry),
