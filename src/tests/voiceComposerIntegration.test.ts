@@ -49,7 +49,10 @@ describe("CV-008.DS-005 voice prompt composition integration", () => {
   });
 
   it("requests the microphone only when recording starts and discards audio on cancel", () => {
-    expect(captureSource).toContain("mediaDevices.getUserMedia({ audio: true, video: false })");
+    expect(captureSource).toContain("mediaDevices.getUserMedia(audioConstraints(options.inputDeviceId))");
+    expect(captureSource).toContain("audio: inputDeviceId ? { deviceId: { exact: inputDeviceId } } : true, video: false");
+    expect(appSource).toContain("inputDeviceId: voiceInputDeviceId,");
+    expect(appSource).toContain("setVoiceInputDeviceId(sanitizedPreferences.voiceInputDeviceId)");
     expect(captureSource).toContain("chunks.length = 0;");
     expect(captureSource).toContain("track.stop()");
     expect(captureSource).toContain("VOICE_MAX_RECORDING_MS");

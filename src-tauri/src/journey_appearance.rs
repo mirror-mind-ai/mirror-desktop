@@ -103,10 +103,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
             .map_err(|error| format!("Could not sync local image: {error}"))?;
         fs::rename(&staged, path)
             .map_err(|error| format!("Could not publish local image: {error}"))?;
-        OpenOptions::new()
-            .read(true)
-            .open(parent)
-            .and_then(|directory| directory.sync_all())
+        crate::platform::sync_directory(parent)
             .map_err(|error| format!("Could not sync local image directory: {error}"))?;
         Ok(())
     })();

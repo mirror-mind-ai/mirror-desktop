@@ -419,6 +419,7 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_geometry_path_that_is_not_a_regular_file_is_refused_in_both_directions() {
         let root = temporary_directory("symlink");

@@ -32,7 +32,7 @@ import {
   readFileSync, realpathSync, renameSync, rmSync, writeFileSync, writeSync,
 } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const REGISTRY = "https://registry.npmjs.org/";
 export const PI_PACKAGE = "@earendil-works/pi-coding-agent";
@@ -150,9 +150,56 @@ function refuseLinks(root) {
   }
 }
 
+/**
+ * The system's own `tar`, named by its absolute path so nothing on the PATH can stand in for it:
+ * `/usr/bin/tar` on macOS and Linux, `System32\\tar.exe` (bsdtar, Windows 10 1803+) on Windows.
+ */
+function systemTar() {
+  if (process.platform !== "win32") return "/usr/bin/tar";
+  return join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+}
+
+/** `chmod +x` where the platform has an execute bit; Windows decides by extension. */
+function markExecutable(path) {
+  if (process.platform !== "win32") chmodSync(path, 0o755);
+}
+
+/**
+ * The environment a checked-or-warmed Pi runs in: its throwaway home, the Node that runs it, and
+ * on Windows the two variables the OS itself needs (`SYSTEMROOT` for Node's crypto provider).
+ */
+function childEnvironment(home, nodeBin) {
+  const env = { HOME: home, PATH: dirname(nodeBin) };
+  if (process.platform === "win32") {
+    env.USERPROFILE = home;
+    for (const name of ["SYSTEMROOT", "SYSTEMDRIVE"]) if (process.env[name]) env[name] = process.env[name];
+  }
+  return env;
+}
+
+/**
+ * Load Pi's runtime module once, in the installed tree, so the first `status` after an install
+ * is not the first read of 336 files. On Windows that first read took 21.8 s here against 0.8 s
+ * warm (the files are new, so the antivirus scans each on first open), longer than the 20 s the
+ * provider status allows; the install, which shows progress and already waits on a download, is
+ * where that cost belongs. Best effort: a warm-up that fails changes nothing about the install.
+ */
+function warmUpPi(packageDir, home, nodeBin) {
+  try {
+    execFileSync(nodeBin, ["--input-type=module", "-e", "await import(process.argv[1]); process.exit(0);", pathToFileURL(join(packageDir, "dist", "index.js")).href], {
+      cwd: home,
+      env: childEnvironment(home, nodeBin),
+      timeout: 120_000,
+      stdio: "ignore",
+    });
+  } catch {
+    // Nothing to do: the first status will simply be slower.
+  }
+}
+
 /** Unpack a verified npm tarball into `target`, which must not exist yet. */
 function unpack(tarball, target, scratch) {
-  const listing = execFileSync("/usr/bin/tar", ["-tzf", tarball], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
+  const listing = execFileSync(systemTar(), ["-tzf", tarball], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
     .split("\n").filter(Boolean);
   const tops = new Set(listing.map((name) => name.replace(/^\.\//, "").split("/")[0]));
   if (tops.size !== 1 || listing.some((name) => name.startsWith("/") || name.split("/").includes(".."))) {
@@ -160,7 +207,7 @@ function unpack(tarball, target, scratch) {
   }
   rmSync(scratch, { recursive: true, force: true });
   mkdirSync(scratch, { recursive: true });
-  execFileSync("/usr/bin/tar", ["-xzf", tarball, "-C", scratch]);
+  execFileSync(systemTar(), ["-xzf", tarball, "-C", scratch]);
   refuseLinks(scratch);
   mkdirSync(dirname(target), { recursive: true });
   if (existsSync(target)) throw new PiInstallError("unsafe_package", `${target} was laid out twice`);
@@ -319,9 +366,10 @@ export async function installPi({
   checkVersion = (bin, home) => execFileSync(nodeBin, [bin, "--version"], {
     encoding: "utf8",
     cwd: home,
-    env: { HOME: home, PATH: dirname(nodeBin) },
+    env: childEnvironment(home, nodeBin),
     timeout: 60_000,
   }).trim(),
+  warmUp = (packageDir, home) => warmUpPi(packageDir, home, nodeBin),
   progress = () => {},
   log = () => {},
 }) {
@@ -339,9 +387,11 @@ export async function installPi({
     finish: (staging) => {
       const bin = join(staging, "node_modules", ...PI_PACKAGE.split("/"), ...pi.bin.pi.split("/"));
       if (!resolve(bin).startsWith(staging + sep) || !existsSync(bin)) throw new PiInstallError("unsafe_package", "Pi's command is not inside its package");
-      chmodSync(bin, 0o755);
+      markExecutable(bin);
       const reported = checkWithThrowawayHome(staging, "Pi", (home) => checkVersion(bin, home));
       if (reported !== pi.version) throw new PiInstallError("check_failed", `the installed Pi reports ${reported}, not ${pi.version}`);
+      log("warming up Pi: its runtime module read once, in place");
+      checkWithThrowawayHome(staging, "Pi", (home) => warmUp(join(staging, "node_modules", ...PI_PACKAGE.split("/")), home));
       return { package: PI_PACKAGE, version: pi.version, lockfileSha256: lockSha256, bin: pi.bin.pi };
     },
     fetchBytes,
@@ -398,9 +448,10 @@ export async function installAnthropic({
       const provider = join(staging, "provider");
       cpSync(source, provider, { recursive: true });
       if (treeSha256(provider) !== sourceSha256) throw new PiInstallError("source_mismatch", "the provider's source changed while it was copied");
-      const bin = join(staging, "node_modules", ...binaryPackage.split("/"), "claude");
+      // The SDK ships `claude` as a native binary: `claude.exe` in its win32 packages.
+      const bin = join(staging, "node_modules", ...binaryPackage.split("/"), process.platform === "win32" ? "claude.exe" : "claude");
       if (!existsSync(bin)) throw new PiInstallError("unsafe_package", `${binaryPackage} holds no claude command`);
-      chmodSync(bin, 0o755);
+      markExecutable(bin);
       const reported = checkWithThrowawayHome(staging, "Claude Code", (home) => checkVersion(bin, home));
       if (reported !== `${claudeCode} (Claude Code)`) {
         throw new PiInstallError("check_failed", `the installed Claude Code reports ${reported}, not ${claudeCode}`);

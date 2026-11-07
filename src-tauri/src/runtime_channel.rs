@@ -22,7 +22,7 @@ pub struct RuntimeChannelProfile {
     pub mirror_user: String,
     pub db_path: PathBuf,
     pub(crate) pi_bin: PathBuf,
-    node_bin: PathBuf,
+    pub(crate) node_bin: PathBuf,
     pi_runtime_directory: PathBuf,
     home: PathBuf,
     /// CR173: the app's own Anthropic provider's Pi extension, when it is installed.
@@ -208,6 +208,8 @@ pub(crate) fn runtime_search_directories(home: &Path) -> Vec<PathBuf> {
     ] {
         directories.extend(discover_versioned_runtime_directories(&root, suffix));
     }
+    directories.extend(crate::platform::user_tool_directories(home));
+    directories.extend(crate::platform::system_tool_directories());
     directories
 }
 
@@ -312,13 +314,11 @@ impl RuntimeChannelProfile {
     /// tree, a user or `uv`. Since slice 3b, Pi is the app's own install, run with the Node the
     /// app carries, whose folder leads `PATH` so Pi's `env node` finds it.
     pub fn active() -> Result<Self, String> {
-        let home = env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
-            "Could not resolve HOME for the Nautilus runtime channel.".to_string()
+        let home = crate::platform::home_directory().ok_or_else(|| {
+            "Could not resolve your home folder for the Nautilus runtime channel.".to_string()
         })?;
         let channel = RuntimeChannel::active();
-        let app_data_root = home
-            .join("Library/Application Support")
-            .join(channel.bundle_identifier());
+        let app_data_root = crate::platform::app_data_root(&home, channel.bundle_identifier());
         let marked = crate::mirror_home::load_home_binding(&app_data_root)?
             .ok_or_else(|| UNBOUND_0_3.to_string())?;
         let runtime_dir = crate::mirror_host_bridge::current_runtime_dir()?;
@@ -412,7 +412,7 @@ impl RuntimeChannelProfile {
                 "Runtime channel rejects unsupported program {program}."
             ));
         }
-        let mut command = Command::new(&self.pi_bin);
+        let mut command = crate::platform::pi_command(&self.pi_bin, &self.node_bin);
         self.apply_to_command(&mut command);
         Ok(command)
     }
@@ -542,6 +542,19 @@ mod tests {
         let older_index = directories.iter().position(|path| path == &older).unwrap();
         assert!(newer_index < older_index);
         assert!(directories.contains(&home.join(".volta/bin")));
+        // The OS's own tools come last, after everything the person installed (`platform`).
+        #[cfg(windows)]
+        {
+            let system32 = std::path::PathBuf::from(std::env::var("SystemRoot").unwrap()).join("System32");
+            assert_eq!(directories.last(), Some(&system32.join("WindowsPowerShell").join("v1.0")));
+            assert!(directories.contains(&system32));
+            // The person's tools before the OS's: the Mirror installer's bin, npm's global commands.
+            let mirror_bin = directories.iter().position(|path| path == &home.join(".mirror").join("bin")).unwrap();
+            assert!(mirror_bin < directories.iter().position(|path| path == &system32).unwrap());
+            assert!(directories.iter().any(|path| path.ends_with("npm")));
+        }
+        #[cfg(not(windows))]
+        assert_eq!(directories.last().map(|path| path.starts_with(&home)), Some(true));
         fs::remove_dir_all(home).unwrap();
     }
 
@@ -657,6 +670,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[test]
     fn diagnostic_contains_only_allowlisted_coordinates() {
         let profile = RuntimeChannelProfile::for_home(
@@ -722,6 +736,7 @@ mod tests {
         assert!(profile.runtime_command("uv").is_err());
     }
 
+    #[cfg(unix)]
     #[test]
     fn runs_pi_in_the_0_3_home_naming_only_that_home_to_mirror() {
         let profile = RuntimeChannelProfile::for_home(

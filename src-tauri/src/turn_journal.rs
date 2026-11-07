@@ -387,13 +387,9 @@ fn write_turn_journal(
         fs::remove_file(&staged).map_err(|_| "turn_journal_unavailable".to_string())?;
     }
     fs::write(&staged, bytes).map_err(|_| "turn_journal_unavailable".to_string())?;
-    fs::File::open(&staged)
-        .and_then(|file| file.sync_all())
-        .map_err(|_| "turn_journal_unavailable".to_string())?;
+    crate::platform::sync_file(&staged).map_err(|_| "turn_journal_unavailable".to_string())?;
     fs::rename(&staged, path).map_err(|_| "turn_journal_unavailable".to_string())?;
-    fs::File::open(parent)
-        .and_then(|directory| directory.sync_all())
-        .map_err(|_| "turn_journal_unavailable".to_string())?;
+    crate::platform::sync_directory(parent).map_err(|_| "turn_journal_unavailable".to_string())?;
     Ok(())
 }
 

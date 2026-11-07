@@ -224,7 +224,7 @@ mod tests {
         write(&agent.join("settings.json"), r#"{"packages":["npm:mirror-mind","npm:harmless"]}"#);
         let resolution = resolve_global_pi_extensions(&agent);
         assert_eq!(resolution.entries.len(), 1);
-        assert!(resolution.entries[0].to_string_lossy().ends_with("harmless/index.ts"));
+        assert!(resolution.entries[0].ends_with(Path::new("harmless").join("index.ts")));
         assert!(resolution.skipped.iter().any(|note| note.contains("npm:mirror-mind") && note.contains("refused")));
     }
 

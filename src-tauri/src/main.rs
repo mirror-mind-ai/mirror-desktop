@@ -1,3 +1,7 @@
+// Windows: a windowed program, not a console one; without this the release build brings a
+// terminal window up beside the app. Debug builds keep the console for their logs.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod agent_settings;
 mod anthropic_provider;
 mod journey_workspace;
@@ -14,6 +18,7 @@ mod pi_global_extensions;
 mod mirror_context;
 mod mirror_learning;
 mod openrouter_key;
+mod platform;
 mod pi_auth;
 mod pi_install;
 mod pi_process_registry;
@@ -2314,7 +2319,7 @@ fn journey_deletion_context(app: &AppHandle, journey_id: &str) -> Result<Journey
     let paths = journey_deletion::project_paths(&tree["roots"]);
     let folder = paths.iter().find(|(id, _)| id == &journey_id).map(|(_, path)| {
         let others: Vec<String> = paths.iter().filter(|(id, _)| id != &journey_id).map(|(_, path)| path.clone()).collect();
-        let home = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".to_string()));
+        let home = crate::platform::home_directory().unwrap_or_else(|| PathBuf::from("/"));
         let mut guarded = vec![state_dir.clone()];
         // The app's data folder, `<root>/homes/<home id>` above the state folder.
         if let Some(root) = state_dir.ancestors().nth(2) { guarded.push(root.to_path_buf()); }
@@ -3224,11 +3229,7 @@ fn inspect_file_attachments(journey_id: String, paths: Vec<String>) -> Result<Fi
 }
 
 fn current_user_home_directory() -> Result<PathBuf, String> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .ok_or_else(|| "Current-user home directory is unavailable.".to_string())
+    crate::platform::home_directory().ok_or_else(|| "Current-user home directory is unavailable.".to_string())
 }
 
 fn resolve_home_relative_file(path: &str, home_directory: &Path) -> Result<PathBuf, String> {
@@ -5591,7 +5592,7 @@ fn project_dedicated_user_text_and_envelope(value: &str) -> (String, String) {
 }
 
 fn validate_pi_session_file(app: &AppHandle, session_file: &str, pi_session_id: &str) -> Result<(), String> {
-    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
+    let home = crate::platform::home_directory().ok_or_else(|| "Your home folder is unavailable.".to_string())?;
     let app_data_root = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     validate_pi_session_file_at(
@@ -6433,14 +6434,10 @@ fn write_mirror_append_outbox(path: &Path, mut value: Value) -> Result<(), Strin
     }
     let staged = path.with_extension("json.tmp");
     fs::write(&staged, payload).map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
-    fs::File::open(&staged)
-        .and_then(|file| file.sync_all())
-        .map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
+    crate::platform::sync_file(&staged).map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
     fs::rename(&staged, path).map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
     if let Some(parent) = path.parent() {
-        fs::File::open(parent)
-            .and_then(|directory| directory.sync_all())
-            .map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
+        crate::platform::sync_directory(parent).map_err(|_| "mirror_append_outbox_unavailable".to_string())?;
     }
     Ok(())
 }
@@ -7854,7 +7851,7 @@ fn acknowledge_mirror_append_item(
 ///
 /// CR176: it runs in `workspace`, the Journey's folder, never in the home: Pi's tools act there.
 fn pi_turn_command(program: &str, args: Vec<String>, profile: &RuntimeChannelProfile, workspace: &Path) -> Command {
-    let mut command = if program == "pi" { Command::new(&profile.pi_bin) } else { Command::new(program) };
+    let mut command = if program == "pi" { crate::platform::pi_command(&profile.pi_bin, &profile.node_bin) } else { Command::new(program) };
     command.args(args);
     let mut command = isolate_pi_command(command, profile);
     command.current_dir(workspace);
@@ -9226,7 +9223,7 @@ fn default_pi_session_dir(cwd: &Path) -> Result<PathBuf, String> {
     let agent_dir = if let Some(agent_dir) = std::env::var_os("PI_CODING_AGENT_DIR") {
         expand_home_path(PathBuf::from(agent_dir))?
     } else {
-        let home = std::env::var_os("HOME")
+        let home = crate::platform::home_directory()
             .ok_or_else(|| "Could not resolve home directory for Pi sessions.".to_string())?;
         PathBuf::from(home).join(".pi").join("agent")
     };
@@ -9242,7 +9239,7 @@ fn default_pi_session_dir(cwd: &Path) -> Result<PathBuf, String> {
 fn expand_home_path(path: PathBuf) -> Result<PathBuf, String> {
     let value = path.to_string_lossy();
     if value == "~" || value.starts_with("~/") {
-        let home = std::env::var_os("HOME")
+        let home = crate::platform::home_directory()
             .ok_or_else(|| "Could not expand home directory for Pi sessions.".to_string())?;
         return Ok(if value == "~" {
             PathBuf::from(home)
@@ -9750,7 +9747,7 @@ fn write_durable_projection_at(path: &Path, payload: &[u8], staged_nonce: u64) -
         file.write_all(payload).map_err(|_| "dedicated_projection_unavailable".to_string())?;
         file.sync_all().map_err(|_| "dedicated_projection_unavailable".to_string())?;
         fs::rename(&staged, path).map_err(|_| "dedicated_projection_unavailable".to_string())?;
-        fs::File::open(parent).and_then(|directory| directory.sync_all())
+        crate::platform::sync_directory(parent)
             .map_err(|_| "dedicated_projection_unavailable".to_string())
     })();
     if result.is_err() && staged.is_file() { let _ = fs::remove_file(staged); }
@@ -10108,7 +10105,7 @@ fn journey_thread_operation_path(app: &AppHandle, journey_id: &str) -> Result<Pa
 }
 
 fn validate_run_authority(app: &AppHandle, authority: &RunAuthority) -> Result<(), String> {
-    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
+    let home = crate::platform::home_directory().ok_or_else(|| "Your home folder is unavailable.".to_string())?;
     let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     let runtime_channel = active_runtime_channel()?.channel;
@@ -10124,7 +10121,7 @@ fn validate_pre_admission_run_authority(
     app: &AppHandle,
     authority: &RunAuthority,
 ) -> Result<(), String> {
-    let home = PathBuf::from(std::env::var("HOME").map_err(|_| "HOME is unavailable.".to_string())?);
+    let home = crate::platform::home_directory().ok_or_else(|| "Your home folder is unavailable.".to_string())?;
     let app_data_dir = crate::home_state::home_state_dir(app)
         .map_err(|error| format!("Could not resolve app data directory: {}", error))?;
     let runtime_channel = active_runtime_channel()?.channel;
@@ -10417,6 +10414,7 @@ pub(crate) fn open_url(url: &str) -> Result<(), String> {
     let mut command = {
         let mut command = Command::new("rundll32");
         command.args(["url.dll,FileProtocolHandler", url]);
+        crate::platform::without_console(&mut command);
         command
     };
 
@@ -10465,7 +10463,9 @@ fn reveal_path(path: &Path) -> Result<(), String> {
     let metadata = path.metadata()
         .map_err(|_| "Could not inspect the selected Journey artifact.".to_string())?;
     let specification = native_reveal_command(std::env::consts::OS, path, metadata.is_dir())?;
-    Command::new(&specification.program)
+    let mut command = Command::new(&specification.program);
+    crate::platform::without_console(&mut command);
+    command
         .args(&specification.args)
         .spawn()
         .map(|_| ())
@@ -10491,6 +10491,7 @@ fn open_path(path: &PathBuf) -> Result<(), String> {
     let mut command = {
         let mut command = Command::new("cmd");
         command.args(["/C", "start", "", &path.to_string_lossy()]);
+        crate::platform::without_console(&mut command);
         command
     };
 
@@ -10622,6 +10623,16 @@ fn main() {
         return;
     }
     tauri::Builder::default()
+        // First, so a second launch is answered before anything else is set up: the running app
+        // comes to the front, the newcomer exits. macOS does this itself; Windows opened a second
+        // window on the same home (battery U19), two hosts on one database.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_process::init())
         .menu(desktop_menu_with_owned_quit)
@@ -10791,6 +10802,7 @@ fn main() {
                 // are messages to the event loop and nothing processes them until it is running.
                 // The window is configured invisible, so this happens with nothing on screen.
                 if let Some(window) = app_handle.get_webview_window("main") {
+                    crate::platform::apply_window_big_icon(&window);
                     if let Ok(app_data_root) = app_handle.path().app_data_dir() {
                         apply_startup_window_geometry(&window, &app_data_root);
                     }
@@ -15440,6 +15452,7 @@ mod cr163_mirror_append_bound_tests {
     //! the real append path with a real child process standing in for `uv run`.
 
     use super::*;
+    #[cfg(unix)]
     use std::time::Instant;
 
     const USER_WORDS: &str = "cr163 private user words";
@@ -15458,6 +15471,7 @@ mod cr163_mirror_append_bound_tests {
         })
     }
 
+    #[cfg(unix)]
     fn receipt() -> String {
         json!({
             "schemaVersion":"1.0.0", "status":"accepted", "insertedCount":2, "existingCount":0,
@@ -15485,6 +15499,7 @@ mod cr163_mirror_append_bound_tests {
     /// CV-010.DS-005 slice 2d-2: the append now reaches Mirror through the host supervisor. A fake
     /// host in `sh` stands in for the real one, as `uv run` was stood in for before: it answers
     /// the handshake, keeps the request it was sent in `request.json`, then runs `body` with `$id`.
+    #[cfg(unix)]
     fn fake_host(directory: &Path, body: &str, deadline: Duration) -> mirror_host::MirrorHost {
         let script = directory.join("fake-host.sh");
         fs::write(&script, format!(
@@ -15502,6 +15517,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         mirror_host::MirrorHost::new(config)
     }
 
+    #[cfg(unix)]
     fn answer(result: &str) -> String {
         format!("printf '{{\"id\":%s,\"ok\":true,\"result\":%s}}\\n' \"$id\" '{result}'")
     }
@@ -15520,6 +15536,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert_eq!(MIRROR_APPEND_STDERR_TAIL_BYTES, 4_096);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_hung_append_returns_timed_out_and_records_its_stderr_but_never_the_messages() {
         let directory = scratch("hung");
@@ -15546,6 +15563,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert!(!raw.contains(USER_WORDS) && !raw.contains(ASSISTANT_WORDS), "message content leaked: {raw}");
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_successful_append_is_unchanged_and_records_nothing() {
         let directory = scratch("ok");
@@ -15556,6 +15574,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert!(!failures.exists(), "success must not write a failure record");
     }
 
+    #[cfg(unix)]
     #[test]
     fn the_host_receives_the_same_request_as_the_child_did() {
         let directory = scratch("request");
@@ -15571,6 +15590,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         }));
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_rejection_keeps_its_named_reason_and_is_recorded() {
         let directory = scratch("rejected");
@@ -15585,6 +15605,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert_eq!(records[0]["timedOut"], false);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_rejection_reason_outside_the_safe_alphabet_is_named_rejected() {
         let directory = scratch("unsafe-reason");
@@ -15594,6 +15615,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert_eq!(append_through(&mut host, &failures_at(&directory)).unwrap_err(), "mirror_append_rejected");
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_receipt_in_the_wrong_shape_is_refused_as_invalid() {
         let directory = scratch("wrong-shape");
@@ -15601,6 +15623,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert_eq!(append_through(&mut host, &failures_at(&directory)).unwrap_err(), "mirror_append_invalid_receipt");
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_home_the_host_refuses_is_named_unavailable_and_recorded() {
         let directory = scratch("home-refused");
@@ -15659,6 +15682,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         assert!(stored.ends_with("END"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_failure_record_that_cannot_be_written_does_not_change_the_result() {
         let directory = scratch("unwritable");
@@ -15671,6 +15695,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
     /// The defect was never the child alone; it was the wait holding the guard every native
     /// command shares. The guard itself is untouched (CR149): what must hold is that a hung
     /// append gives it back within the bound, through the host as it did through the child.
+    #[cfg(unix)]
     #[test]
     fn a_hung_append_releases_the_serialisation_guard_within_the_bound() {
         let directory = scratch("guard");
@@ -15813,6 +15838,7 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
 
     /// CV-010.DS-005 slice 2e: every Pi turn and compaction is built by one constructor, in the
     /// 0.3 home, with no Mirror variable, whatever the invocation mode.
+    #[cfg(unix)]
     #[test]
     fn every_pi_turn_is_built_isolated_in_the_0_3_home() {
         let source = production_source();
@@ -15828,7 +15854,15 @@ id=$(printf '%s' \"$line\" | /usr/bin/sed -E 's/^\\{{\"id\":([0-9]+).*/\\1/')\n\
         // Slice 3b: `pi` is the profile's Pi, the app's own; safe test mode's `cat` stays itself.
         let workspace = directory.join("projects/book");
         fs::create_dir_all(&workspace).unwrap();
-        assert_eq!(pi_turn_command("pi", Vec::new(), &profile, &workspace).get_program(), profile.pi_bin.as_os_str());
+        let pi = pi_turn_command("pi", Vec::new(), &profile, &workspace);
+        #[cfg(not(windows))]
+        assert_eq!(pi.get_program(), profile.pi_bin.as_os_str());
+        // On Windows the carried Node runs cli.js (`platform::pi_command`).
+        #[cfg(windows)]
+        {
+            assert_eq!(pi.get_program(), profile.node_bin.as_os_str());
+            assert_eq!(pi.get_args().next(), Some(profile.pi_bin.as_os_str()));
+        }
         assert_eq!(pi_turn_command("cat", Vec::new(), &profile, &workspace).get_program(), "cat");
         fs::create_dir_all(&profile.mirror_home).unwrap();
         // CR176: the process runs in the Journey's folder, never in the home.

@@ -26,6 +26,9 @@ rfd = "0.15"
 tauri-plugin-clipboard-manager = "2.3.2"
 tauri-plugin-updater = "2.9.0"
 tauri-plugin-process = "2.3.0"
+# One running app per person: macOS keeps a second launch to one through LaunchServices; Windows
+# opens a second window on the same home unless the app itself declines (Windows battery U19).
+tauri-plugin-single-instance = "2"
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "system-proxy"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 
@@ -35,6 +38,11 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSString"] }
 # CV-010.DS-005 slice 3c-2: the OpenRouter key in the Keychain; already in the tree through rustls.
 security-framework = { version = "3.7", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+# The taskbar icon: tao sets a window's small icon only, and Windows shows the big one in the
+# taskbar and Alt-Tab; already in the tree through tauri.
+windows-sys = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging", "Win32_System_LibraryLoader"] }
 
 [features]
 default = ["custom-protocol"]

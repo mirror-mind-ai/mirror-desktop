@@ -84,15 +84,12 @@ pub(crate) const RUNTIME_MISSING: &str = "Nautilus is missing its Mirror host ru
 /// Where the laid-out runtime is: the app's own `Resources/mirror-host` when it carries one,
 /// checked against its receipt; otherwise, for the Development channel only, the repository's.
 pub(crate) fn runtime_dir(channel: RuntimeChannel, resources: Option<&Path>, repository: &Path, arch: &str) -> Result<PathBuf, String> {
-    let platform = match arch {
-        "x86_64" => "darwin-x64",
-        "aarch64" => "darwin-arm64",
-        other => return Err(format!("No Mirror host runtime is pinned for {other}.")),
-    };
+    let platform = crate::platform::runtime_platform(arch)
+        .ok_or_else(|| format!("No Mirror host runtime is pinned for {} {arch}.", std::env::consts::OS))?;
     if let Some(directory) = resources.map(|resources| resources.join("mirror-host")) {
         if directory.join("host.mjs").is_file() {
             check_bundled_runtime(&directory, platform)?;
-            return directory.canonicalize().map_err(|error| format!("Could not resolve {}: {error}", directory.display()));
+            return crate::platform::canonicalize(&directory).map_err(|error| format!("Could not resolve {}: {error}", directory.display()));
         }
     }
     if channel != RuntimeChannel::Development {
@@ -102,7 +99,7 @@ pub(crate) fn runtime_dir(channel: RuntimeChannel, resources: Option<&Path>, rep
     if !directory.join("host.mjs").is_file() {
         return Err(format!("No Mirror host runtime at {}. Run: node scripts/mirror_host_pin.mjs materialize", directory.display()));
     }
-    directory.canonicalize().map_err(|error| format!("Could not resolve {}: {error}", directory.display()))
+    crate::platform::canonicalize(&directory).map_err(|error| format!("Could not resolve {}: {error}", directory.display()))
 }
 
 /// The runtime this process runs with. The resources folder is the one Tauri resolves on macOS,
@@ -111,7 +108,7 @@ pub(crate) fn runtime_dir(channel: RuntimeChannel, resources: Option<&Path>, rep
 pub(crate) fn current_runtime_dir() -> Result<PathBuf, String> {
     let resources = std::env::current_exe()
         .ok()
-        .and_then(|exe| exe.parent().and_then(Path::parent).map(|contents| contents.join("Resources")));
+        .and_then(|exe| crate::platform::bundled_resources_dir(&exe));
     runtime_dir(
         RuntimeChannel::active(),
         resources.as_deref(),
@@ -129,11 +126,11 @@ fn check_bundled_runtime(directory: &Path, platform: &str) -> Result<(), String>
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .ok_or_else(|| RUNTIME_MISSING.to_string())?;
     if receipt.get("platform").and_then(Value::as_str) != Some(platform) {
-        return Err(format!("This Nautilus carries a Mirror host runtime for another Mac ({platform} needed). Reinstall the app."));
+        return Err(format!("This Nautilus carries a Mirror host runtime for another machine ({platform} needed). Reinstall the app."));
     }
     let host = std::fs::read(directory.join("host.mjs")).map_err(|_| RUNTIME_MISSING.to_string())?;
     let recorded = receipt.pointer("/host/sha256").and_then(Value::as_str);
-    if recorded != Some(format!("{:x}", Sha256::digest(&host)).as_str()) || !directory.join("node").join("bin").join("node").is_file() {
+    if recorded != Some(format!("{:x}", Sha256::digest(&host)).as_str()) || !crate::platform::runtime_node_bin(directory).is_file() {
         return Err(RUNTIME_MISSING.to_string());
     }
     Ok(())
@@ -576,14 +573,24 @@ mod tests {
         let directory = std::env::temp_dir().join(format!("mirror-host-bridge-{label}-{}-{:?}", std::process::id(), std::thread::current().id()));
         let _ = std::fs::remove_dir_all(&directory);
         std::fs::create_dir_all(&directory).unwrap();
-        directory.canonicalize().unwrap()
+        crate::platform::canonicalize(&directory).unwrap()
+    }
+
+    /// The host's own runtime platform, and one that is not it: the bridge's rule is about
+    /// "this machine" and "another machine", whatever this machine is.
+    fn this_platform() -> &'static str {
+        crate::platform::runtime_platform("x86_64").unwrap()
+    }
+    fn other_platform() -> &'static str {
+        if this_platform() == "darwin-arm64" { "darwin-x64" } else { "darwin-arm64" }
     }
 
     fn lay_out_bundled(resources: &Path, platform: &str, host: &str) -> PathBuf {
         use sha2::{Digest, Sha256};
         let directory = resources.join("mirror-host");
-        std::fs::create_dir_all(directory.join("node/bin")).unwrap();
-        std::fs::write(directory.join("node/bin/node"), "").unwrap();
+        let node = crate::platform::runtime_node_bin(&directory);
+        std::fs::create_dir_all(node.parent().unwrap()).unwrap();
+        std::fs::write(&node, "").unwrap();
         std::fs::write(directory.join("host.mjs"), host).unwrap();
         let receipt = json!({"platform": platform, "host": {"sha256": format!("{:x}", Sha256::digest(host.as_bytes()))}});
         std::fs::write(directory.join("pin-receipt.json"), receipt.to_string()).unwrap();
@@ -593,7 +600,7 @@ mod tests {
     #[test]
     fn a_packaged_app_runs_the_runtime_it_carries_on_every_channel() {
         let base = scratch_dir("bundled");
-        let bundled = lay_out_bundled(&base.join("Resources"), "darwin-x64", "// host\n");
+        let bundled = lay_out_bundled(&base.join("Resources"), this_platform(), "// host\n");
         let repository = base.join("repository");
         for channel in [RuntimeChannel::User, RuntimeChannel::Evaluation, RuntimeChannel::Development] {
             assert_eq!(runtime_dir(channel, Some(&base.join("Resources")), &repository, "x86_64").unwrap(), bundled);
@@ -606,18 +613,18 @@ mod tests {
         let base = scratch_dir("damaged");
         let resources = base.join("Resources");
         let repository = base.join("repository");
-        std::fs::create_dir_all(repository.join(".mirror-host/runtime/darwin-x64")).unwrap();
-        std::fs::write(repository.join(".mirror-host/runtime/darwin-x64/host.mjs"), "").unwrap();
-        let bundled = lay_out_bundled(&resources, "darwin-arm64", "// host\n");
+        std::fs::create_dir_all(repository.join(format!(".mirror-host/runtime/{}", this_platform()))).unwrap();
+        std::fs::write(repository.join(format!(".mirror-host/runtime/{}/host.mjs", this_platform())), "").unwrap();
+        let bundled = lay_out_bundled(&resources, other_platform(), "// host\n");
         let foreign = runtime_dir(RuntimeChannel::Development, Some(&resources), &repository, "x86_64").unwrap_err();
-        assert!(foreign.contains("another Mac"), "{foreign}");
-        lay_out_bundled(&resources, "darwin-x64", "// host\n");
+        assert!(foreign.contains("another machine"), "{foreign}");
+        lay_out_bundled(&resources, this_platform(), "// host\n");
         std::fs::write(bundled.join("host.mjs"), "// edited\n").unwrap();
         assert_eq!(runtime_dir(RuntimeChannel::User, Some(&resources), &repository, "x86_64").unwrap_err(), RUNTIME_MISSING);
-        lay_out_bundled(&resources, "darwin-x64", "// host\n");
-        std::fs::remove_file(bundled.join("node/bin/node")).unwrap();
+        lay_out_bundled(&resources, this_platform(), "// host\n");
+        std::fs::remove_file(crate::platform::runtime_node_bin(&bundled)).unwrap();
         assert_eq!(runtime_dir(RuntimeChannel::User, Some(&resources), &repository, "x86_64").unwrap_err(), RUNTIME_MISSING);
-        lay_out_bundled(&resources, "darwin-x64", "// host\n");
+        lay_out_bundled(&resources, this_platform(), "// host\n");
         std::fs::remove_file(bundled.join("pin-receipt.json")).unwrap();
         assert_eq!(runtime_dir(RuntimeChannel::Development, Some(&resources), &repository, "x86_64").unwrap_err(), RUNTIME_MISSING);
         let _ = std::fs::remove_dir_all(&base);
@@ -627,16 +634,19 @@ mod tests {
     fn without_a_bundled_runtime_only_the_development_channel_falls_back_to_the_repository() {
         let base = scratch_dir("fallback");
         let repository = base.join("repository");
-        std::fs::create_dir_all(repository.join(".mirror-host/runtime/darwin-x64")).unwrap();
-        std::fs::write(repository.join(".mirror-host/runtime/darwin-x64/host.mjs"), "").unwrap();
+        std::fs::create_dir_all(repository.join(format!(".mirror-host/runtime/{}", this_platform()))).unwrap();
+        std::fs::write(repository.join(format!(".mirror-host/runtime/{}/host.mjs", this_platform())), "").unwrap();
         let empty_resources = base.join("Resources");
         std::fs::create_dir_all(&empty_resources).unwrap();
         for resources in [None, Some(empty_resources.as_path())] {
             assert_eq!(
                 runtime_dir(RuntimeChannel::Development, resources, &repository, "x86_64").unwrap(),
-                repository.join(".mirror-host/runtime/darwin-x64")
+                repository.join(format!(".mirror-host/runtime/{}", this_platform()))
             );
-            assert!(runtime_dir(RuntimeChannel::Development, resources, &repository, "aarch64").unwrap_err().contains("materialize"));
+            // The other pinned architecture of this OS has no runtime laid out here, so the
+            // answer names the command; an architecture the pin does not know names itself.
+            let other_arch = runtime_dir(RuntimeChannel::Development, resources, &repository, "aarch64").unwrap_err();
+            assert!(other_arch.contains("materialize") || other_arch.contains("aarch64"), "{other_arch}");
             assert!(runtime_dir(RuntimeChannel::Development, resources, &repository, "riscv64").unwrap_err().contains("riscv64"));
             for channel in [RuntimeChannel::User, RuntimeChannel::Evaluation] {
                 assert_eq!(runtime_dir(channel, resources, &repository, "x86_64").unwrap_err(), RUNTIME_MISSING);
@@ -860,6 +870,7 @@ mod tests {
         assert!(rebind_response("j2", "conv-one-0001", &json!({"conversationId": "conv-one-0001", "journeyId": "j2"})).is_err());
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_created_home_is_named_for_its_user_inside_mirror_unless_another_folder_was_chosen() {
         let user_home = Path::new("/Users/ana");

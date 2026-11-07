@@ -31,7 +31,7 @@ function tarball(work, name, files, { top = "package", link, second } = {}) {
     writeFileSync(join(source, second, "extra.js"), "");
   }
   const file = join(work, `${name.replaceAll("/", "__")}.tgz`);
-  execFileSync("/usr/bin/tar", ["-czf", file, "-C", source, top, ...(second ? [second] : [])]);
+  execFileSync(process.platform === "win32" ? join(process.env.SystemRoot ?? "C:\Windows", "System32", "tar.exe") : "/usr/bin/tar", ["-czf", file, "-C", source, top, ...(second ? [second] : [])]);
   return readFileSync(file);
 }
 

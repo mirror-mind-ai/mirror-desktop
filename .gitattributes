@@ -1,0 +1,21 @@
+# Every text file is checked out with LF on every platform. Git for Windows
+# defaults to core.autocrlf=true, which rewrites the whole tree as CRLF on
+# checkout; the Rust tests then compare committed JSON fixtures byte for byte
+# against what the code writes with "\n", and fail on CRLF alone.
+* text=auto eol=lf
+
+# Binaries, never touched.
+*.png binary
+*.ico binary
+*.icns binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.tgz binary
+*.zip binary
+*.mp3 binary
+*.mp4 binary
+*.wav binary
+*.woff binary
+*.woff2 binary
